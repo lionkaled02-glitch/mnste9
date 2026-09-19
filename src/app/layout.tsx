@@ -20,8 +20,7 @@ export const metadata: Metadata = {
   description:
     "منصة عربية آمنة تجمع أصحاب الأعمال والمستقلين — محافظ رقمية، ضمان مالي (Escrow)، ودفع عبر الكريمي وPayPal.",
 };
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="ar"
