@@ -163,3 +163,24 @@ export async function releaseFunds(
       .returning({ id: transactions.id });
 
     /* 4) إضافة الصافي إلى رصيد المستقل */
+    await tx
+      .update(wallets)
+      .set({
+        balance: sql`${wallets.balance} + ${toNumeric(netAmount)}::numeric`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallets.userId, freelancerId));
+
+    /* 5) تحويل المشروع إلى completed */
+    await tx
+      .update(projects)
+      .set({ status: 'completed', updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+
+    return {
+      commission,
+      netAmount,
+      releaseTransactionId: releaseTx.id,
+    };
+  });
+}
