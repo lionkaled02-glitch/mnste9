@@ -1,0 +1,622 @@
+From 421939cb11789fc29ca406293e2a1d2fab00f20f Mon Sep 17 00:00:00 2001
+From: lionkaled02-glitch <321848092+lionkaled02-glitch@users.noreply.github.com>
+Date: Sat, 19 Sep 2026 03:43:08 +0000
+Subject: [PATCH] feat(stage-1): تهيئة بيئة التطوير والأساسات المشتركة
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+المرحلة الأولى من منصة mnste9 — بنية مشتركة جاهزة للمراحل القادمة:
+
+- src/lib/utils.ts: cn() لدمج أصناف Tailwind، وformatCurrency() بعملات
+  المنصة (YER/SAR/USD) مع Intl، وformatDate() للواجهة العربية،
+  وtoNumeric() للتحويل الآمن إلى صيغة NUMERIC(15,2) مع حراسة الحدود
+- src/lib/crypto.ts: encryptData()/decryptData() بتشفير AES-256-GCM
+  (IV عشوائي + Auth Tag + مغلّف بإصدار v1) وhashData() (SHA-256/512)
+  مع تحقق صارم من مفتاح KYC_ENCRYPTION_KEY (32 بايت hex)
+- بنية المجلدات: src/app/actions وsrc/app/api وsrc/lib/services
+  وsrc/components (مع .gitkeep موثّق)
+- تثبيت jose وzod وclsx وtailwind-merge (+ package-lock إضافي فقط)
+- tsconfig: مسار @/* أصبح ['./src/*', './*'] — إصلاح ضروري لأن
+  الخدمات تستورد @/db بينما الملفات في src/db (كان tsc يفشل قبله،
+  والمسار الجديد يخدم الجذر وsrc معاً)
+- .env.example: إزالة رابط Neon الحقيقي وكلمة المرور التي كانت
+  مُلتزَمة في الملف (يجب تدوير كلمة مرور Neon) وإضافة
+  NEXTAUTH_SECRET وNEXT_PUBLIC_APP_URL وKYC_ENCRYPTION_KEY وNODE_ENV
+  كقيم فارغة مع أوامر التوليد
+- ⚠️ إكمال نهايتي ملفي الخدمات المالية: كانا مقتطعين syntax-error
+  في وسط جملة عند 3c63b37 (نهاية processKuraimiApproval وreleaseFunds)
+  — أُضيفت أسطر الإغلاق الميكانيكية فقط حسب الخطوات الموثقة في
+  docstrings وأنماط الملف نفسه، دون تغيير أي سطر موجود
+
+التحقق:
+- tsc --noEmit (strict): نجاح لكل المشروع بما فيه الخدمات
+- ESLint: صفر أخطاء (تحذير واحد موجود مسبقاً في escrow.service.ts)
+- 34/34 اختباراً تشغيلياً لـ utils وcrypto (roundtrip، كشف العبث،
+  أخطاء المفاتيح، تنسيقات العملات الثلاث، متجهات SHA-256 المعروفة)
+- next build: نجاح كامل (مع استبدال خطوط Google المحجوبة شبكياً في
+  بيئة الاختبار فقط)
+
+Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
+---
+ .env.example                            |  22 ++-
+ lib/services/escrow.service.ts          |  21 +++
+ lib/services/payment-gateway.service.ts |  10 ++
+ package-lock.json                       |  34 ++++-
+ package.json                            |  16 +-
+ src/app/actions/.gitkeep                |   1 +
+ src/app/api/.gitkeep                    |   3 +
+ src/components/.gitkeep                 |   1 +
+ src/lib/crypto.ts                       | 191 ++++++++++++++++++++++
+ src/lib/services/.gitkeep               |   2 +
+ src/lib/utils.ts                       | 143 ++++++++++++++++++
+ tsconfig.json                           |   2 +-
+ 12 files changed, 434 insertions(+), 12 deletions(-)
+ create mode 100644 src/app/actions/.gitkeep
+ create mode 100644 src/app/api/.gitkeep
+ create mode 100644 src/components/.gitkeep
+ create mode 100644 src/lib/crypto.ts
+ create mode 100644 src/lib/services/.gitkeep
+ create mode 100644 src/lib/utils.ts
+
+diff --git a/.env.example b/.env.example
+index 616d4cd..ed78540 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,6 +1,20 @@
+-# Database
+-DATABASE_URL=postgresql://neondb_owner:npg_Ps3Dbv7TORCq@ep-spring-mouse-za9nqqvm-pooler.c-2.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
++# ============================================================
++# mnste9 — نموذج متغيرات البيئة
++# انسخه إلى .env واملأ القيم الحقيقية:  cp .env.example .env
++# لا تضع أبداً قيماً حقيقية في هذا الملف — فهو متتبَّع في Git
++# ============================================================
+ 
+-# Application
++# قاعدة البيانات (PostgreSQL على Neon)
++# من لوحة Neon: Project → Connection string → Pooled connection
++DATABASE_URL=postgresql://USER:PASSWORD@ep-xxxx-pooler-REGION.aws.neon.tech/neondb?sslmode=require
++
++# التطبيق
+ NODE_ENV=development
+-NEXT_PUBLIC_APP_URL=http://localhost:3000
+\ No newline at end of file
++NEXT_PUBLIC_APP_URL=http://localhost:3000
++
++# الأمان — قيم فارغة عمداً؛ ولِّدها محلياً ولا تشاركها:
++#   NEXTAUTH_SECRET (32 بايت):   openssl rand -base64 32
++NEXTAUTH_SECRET=
++#   KYC_ENCRYPTION_KEY (32 بايت بصيغة hex = 64 حرفاً — مفتاح AES-256):
++#   openssl rand -hex 32
++KYC_ENCRYPTION_KEY=
+diff --git a/lib/services/escrow.service.ts b/lib/services/escrow.service.ts
+index b480c03..c8e76f7 100644
+--- a/lib/services/escrow.service.ts
++++ b/lib/services/escrow.service.ts
+@@ -163,3 +163,24 @@ export async function releaseFunds(
+       .returning({ id: transactions.id });
+ 
+     /* 4) إضافة الصافي إلى رصيد المستقل */
++    await tx
++      .update(wallets)
++      .set({
++        balance: sql`${wallets.balance} + ${toNumeric(netAmount)}::numeric`,
++        updatedAt: new Date(),
++      })
++      .where(eq(wallets.userId, freelancerId));
++
++    /* 5) تحويل المشروع إلى completed */
++    await tx
++      .update(projects)
++      .set({ status: 'completed', updatedAt: new Date() })
++      .where(eq(projects.id, projectId));
++
++    return {
++      commission,
++      netAmount,
++      releaseTransactionId: releaseTx.id,
++    };
++  });
++}
+diff --git a/lib/services/payment-gateway.service.ts b/lib/services/payment-gateway.service.ts
+index 09ce148..64e74b0 100644
+--- a/lib/services/payment-gateway.service.ts
++++ b/lib/services/payment-gateway.service.ts
+@@ -185,3 +185,13 @@ export async function processKuraimiApproval(
+     /* 3) إضافة المبلغ إلى الرصيد المتاح */
+     const amount = toNumber(record.amount);
+     await tx
++      .update(wallets)
++      .set({
++        balance: sql`${wallets.balance} + ${toNumeric(amount)}::numeric`,
++        updatedAt: new Date(),
++      })
++      .where(eq(wallets.userId, record.userId));
++
++    return { success: true };
++  });
++}
+diff --git a/package-lock.json b/package-lock.json
+index 0621398..b5b599d 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -9,13 +9,17 @@
+       "version": "0.1.0",
+       "dependencies": {
+         "bcrypt": "^6.0.0",
++        "clsx": "^2.1.1",
+         "dotenv": "^18.0.0",
+         "drizzle-orm": "^0.45.2",
+         "express-session": "^1.19.0",
++        "jose": "^6.2.12",
+         "next": "16.3.5",
+         "pg": "^8.23.0",
+         "react": "19.2.8",
+-        "react-dom": "19.2.8"
++        "react-dom": "19.2.8",
++        "tailwind-merge": "^3.7.0",
++        "zod": "^4.6.5"
+       },
+       "devDependencies": {
+         "@tailwindcss/postcss": "^4",
+@@ -8948,6 +8952,34 @@
+       "peerDependencies": {
+         "zod": "^3.25.0 || ^4.0.0"
+       }
++    },
++    "node_modules/clsx": {
++      "version": "2.1.1",
++      "resolved": "https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz",
++      "integrity": "sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=6"
++      }
++    },
++    "node_modules/jose": {
++      "version": "6.2.12",
++      "resolved": "https://registry.npmjs.org/jose/-/jose-6.2.12.tgz",
++      "integrity": "sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==",
++      "license": "MIT",
++      "funding": {
++        "url": "https://github.com/sponsors/panva"
++      }
++    },
++    "node_modules/tailwind-merge": {
++      "version": "3.7.0",
++      "resolved": "https://registry.npmjs.org/tailwind-merge/-/tailwind-merge-3.7.0.tgz",
++      "integrity": "sha512-XPPUyAc+cvspz3lHTcR/QgPfW2A0lv/xQNIjX3HGhLR+Nq2lHaLq5MtTesHn8GUr3W3DguT2KT5x3NVgRtYwmA==",
++      "license": "MIT",
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/sponsors/dcastil"
++      }
+     }
+   }
+ }
+diff --git a/package.json b/package.json
+index 473e38b..9baee8e 100644
+--- a/package.json
++++ b/package.json
+@@ -6,21 +6,25 @@
+     "dev": "next dev",
+     "build": "next build",
+     "start": "next start",
+-"lint": "eslint",
+-"db:generate": "drizzle-kit generate",
+-"db:migrate": "drizzle-kit migrate",
+-"db:push": "drizzle-kit push",
+-"db:studio": "drizzle-kit studio"
++    "lint": "eslint",
++    "db:generate": "drizzle-kit generate",
++    "db:migrate": "drizzle-kit migrate",
++    "db:push": "drizzle-kit push",
++    "db:studio": "drizzle-kit studio"
+   },
+   "dependencies": {
+     "bcrypt": "^6.0.0",
++    "clsx": "^2.1.1",
+     "dotenv": "^18.0.0",
+     "drizzle-orm": "^0.45.2",
+     "express-session": "^1.19.0",
++    "jose": "^6.2.12",
+     "next": "16.3.5",
+     "pg": "^8.23.0",
+     "react": "19.2.8",
+-    "react-dom": "19.2.8"
++    "react-dom": "19.2.8",
++    "tailwind-merge": "^3.7.0",
++    "zod": "^4.6.5"
+   },
+   "devDependencies": {
+     "@tailwindcss/postcss": "^4",
+diff --git a/src/app/actions/.gitkeep b/src/app/actions/.gitkeep
+new file mode 100644
+index 0000000..ccca2bb
+--- /dev/null
++++ b/src/app/actions/.gitkeep
+@@ -0,0 +1 @@
++# Server Actions — إجراءات الخادم للنماذج والعمليات (تُملأ في المرحلة القادمة)
+diff --git a/src/app/api/.gitkeep b/src/app/api/.gitkeep
+new file mode 100644
+index 0000000..b14d13b
+--- /dev/null
++++ b/src/app/api/.gitkeep
+@@ -0,0 +1,3 @@
++# Route Handlers — نقاط API (مثل api/auth و api/webhooks/paypal — مرحلة قادمة)
++# ملاحظة: طالما يوجد مجلد app/ في جذر المشروع فإن Next.js يعطيه الأولوية
++# على src/app — انقل صفحات app/ الجذرية إلى هنا قبل أول Route Handler فعلي.
+diff --git a/src/components/.gitkeep b/src/components/.gitkeep
+new file mode 100644
+index 0000000..5694efd
+--- /dev/null
++++ b/src/components/.gitkeep
+@@ -0,0 +1 @@
++# مكونات واجهة المستخدم المشتركة (React Components — مرحلة قادمة)
+diff --git a/src/lib/crypto.ts b/src/lib/crypto.ts
+new file mode 100644
+index 0000000..83d115a
+--- /dev/null
++++ b/src/lib/crypto.ts
+@@ -0,0 +1,191 @@
++/**
++ * ============================================================================
++ *  mnste9 — طبقة التشفير (Encryption Utilities)
++ * ============================================================================
++ *  - encryptData(): تشفير نص باستخدام AES-256-GCM (تشفير موثَّق Authenticated).
++ *  - decryptData(): فك التشفير مع كشف أي عبث بالمحتوى (وسم GCM).
++ *  - hashData():   بصمة SHA-256 للتحقق من السلامة (وليست لكلمات المرور).
++ *
++ *  الاستخدام الأساسي: تشفير مسارات ملفات KYC قبل تخزينها في
++ *  kyc_documents.encrypted_file_path (انظر المخطط src/db/schema.ts).
++ *
++ *  تصميم التشفير:
++ *   - الخوارزمية: AES-256-GCM (سريعة + موثَّقة — أي تعديل في النص المشفر
++ *     يُكشف عند فك التشفير عبر Auth Tag).
++ *   - المفتاح: KYC_ENCRYPTION_KEY من البيئة — 32 بايت بصيغة hex (64 حرفاً).
++ *   - IV عشوائي (12 بايت) لكل عملية تشفير — لا يُعاد استخدامه أبداً.
++ *   - صيغة المخرجات: "v1.<base64url(iv || tag || ciphertext>" — بادئة إصدار
++ *     تسمح بتغيير الخوارزمية مستقبلاً دون كسر البيانات القديمة.
++ *
++ *  تحذير أمني:
++ *   hashData() ليست لباس كلمات المرور — لتلك استخدم bcrypt (مثبت في
++ *   المشروع). كذلك لا تستخدم encryptData() لكلمات المرور.
++ * ============================================================================
++ */
++
++import {
++  createCipheriv,
++  createDecipheriv,
++  createHash,
++  randomBytes,
++} from 'node:crypto';
++
++/* ============================================================================
++ * ثوابت التنسيق
++ * ========================================================================== */
++
++/** بادئة الإصدار — تتيح تطوير الخوارزمية مستقبلاً */
++const ENVELOPE_VERSION = 'v1';
++
++/** طول المتجه الابتدائي (IV) بالبايت — القياسي لـ GCM */
++const IV_LENGTH = 12;
++
++/** طول وسم التوثيق (Auth Tag) بالبايت — القياسي لـ GCM */
++const TAG_LENGTH = 16;
++
++/* ============================================================================
++ * إدارة مفتاح التشفير
++ * ========================================================================== */
++
++/** المفتاح مخزَّن مؤقتاً بعد أول تحقق (لا يُعاد قراءة البيئة كل مرة) */
++let cachedKey: Buffer | null = null;
++
++/** قراءة مفتاح AES-256 والتحقق من صحته (32 بايت hex = 64 حرفاً) */
++function getEncryptionKey(): Buffer {
++  if (cachedKey) return cachedKey;
++
++  const raw = process.env.KYC_ENCRYPTION_KEY;
++
++  if (!raw) {
++    throw new Error(
++      'متغير البيئة KYC_ENCRYPTION_KEY غير معرّف — ولِّده بـ openssl rand -hex 32 ' +
++        'وضعه في ملف .env (32 بايت بصيغة hex = 64 حرفاً)',
++    );
++  }
++
++  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
++    throw new Error(
++      'KYC_ENCRYPTION_KEY غير صالح — يجب أن يكون 32 بايت بصيغة hex (64 حرفاً)، ' +
++        'مثال للتوليد: openssl rand -hex 32',
++    );
++  }
++
++  cachedKey = Buffer.from(raw, 'hex');
++  return cachedKey;
++}
++
++/* ============================================================================
++ * encryptData — تشفير نص (AES-256-GCM)
++ * ========================================================================== */
++
++/**
++ * تشفير نص حساس (مثل مسار ملف KYC) وإرجاع مغلّف واحد قابل للتخزين في عمود
++ * نصي.
++ *
++ * @param plaintext النص الواضح المراد تشفيره
++ * @returns نص بصيغة "v1.<base64url(iv || tag || ciphertext>"
++ *
++ * @example
++ *   const stored = encryptData('/vault/kyc/user-42-passport.pdf.enc');
++ *   // "v1.QOO8mR2x…"
++ */
++export function encryptData(plaintext: string): string {
++  if (typeof plaintext !== 'string' || plaintext.length === 0) {
++    throw new Error('encryptData يتوقع نصاً غير فارغ للتشفير');
++  }
++
++  const iv = randomBytes(IV_LENGTH);
++  const cipher = createCipheriv('aes-256-gcm', getEncryptionKey(), iv);
++
++  const ciphertext = Buffer.concat([
++    cipher.update(plaintext, 'utf8'),
++    cipher.final(),
++  ]);
++  const authTag = cipher.getAuthTag(); // 16 بايت
++
++  const envelope = Buffer.concat([iv, authTag, ciphertext]);
++  return `${ENVELOPE_VERSION}.${envelope.toString('base64url')}`;
++}
++
++/* ============================================================================
++ * decryptData — فك التشفير مع كشف العبث
++ * ========================================================================== */
++
++/**
++ * فك تشفير مخرجات encryptData.
++ *
++ * يرمي خطأً واضحاً في الحالات التالية:
++ *   - صيغة المغلّف غير صحيحة أو إصدار غير مدعوم.
++ *   - فشل وسم التوثيق (البيانات عُدِّلت أو المفتاح مختلف).
++ *
++ * @param payload النص المشفر بصيغة "v1.<base64url>"
++ * @returns النص الواضح الأصلي
++ *
++ * @example
++ *   const path = decryptData(stored); // "/vault/kyc/user-42-passport.pdf.enc"
++ */
++export function decryptData(payload: string): string {
++  if (typeof payload !== 'string' || payload.length === 0) {
++    throw new Error('decryptData يتوقع نصاً غير فارغ لفك التشفير');
++  }
++
++  const separatorIndex = payload.indexOf('.');
++  if (separatorIndex === -1) {
++    throw new Error('صيغة البيانات المشفرة غير صالحة (لا توجد بادئة إصدار)');
++  }
++
++  const version = payload.slice(0, separatorIndex);
++  const encoded = payload.slice(separatorIndex + 1);
++
++  if (version !== ENVELOPE_VERSION) {
++    throw new Error(`إصدار التشفير غير مدعوم: ${version}`);
++  }
++
++  const envelope = Buffer.from(encoded, 'base64url');
++  if (envelope.length <= IV_LENGTH + TAG_LENGTH) {
++    throw new Error('البيانات المشفرة مبتورة أو تالفة');
++  }
++
++  const iv = envelope.subarray(0, IV_LENGTH);
++  const authTag = envelope.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
++  const ciphertext = envelope.subarray(IV_LENGTH + TAG_LENGTH);
++
++  try {
++    const decipher = createDecipheriv('aes-256-gcm', getEncryptionKey(), iv);
++    decipher.setAuthTag(authTag);
++
++    return Buffer.concat([
++      decipher.update(ciphertext),
++      decipher.final(),
++    ]).toString('utf8');
++  } catch {
++    throw new Error(
++      'فشل فك التشفير — البيانات معدَّلة أو KYC_ENCRYPTION_KEY مختلف عن مفتاح التشفير',
++    );
++  }
++}
++
++/* ============================================================================
++ * hashData — بصمة SHA-256 للسلامة
++ * ========================================================================== */
++
++/**
++ * حساب بصمة (hash) لنص — للاستخدام في التحقق من سلامة البيانات مثل بصمة
++ * ملفات KYC قبل/بعد التخزين.
++ *
++ * ⚠️ ليست دالة تجزئة لكلمات المرور — لتلك استخدم bcrypt حصراً.
++ *
++ * @param data النص المطلوب تجزئته
++ * @param algorithm خوارزمية التجزئة (الافتراضي sha256)
++ * @returns البصمة بصيغة hex
++ *
++ * @example
++ *   const fingerprint = hashData(fileContents); // "9f86d081884c7d65…"
++ */
++export function hashData(data: string, algorithm: 'sha256' | 'sha512' = 'sha256'): string {
++  if (typeof data !== 'string') {
++    throw new Error('hashData يتوقع نصاً');
++  }
++
++  return createHash(algorithm).update(data, 'utf8').digest('hex');
++}
+diff --git a/src/lib/services/.gitkeep b/src/lib/services/.gitkeep
+new file mode 100644
+index 0000000..7fb24f9
+--- /dev/null
++++ b/src/lib/services/.gitkeep
+@@ -0,0 +1,2 @@
++# خدمات المنصة — الخدمات المالية الحالية في lib/services/ (جذر المشروع)
++# والخدمات الجديدة تُضاف هنا (src/lib/services/)
+diff --git a/src/lib/utils.ts b/src/lib/utils.ts
+new file mode 100644
+index 0000000..f196f09
+--- /dev/null
++++ b/src/lib/utils.ts
+@@ -0,0 +1,143 @@
++/**
++ * ============================================================================
++ *  mnste9 — أدوات مساعدة عامة (Utilities)
++ * ============================================================================
++ *  - cn():             دمج أصناف Tailwind مع حل التعارضات.
++ *  - formatCurrency(): تنسيق المبالغ بعملات المنصة (ريال يمني/سعودي/دولار).
++ *  - formatDate():     تنسيق التواريخ للواجهة العربية.
++ *  - toNumeric():      تحويل آمن إلى نص NUMERIC(15,2) للاستخدام مع Drizzle.
++ *
++ *  ملاحظة مالية مهمة:
++ *   الأعمدة المالية في المخطط من نوع NUMERIC(15,2) ويعيدها Drizzle كنص (string)
++ *   عمداً لتجنب أخطاء الفاصلة العائمة. عند الحاجة لحسابات مالية دقيقة استخدم
++ *   الحساب على المنازل الصغرى (integer cents) ثم حوّل النتيجة بـ toNumeric().
++ * ============================================================================
++ */
++
++import { clsx, type ClassValue } from 'clsx';
++import { twMerge } from 'tailwind-merge';
++
++/* ============================================================================
++ * cn — دمج أصناف CSS مع أولوية Tailwind
++ * ========================================================================== */
++
++/** دمج أصناف شرطية وحل تعارضات Tailwind (الأخير يفوز) */
++export function cn(...inputs: ClassValue[]): string {
++  return twMerge(clsx(inputs));
++}
++
++/* ============================================================================
++ * formatCurrency — تنسيق المبالغ المالية
++ * ========================================================================== */
++
++/** العملات المدعومة في المنصة */
++export type SupportedCurrency = 'YER' | 'SAR' | 'USD';
++
++/** اللغة الافتراضية لكل عملة */
++const CURRENCY_DEFAULT_LOCALE: Record<SupportedCurrency, string> = {
++  YER: 'ar-YE',
++  SAR: 'ar-SA',
++  USD: 'en-US',
++};
++
++/**
++ * تنسيق مبلغ مالي بعملة المنصة.
++ *
++ * @param amount    المبلغ (رقم أو نص NUMERIC كما يعيده Drizzle — مثل "1250.50")
++ * @param currency  العملة: YER (افتراضي) | SAR | USD
++ * @param locale    إعدادات لغوية اختيارية (الافتراضي حسب العملة)
++ *
++ * @example
++ *   formatCurrency(1250.5)                    // "١٬٢٥٠٫٥٠ ر.ي."
++ *   formatCurrency('99.99', 'USD')            // "$99.99"
++ *   formatCurrency(150, 'SAR')                // "١٥٠٫٠٠ ر.س."
++ */
++export function formatCurrency(
++  amount: string | number,
++  currency: SupportedCurrency = 'YER',
++  locale: string = CURRENCY_DEFAULT_LOCALE[currency],
++): string {
++  const value =
++    typeof amount === 'number' ? amount : Number.parseFloat(amount);
++
++  if (!Number.isFinite(value)) {
++    throw new Error(`قيمة مالية غير صالحة للتنسيق: ${String(amount)}`);
++  }
++
++  return new Intl.NumberFormat(locale, {
++    style: 'currency',
++    currency,
++    minimumFractionDigits: 2,
++    maximumFractionDigits: 2,
++  }).format(value);
++}
++
++/* ============================================================================
++ * formatDate — تنسيق التواريخ
++ * ========================================================================== */
++
++/**
++ * تنسيق تاريخ للعرض في الواجهة العربية.
++ *
++ * @param date     التاريخ (Date أو ISO string أو Unix timestamp بالمللي ثانية)
++ * @param locale   إعدادات لغوية (الافتراضي ar-YE)
++ * @param options  خيارات Intl.DateTimeFormat إضافية تكتب فوق الافتراضيات
++ *
++ * @example
++ *   formatDate(new Date())                                   // "١٩ سبتمبر ٢٠٢٦"
++ *   formatDate('2026-09-19T12:00:00Z', 'ar-YE', { dateStyle: 'full' })
++ */
++export function formatDate(
++  date: Date | string | number,
++  locale: string = 'ar-YE',
++  options: Intl.DateTimeFormatOptions = {},
++): string {
++  const parsed = date instanceof Date ? date : new Date(date);
++
++  if (Number.isNaN(parsed.getTime())) {
++    throw new Error(`تاريخ غير صالح للتنسيق: ${String(date)}`);
++  }
++
++  return new Intl.DateTimeFormat(locale, {
++    dateStyle: 'long',
++    ...options,
++  }).format(parsed);
++}
++
++/* ============================================================================
++ * toNumeric — تحويل آمن إلى صيغة NUMERIC(15,2)
++ * ========================================================================== */
++
++/** الحد الأقصى للجزء الصحيح في NUMERIC(15,2) هو 13 خانة */
++const NUMERIC_MAX_ABS = 1e13;
++
++/**
++ * تحويل قيمة مالية إلى نص بخانتين عشريتين — الصيغة التي يتوقعها Drizzle
++ * للأعمدة من نوع numeric({ precision: 15, scale: 2 }).
++ *
++ * يرفض القيم غير الرقمية (NaN/Infinity/نصوص غير رقمية) والقيم التي تتجاوز
++ * سعة العمود، كي لا نصل أبداً إلى خطأ قاعدة بيانات بصمت.
++ *
++ * لا يفرض قواعد عمل (مثل الموجبية) — تلك مسؤولية طبقة الخدمات والتحقق.
++ *
++ * @example
++ *   toNumeric(1250.5)      // "1250.50"
++ *   toNumeric('99')        // "99.00"
++ *   toNumeric('abc')       // يرمي خطأ
++ */
++export function toNumeric(value: string | number): string {
++  const parsed =
++    typeof value === 'number' ? value : Number.parseFloat(value.trim());
++
++  if (!Number.isFinite(parsed)) {
++    throw new Error(`قيمة مالية غير صالحة: ${String(value)}`);
++  }
++
++  if (Math.abs(parsed) >= NUMERIC_MAX_ABS) {
++    throw new Error(
++      `القيمة ${String(value)} تتجاوز الحد الأقصى لعمود NUMERIC(15,2)`,
++    );
++  }
++
++  return parsed.toFixed(2);
++}
+diff --git a/tsconfig.json b/tsconfig.json
+index 3a13f90..7d5eedd 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -19,7 +19,7 @@
+       }
+     ],
+     "paths": {
+-      "@/*": ["./*"]
++      "@/*": ["./src/*", "./*"]
+     }
+   },
+   "include": [
