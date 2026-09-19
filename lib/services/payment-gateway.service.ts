@@ -185,3 +185,13 @@ export async function processKuraimiApproval(
     /* 3) إضافة المبلغ إلى الرصيد المتاح */
     const amount = toNumber(record.amount);
     await tx
+      .update(wallets)
+      .set({
+        balance: sql`${wallets.balance} + ${toNumeric(amount)}::numeric`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallets.userId, record.userId));
+
+    return { success: true };
+  });
+}
