@@ -1,17 +1,14 @@
 /**
  * ============================================================================
- *  mnste9 — عروضي (/dashboard/proposals)
+ *  mnste9 — عروضي (/dashboard/proposals) — المرحلة 9 مع قبول العروض
  * ============================================================================
- *  قائمة العروض حسب الدور (مواصفة المرحلة):
+ *  قائمة العروض حسب الدور:
  *   - المستقل: العروض التي قدّمها (مع صاحب كل مشروع).
- *   - صاحب العمل: العروض المقدَّمة على مشاريعه (مع اسم المستقل صاحب
- *     كل عرض وزر الوصول إلى ملفه).
+ *   - صاحب العمل: العروض المقدَّمة على مشاريعه (مع اسم المستقل + زر قبول
+ *     ينشئ عقداً ويحجز المبلغ — يستدعي acceptProposal → createContract).
  *
  *  التبويبات (‎?status=‎ كروابط تعمل بلا JavaScript):
  *   الكل | قيد الانتظار | مقبولة | مرفوضة
- *   — والمسحوبة تظهر ضمن «الكل» فقط.
- *
- *  الحماية: middleware + فحص إضافي عبر getCurrentUser (دفاع متعدد الطبقات).
  * ============================================================================
  */
 
@@ -30,6 +27,8 @@ import {
   type DashboardProposalItem,
 } from '@/lib/services/dashboard-lists';
 import { formatCurrency, cn, formatDate } from '@/lib/utils';
+
+import { AcceptProposalButton } from './accept-button';
 
 export const metadata: Metadata = {
   title: 'العروض',
@@ -127,11 +126,16 @@ function ProposalRow({
         </p>
       </div>
 
-      <div className="shrink-0 sm:text-right">
-        <p dir="ltr" className="text-base font-bold text-slate-900">
-          {formatCurrency(proposal.amount, 'USD')}
-        </p>
-        <p className="mt-0.5 text-xs text-slate-400">مبلغ العرض</p>
+      <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
+        <div className="text-right sm:text-right">
+          <p dir="ltr" className="text-base font-bold text-slate-900">
+            {formatCurrency(proposal.amount, 'USD')}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-400">مبلغ العرض</p>
+        </div>
+        {isClient && proposal.status === 'pending' && (
+          <AcceptProposalButton proposalId={proposal.id} />
+        )}
       </div>
     </li>
   );
@@ -176,12 +180,12 @@ export default async function DashboardProposalsPage({
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           {isClient
-            ? 'العروض التي قدّمها المستقلون على مشاريعك'
+            ? 'العروض التي قدّمها المستقلون على مشاريعك — اقبل عرضاً لإنشاء عقد وحجز المبلغ'
             : 'العروض التي قدّمتها على مشاريع المنصة وحالة كل منها'}
         </p>
       </div>
 
-      {/* التبويبات — روابط حقيقية عبر ?status= */}
+      {/* التبويبات */}
       <nav
         aria-label="تصفية العروض"
         className="flex gap-1.5 overflow-x-auto rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm"
@@ -222,7 +226,7 @@ export default async function DashboardProposalsPage({
         })}
       </nav>
 
-      {/* القائمة / حالة الفراغ */}
+      {/* القائمة */}
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         {proposalsList.length === 0 ? (
           <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-300 px-6 py-16 text-center">

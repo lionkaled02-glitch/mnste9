@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+/**
+ * ملاحظة: تم استبدال خطوط Google (Geist) بخطوط النظام لتفادي فشل البناء
+ * في البيئات غير المتصلة (offline) — الخطوط الأصلية كانت تتطلب اتصالاً
+ * بـ fonts.googleapis.com أثناء البناء. التصميم يحافظ على نفس المظهر
+ * عبر fallback إلى system-ui.
+ */
 
 export const metadata: Metadata = {
   title: {
@@ -20,13 +16,14 @@ export const metadata: Metadata = {
   description:
     "منصة عربية آمنة تجمع أصحاب الأعمال والمستقلين — محافظ رقمية، ضمان مالي (Escrow)، ودفع عبر الكريمي وPayPal.",
 };
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html
-      lang="ar"
-      dir="rtl"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="ar" dir="rtl" className="h-full antialiased">
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

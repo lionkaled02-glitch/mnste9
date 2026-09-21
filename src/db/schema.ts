@@ -8,6 +8,8 @@
  *      (أعمدة الملف الشخصي والإعدادات المضافة إلى users — المرحلة 6)
  *    database/migrations/2026_09_21_000003_kyc_full_support.sql
  *      (أعمدة KYC الكامل: 3 وثائق + بيانات المراجعة — المرحلة 8)
+ *    database/migrations/2026_09_21_000004_create_contracts.sql
+ *      (جدول العقود + العمولة — المرحلة 9)
  *
  *  ملاحظات معمارية:
  *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL (الذي يتضمن أيضاً Triggers
@@ -300,6 +302,76 @@ export const kycDocuments = pgTable(
   ],
 );
 
+/* ---------------------------------------------------------------------------
+ * contracts — العقود بين العميل والمستقل بعد قبول العرض (المرحلة 9)
+ * ------------------------------------------------------------------------- */
+export const contracts = pgTable(
+  'contracts',
+  {
+    id: identityId('id'),
+    projectId: bigint('project_id', { mode: 'number' }).notNull(),
+    proposalId: bigint('proposal_id', { mode: 'number' }).notNull(),
+    clientId: bigint('client_id', { mode: 'number' }).notNull(),
+    freelancerId: bigint('freelancer_id', { mode: 'number' }).notNull(),
+    amount: numeric('amount', { precision: 15, scale: 2 }).notNull(),
+    commissionRate: numeric('commission_rate', { precision: 5, scale: 4 })
+      .notNull()
+      .default('0.15'),
+    status: varchar('status', { length: 20 }).notNull().default('active'), // pending | active | completed | cancelled | disputed
+    escrowTransactionId: bigint('escrow_transaction_id', { mode: 'number' }),
+    releaseTransactionId: bigint('release_transaction_id', { mode: 'number' }),
+    ...timestamps,
+  },
+  (t) => [
+    unique('uq_contracts_proposal_id').on(t.proposalId),
+    index('idx_contracts_project_id').on(t.projectId),
+    index('idx_contracts_proposal_id').on(t.proposalId),
+    index('idx_contracts_client_id').on(t.clientId),
+    index('idx_contracts_freelancer_id').on(t.freelancerId),
+    index('idx_contracts_status').on(t.status),
+    index('idx_contracts_created_at').on(t.createdAt),
+    check('ck_contracts_amount_positive', sql`${t.amount} > 0`),
+    check(
+      'ck_contracts_commission_rate_range',
+      sql`${t.commissionRate} >= 0 AND ${t.commissionRate} < 1`,
+    ),
+    check(
+      'ck_contracts_status',
+      sql`${t.status} IN ('pending', 'active', 'completed', 'cancelled', 'disputed')`,
+    ),
+    foreignKey({
+      name: 'fk_contracts_project_id',
+      columns: [t.projectId],
+      foreignColumns: [projects.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'fk_contracts_proposal_id',
+      columns: [t.proposalId],
+      foreignColumns: [proposals.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'fk_contracts_client_id',
+      columns: [t.clientId],
+      foreignColumns: [users.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'fk_contracts_freelancer_id',
+      columns: [t.freelancerId],
+      foreignColumns: [users.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'fk_contracts_escrow_transaction_id',
+      columns: [t.escrowTransactionId],
+      foreignColumns: [transactions.id],
+    }).onDelete('set null'),
+    foreignKey({
+      name: 'fk_contracts_release_transaction_id',
+      columns: [t.releaseTransactionId],
+      foreignColumns: [transactions.id],
+    }).onDelete('set null'),
+  ],
+);
+
 /* ============================================================================
  * 3) العلاقات (Relations) — تُستخدم مع db.query.<table>.findMany({ with: ... })
  * ========================================================================== */
@@ -318,6 +390,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   proposals: many(proposals),
   /** وثائق التوثيق (1:N) */
   kycDocuments: many(kycDocuments),
+  /** العقود كعميل (1:N) */
+  clientContracts: many(contracts, { relationName: 'clientContracts' }),
+  /** العقود كمستقل (1:N) */
+  freelancerContracts: many(contracts, { relationName: 'freelancerContracts' }),
 }));
 
 export const walletsRelations = relations(wallets, ({ one }) => ({
@@ -342,6 +418,8 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   }),
   /** عروض المستقلين على المشروع (1:N) */
   proposals: many(proposals),
+  /** عقود المشروع (1:N) */
+  contracts: many(contracts),
 }));
 
 export const proposalsRelations = relations(proposals, ({ one }) => ({
@@ -353,12 +431,45 @@ export const proposalsRelations = relations(proposals, ({ one }) => ({
     fields: [proposals.freelancerId],
     references: [users.id],
   }),
+  contract: one(contracts, {
+    fields: [proposals.id],
+    references: [contracts.proposalId],
+  }),
 }));
 
 export const kycDocumentsRelations = relations(kycDocuments, ({ one }) => ({
   user: one(users, {
     fields: [kycDocuments.userId],
     references: [users.id],
+  }),
+}));
+
+export const contractsRelations = relations(contracts, ({ one }) => ({
+  project: one(projects, {
+    fields: [contracts.projectId],
+    references: [projects.id],
+  }),
+  proposal: one(proposals, {
+    fields: [contracts.proposalId],
+    references: [proposals.id],
+  }),
+  client: one(users, {
+    fields: [contracts.clientId],
+    references: [users.id],
+    relationName: 'clientContracts',
+  }),
+  freelancer: one(users, {
+    fields: [contracts.freelancerId],
+    references: [users.id],
+    relationName: 'freelancerContracts',
+  }),
+  escrowTransaction: one(transactions, {
+    fields: [contracts.escrowTransactionId],
+    references: [transactions.id],
+  }),
+  releaseTransaction: one(transactions, {
+    fields: [contracts.releaseTransactionId],
+    references: [transactions.id],
   }),
 }));
 
@@ -389,3 +500,6 @@ export type NewProposal = typeof proposals.$inferInsert;
 
 export type KycDocument = typeof kycDocuments.$inferSelect;
 export type NewKycDocument = typeof kycDocuments.$inferInsert;
+
+export type Contract = typeof contracts.$inferSelect;
+export type NewContract = typeof contracts.$inferInsert;
