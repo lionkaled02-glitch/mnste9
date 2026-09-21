@@ -1,24 +1,31 @@
 /**
  * ============================================================================
- *  mnste9 — توثيق الهوية KYC (/dashboard/kyc)
+ *  mnste9 — توثيق الهوية KYC (/dashboard/kyc) — المرحلة 8
  * ============================================================================
- *  المحتوى (مواصفة المرحلة):
- *   - بطاقة الحالة الحالية: موثّقة (من users.is_kyc_verified) أو حالة
- *     آخر طلب (قيد المراجعة / مرفوضة / لم تُرفع وثائق بعد).
- *   - نموذج رفع الوثائق (نوع + ملف) — يعمل بلا JavaScript، والمحتوى
- *     يُشفَّر AES-256-GCM ويُخزَّن خارج قاعدة البيانات (بتصميم المخطط).
- *   - إذا كانت معتمدة: عرض معلومات الوثيقة (النوع، تاريخ الرفع، تاريخ
- *     الاعتماد) دون نموذج رفع جديد.
+ *  القاعدة الذهبية (موثّقة):
+ *   KYC إلزامي للمستقلين فقط (قبل أي عمل: عرض/دفعة/سحب) — أصحاب العمل
+ *   والأدوار الأخرى لا يحتاجونه إطلاقاً، لذا توجَّههم الصفحة فوراً إلى
+ *   /dashboard مع رسالة «KYC للمستقلين فقط» (عبر معامل ?notice=).
+ *
+ *  المحتوى (للمستقل):
+ *   - بطاقة الحالة: غير موثق | قيد المراجعة (pending) | موثّق | مرفوض
+ *     (مع سبب الرفض من reviewed_reason — هجرة 00003).
+ *   - نموذج رفع 3 ملفات (أمامي/خلفي/سيلفي) — يعمل بلا JavaScript، وكل
+ *     ملف يُشفَّر AES-256-GCM ويُخزَّن خارج قاعدة البيانات.
+ *   - إذا كانت معتمدة: معلومات الوثيقة (النوع، تاريخ الرفع، تاريخ
+ *     المراجعة) دون نموذج رفع جديد.
  *
  *  قرار موثّق — طلب واحد نشط: يُخفى النموذج عند وجود طلب قيد المراجعة
  *  أو حساب معتمد، ويعود متاحاً بعد الرفض لإعادة التقديم.
  *
- *  الحماية: middleware + فحص إضافي عبر getCurrentUser (دفاع متعدد الطبقات).
+ *  الحماية: middleware + فحص إضافي عبر getCurrentUser + بوابة الدور هنا
+ *  (الإجراء نفسه يفحص الدور أيضاً — دفاع متعدد الطبقات).
  * ============================================================================
  */
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 import { getCurrentUser } from '@/lib/auth';
 import {
@@ -58,6 +65,12 @@ export default async function KycPage() {
     );
   }
 
+  // القاعدة الذهبية: التوثيق للمستقلين فقط — غيرهم يوجَّه إلى لوحة التحكم
+  // مع رسالة «KYC للمستقلين فقط» (تعرضها صفحة نظرة عامة من ?notice=)
+  if (currentUser.role !== 'freelancer') {
+    redirect('/dashboard?notice=kyc-freelancers-only');
+  }
+
   const { isVerified, latestDocument } = await getKycStatus(currentUser.id);
 
   /** هل نموذج الرفع متاح؟ (لا طلب نشط والحساب غير موثّق) */
@@ -69,7 +82,7 @@ export default async function KycPage() {
     ? {
         title: 'هوية موثّقة (KYC) ✓',
         description:
-          'حسابك موثّق — يمكنك الإيداع والسحب وجميع الميزات المالية.',
+          'حسابك موثّق — يمكنك تقديم العروض واستلام الدفعات والسحب.',
         badge: 'معتمدة',
         badgeClasses: 'bg-emerald-100 text-emerald-800',
         iconClasses: 'bg-emerald-50 text-emerald-600',
@@ -78,16 +91,17 @@ export default async function KycPage() {
       ? {
           title: 'طلبك قيد المراجعة',
           description:
-            'استلمنا وثيقتك ويراجعها فريق التوثيق — ستظهر النتيجة هنا وعبر إشعاراتك.',
+            'استلمنا وثائقك الثلاث ويراجعها فريق التوثيق — ستظهر النتيجة هنا وعبر إشعاراتك.',
           badge: KYC_STATUS_LABELS.pending,
           badgeClasses: KYC_STATUS_BADGE_CLASSES.pending,
           iconClasses: 'bg-amber-50 text-amber-600',
         }
       : latestDocument?.status === 'rejected'
         ? {
-            title: 'وثيقتك السابقة مرفوضة',
-            description:
-              'لم تُعتمد الوثيقة السابقة (وضوح غير كافٍ أو بيانات غير مطابقة مثلاً) — ارفع وثيقة أصح.',
+            title: 'وثائقك السابقة مرفوضة',
+            description: latestDocument.rejectionReason
+              ? `سبب الرفض: ${latestDocument.rejectionReason} — ارفع وثائق أصح وأوضح.`
+              : 'لم تُعتمد الوثائق السابقة (وضوح غير كافٍ أو بيانات غير مطابقة مثلاً) — ارفع وثائق أصح.',
             badge: KYC_STATUS_LABELS.rejected,
             badgeClasses: KYC_STATUS_BADGE_CLASSES.rejected,
             iconClasses: 'bg-red-50 text-red-600',
@@ -95,7 +109,7 @@ export default async function KycPage() {
         : {
             title: 'الهوية غير موثّقة بعد',
             description:
-              'توثيق الهوية مطلوب للإيداع والسحب ويعزز ثقة الطرف الآخر بك في التعاملات.',
+              'توثيق الهوية مطلوب قبل تقديم أي عرض أو استلام دفعة أو سحب — وهو يعزز ثقة أصحاب العمل بك.',
             badge: NO_DOCUMENT_LABEL,
             badgeClasses: 'bg-slate-100 text-slate-600',
             iconClasses: 'bg-slate-100 text-slate-400',
@@ -109,7 +123,8 @@ export default async function KycPage() {
           توثيق الهوية
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          ارفع وثيقة هوية واحدة — تُراجَع من فريق التوثيق خلال أيام العمل
+          ارفع صور وثيقتك — الوجه الأمامي والخلفي وسيلفي معها — وتُراجَع من
+          فريق التوثيق خلال أيام العمل
         </p>
       </div>
 
@@ -177,15 +192,18 @@ export default async function KycPage() {
               </dd>
             </div>
             <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-slate-500">تاريخ الاعتماد</dt>
+              <dt className="text-sm text-slate-500">تاريخ المراجعة</dt>
               <dd className="text-sm font-semibold text-slate-800">
-                {formatDate(latestDocument.updatedAt)}
+                {latestDocument.reviewedAt
+                  ? formatDate(latestDocument.reviewedAt)
+                  : formatDate(latestDocument.updatedAt)}
               </dd>
             </div>
           </dl>
           <p className="mt-4 text-xs leading-6 text-slate-400">
-            يُحفظ ملف الوثيقة مشفّراً (AES-256-GCM) خارج قاعدة البيانات ولا
-            يُعرض لأي طرف — حتى صاحب المشروع أو المستقل لا يرى وثائقك.
+            تُحفظ ملفات الوثائق الثلاثة مشفّرة (AES-256-GCM) خارج قاعدة
+            البيانات ولا تُعرض لأي طرف — حتى صاحب المشروع أو المستقل لا يرى
+            وثائقك.
           </p>
         </section>
       )}
@@ -193,10 +211,10 @@ export default async function KycPage() {
       {/* نموذج الرفع — متاح فقط دون طلب نشط وبتوثيق غير معتمد */}
       {canUpload ? (
         <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-lg font-bold text-slate-900">رفع وثيقة هوية</h2>
+          <h2 className="text-lg font-bold text-slate-900">رفع وثائق الهوية</h2>
           <p className="mt-1 text-sm text-slate-500">
-            بطاقة الهوية أو جواز السفر أو رخصة القيادة — صورة واضحة للوجهتين
-            معاً.
+            بطاقة الهوية أو جواز السفر أو رخصة القيادة — ثلاث صور واضحة:
+            الوجه الأمامي، الوجه الخلفي، وسيلفي وأنت تحمل الوثيقة.
           </p>
           <div className="mt-6 max-w-xl">
             <KycUploadForm />
@@ -221,6 +239,12 @@ export default async function KycPage() {
                 <dt className="text-sm text-slate-500">تاريخ الرفع</dt>
                 <dd className="text-sm font-semibold text-slate-800">
                   {formatDate(latestDocument.createdAt)}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-sm text-slate-500">الوثائق المرفقة</dt>
+                <dd className="text-sm font-semibold text-slate-800">
+                  الوجه الأمامي · الوجه الخلفي · السيلفي
                 </dd>
               </div>
             </dl>

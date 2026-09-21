@@ -25,6 +25,11 @@
  *  قرار موثّق — تخزين التصنيف:
  *   لا يوجد عمود category في جدول projects (المخطط مجمَّد)، لذا يُلحق
  *   التصنيف كسطر منظم "التصنيف: X" بآخر الوصف — راجع project-meta.ts.
+ *
+ *  القاعدة الذهبية — بوابة KYC (المرحلة 8):
+ *   تقديم العرض متاح للمستقلين الموثَّقي الهوية فقط (is_kyc_verified) —
+ *   KYC شرط للمستقل قبل أي عمل. أصحاب العمل لا يقدمون عروضاً أصلاً.
+ *   (ملحوظة: لا يوجد ملف actions/proposals.ts — submitProposal هنا.)
  * ============================================================================
  */
 
@@ -32,7 +37,7 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@/db';
-import { projects, proposals } from '@/db/schema';
+import { projects, proposals, users } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
 import {
   appendCategoryTag,
@@ -239,7 +244,22 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
     return { success: false, fieldErrors: zodFieldErrors(parsed.error) };
   }
 
-  // 3) فحص المشروع: الوجود + الحالة + الملكية
+  // 3) القاعدة الذهبية — بوابة KYC: المستقل يوثّق هويته قبل أي عرض
+  const [freelancerAccount] = await db
+    .select({ isKycVerified: users.isKycVerified })
+    .from(users)
+    .where(eq(users.id, currentUser.id))
+    .limit(1);
+
+  if (freelancerAccount && !freelancerAccount.isKycVerified) {
+    return {
+      success: false,
+      message: 'يجب توثيق هويتك لتقديم عرض',
+      redirectTo: '/dashboard/kyc',
+    };
+  }
+
+  // 4) فحص المشروع: الوجود + الحالة + الملكية
   const [project] = await db
     .select({
       id: projects.id,
@@ -263,7 +283,7 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
     };
   }
 
-  // 4) عرض واحد لكل مستقل في المشروع (قيد UNIQUE) — فحص مسبق ودود
+  // 5) عرض واحد لكل مستقل في المشروع (قيد UNIQUE) — فحص مسبق ودود
   const [existing] = await db
     .select({ id: proposals.id })
     .from(proposals)
@@ -282,7 +302,7 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
     };
   }
 
-  // 5) الإدراج — مع معالجة سباق UNIQUE (23505) إن حدث بين الفحص والإدراج
+  // 6) الإدراج — مع معالجة سباق UNIQUE (23505) إن حدث بين الفحص والإدراج
   try {
     await db.insert(proposals).values({
       projectId: project.id,

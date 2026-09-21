@@ -15,6 +15,10 @@
  *   middleware يوجّه غير المسجلين إلى /login?from=/dashboard؛ وهنا
  *   فحص إضافي عبر getCurrentUser (الجلسة قد تنتهي بين الطلبين أو يُحذف
  *   الحساب) — دفاع متعدد الطبقات.
+ *
+ *  معامل ?notice= (المرحلة 8 — القاعدة الذهبية):
+ *   صفحة توثيق الهوية (/dashboard/kyc) توجّه غير المستقلين إلى هنا مع
+ *   notice=kyc-freelancers-only فتعرض الصفحة شريط «KYC للمستقلين فقط».
  * ============================================================================
  */
 
@@ -40,6 +44,19 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 export const metadata: Metadata = {
   title: 'لوحة التحكم',
 };
+
+interface DashboardPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/** قراءة أول قيمة لمعامل URL (يتحمّل الصيغ المتعددة القيم) */
+function firstParam(
+  searchParams: Record<string, string | string[] | undefined>,
+  key: string,
+): string | undefined {
+  const value = searchParams[key];
+  return Array.isArray(value) ? value[0] : value;
+}
 
 /* ============================================================================
  * بطاقة إحصائية
@@ -120,7 +137,10 @@ function LatestProjectRow({ project }: { project: DashboardProjectItem }) {
  * الصفحة
  * ========================================================================== */
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  // القاعدة الذهبية: رسالة «KYC للمستقلين فقط» بعد التوجيه من صفحة التوثيق
+  const notice = firstParam(await searchParams, 'notice');
+
   const currentUser = await getCurrentUser();
 
   // دفاع أخير خلف middleware — الجلسة انتهت أو الحساب حُذف
@@ -200,6 +220,30 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      {/* شريط رسالة التوجيه من صفحة التوثيق — KYC للمستقلين فقط */}
+      {notice === 'kyc-freelancers-only' && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <svg
+            className="mt-0.5 h-5 w-5 shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+            />
+          </svg>
+          <p>
+            <span className="font-bold">KYC للمستقلين فقط</span> — توثيق
+            الهوية غير مطلوب لحسابك، فلا حاجة لأي إجراء.
+          </p>
+        </div>
+      )}
+
       {/* الترحيب + إجراء سريع حسب الدور */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

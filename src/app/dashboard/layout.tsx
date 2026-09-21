@@ -14,21 +14,29 @@
  *     أيضاً عبر getCurrentUser (دفاع متعدد الطبقات).
  *   - القائمة الجانبية مكوّن عميل (usePathname لإبراز الرابط النشط)
  *     في ملف مستقل sidebar.tsx؛ هذا الملف يبقى مكوّن سيرفر خفيفاً.
+ *   - القاعدة الذهبية (المرحلة 8): يمرَّر دور المستخدم الحالي إلى
+ *     القائمة الجانبية لتُظهر رابط «توثيق الهوية» للمستقلين فقط —
+ *     أصحاب العمل لا يحتاجون KYC إطلاقاً.
  * ============================================================================
  */
 
+import { getCurrentUser } from '@/lib/auth';
+
 import { DashboardSidebar } from './sidebar';
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // دور الجلسة الحالية — لعرض رابط التوثيق للمستقلين فقط (القاعدة الذهبية)
+  const currentUser = await getCurrentUser();
+
   return (
     <div className="flex-1 bg-slate-50">
       <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr]">
         {/* القائمة الجانبية — يمين الشاشة على الحواسيب، وأعلى الصفحة على الجوال */}
-        <DashboardSidebar />
+        <DashboardSidebar role={currentUser?.role ?? null} />
 
         {/* المحتوى — يسار القائمة على الحواسيب */}
         <main className="min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>

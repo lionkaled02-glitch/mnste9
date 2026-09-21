@@ -6,6 +6,8 @@
  *    database/migrations/2026_09_19_000001_create_platform_tables.sql
  *    database/migrations/2026_09_21_000002_add_user_profile_fields.sql
  *      (أعمدة الملف الشخصي والإعدادات المضافة إلى users — المرحلة 6)
+ *    database/migrations/2026_09_21_000003_kyc_full_support.sql
+ *      (أعمدة KYC الكامل: 3 وثائق + بيانات المراجعة — المرحلة 8)
  *
  *  ملاحظات معمارية:
  *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL (الذي يتضمن أيضاً Triggers
@@ -262,7 +264,19 @@ export const kycDocuments = pgTable(
   {
     id: identityId('id'),
     userId: bigint('user_id', { mode: 'number' }).notNull(),
+    /**
+     * مسار ملف الوثيقة الأساسي (مشفر) — العمود التاريخي NOT NULL.
+     * في تدفق المرحلة 8 (ثلاث وثائق) يخزّن مسار الوجه الأمامي نفسه
+     * الموجود في frontFilePath — توافق خلفي مع الصفوف القديمة.
+     */
     encryptedFilePath: text('encrypted_file_path').notNull(),
+    /* -- أعمدة KYC الكامل (هجرة 00003 — إضافية اختيارية) -- */
+    frontFilePath: text('front_file_path'), // مسار مشفّر — الوجه الأمامي
+    backFilePath: text('back_file_path'), // مسار مشفّر — الوجه الخلفي
+    selfieFilePath: text('selfie_file_path'), // مسار مشفّر — السيلفي مع الوثيقة
+    rejectionReason: text('rejection_reason'), // سبب الرفض (عند الرفض فقط)
+    reviewedBy: bigint('reviewed_by', { mode: 'number' }), // معرّف المشرف المراجِع (بلا FK — سجل تاريخي)
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }), // تاريخ المراجعة
     documentType: varchar('document_type', { length: 50 }).notNull(), // national_id | passport | driver_license | other
     status: varchar('status', { length: 20 }).notNull().default('pending'), // pending | approved | rejected
     ...timestamps,

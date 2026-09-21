@@ -10,9 +10,12 @@
  *
  *  ملاحظة موثّقة — المسارات المفعّلة:
  *   الروابط السبعة كلها مفعّلة (نظرة عامة، المشاريع، العروض، المحفظة،
- *   الرسائل، الملف الشخصي، الإعدادات). صفحة توثيق الهوية (/dashboard/kyc)
- *   مسار إضافي خارج هذه القائمة — يُفتح من بطاقة الأمان في الإعدادات ومن
- *   بوابة KYC في المحفظة.
+ *   الرسائل، الملف الشخصي، الإعدادات).
+ *
+ *  القاعدة الذهبية (المرحلة 8) — رابط «توثيق الهوية»:
+ *   يُعرض للمستقلين فقط (role === 'freelancer') بعد «الإعدادات» — أصحاب
+ *   العمل لا يحتاجون KYC إطلاقاً، وصفحة /dashboard/kyc نفسها توجّه غير
+ *   المستقلين إلى /dashboard مع رسالة «KYC للمستقلين فقط».
  *
  *  استجابة الشاشات:
  *   - حواسيب: قائمة رأسية داخل عمود 250px على يمين المحتوى.
@@ -25,8 +28,15 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 
+/** عنصر القائمة */
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+}
+
 /** عناصر القائمة — بالترتيب المحدد في مواصفة المرحلة */
-const NAV_ITEMS: { href: string; label: string; icon: React.ReactNode }[] = [
+const NAV_ITEMS: NavItem[] = [
   {
     href: '/dashboard',
     label: 'نظرة عامة',
@@ -106,8 +116,28 @@ const NAV_ITEMS: { href: string; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-export function DashboardSidebar() {
+/**
+ * رابط «توثيق الهوية» — للمستقلين فقط (القاعدة الذهبية):
+ * KYC إلزامي للمستقل قبل أي عمل (عرض/دفعة/سحب)، وغير مطلوب لأصحاب
+ * العمل إطلاقاً — لذا لا يُعرض لهم في القائمة.
+ */
+const KYC_NAV_ITEM: NavItem = {
+  href: '/dashboard/kyc',
+  label: 'توثيق الهوية',
+  icon: (
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"
+    />
+  ),
+};
+
+export function DashboardSidebar({ role }: { role?: string | null }) {
   const pathname = usePathname();
+
+  /** القاعدة الذهبية: رابط التوثيق للمستقلين فقط */
+  const navItems = role === 'freelancer' ? [...NAV_ITEMS, KYC_NAV_ITEM] : NAV_ITEMS;
 
   /** "نظرة عامة" تُبرَز عند التطابق التام فقط؛ والبقية بالبادئة */
   const isActive = (href: string): boolean =>
@@ -151,7 +181,7 @@ export function DashboardSidebar() {
         className="flex gap-1 overflow-x-auto p-3 lg:flex-col lg:overflow-x-visible"
         aria-label="تنقل لوحة التحكم"
       >
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}

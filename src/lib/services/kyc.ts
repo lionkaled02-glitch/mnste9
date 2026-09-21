@@ -23,6 +23,10 @@ export interface KycDocumentInfo {
   id: number;
   documentType: string;
   status: string;
+  /** سبب الرفض إن رُفض الطلب (هجرة 00003) */
+  rejectionReason: string | null;
+  /** تاريخ مراجعة فريق التوثيق (هجرة 00003) */
+  reviewedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +52,8 @@ export async function getKycStatus(userId: number): Promise<KycStatus> {
       id: kycDocuments.id,
       documentType: kycDocuments.documentType,
       status: kycDocuments.status,
+      rejectionReason: kycDocuments.rejectionReason,
+      reviewedAt: kycDocuments.reviewedAt,
       createdAt: kycDocuments.createdAt,
       updatedAt: kycDocuments.updatedAt,
     })

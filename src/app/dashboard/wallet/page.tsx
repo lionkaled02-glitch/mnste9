@@ -187,12 +187,13 @@ export default async function WalletPage({ searchParams }: WalletPageProps) {
             المحجوز في الضمان:{' '}
             <span dir="ltr">{formatCurrency(overview.pendingBalance, 'USD')}</span>
           </span>
-          {!account?.isKycVerified && (
+          {/* القاعدة الذهبية: شارة التوثيق للمستقلين فقط — العملاء لا يحتاجون KYC */}
+          {account?.role === 'freelancer' && !account.isKycVerified && (
             <Link
               href="/dashboard/kyc"
               className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-bold text-amber-950 transition hover:bg-amber-300"
             >
-              وثّق هويتك لتفعيل الإيداع والسحب
+              وثّق هويتك لتقديم العروض والسحب
             </Link>
           )}
         </div>
@@ -365,26 +366,29 @@ export default async function WalletPage({ searchParams }: WalletPageProps) {
                 {preferredCurrencyLabel ?? 'غير محددة بعد'}
               </dd>
             </div>
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-slate-500">حالة توثيق الهوية (KYC)</dt>
-              <dd className="flex items-center gap-3 text-sm font-semibold">
-                <span
-                  className={
-                    account?.isKycVerified
-                      ? 'text-emerald-700'
-                      : 'text-amber-700'
-                  }
-                >
-                  {account?.isKycVerified ? 'موثّقة ✓' : 'غير موثّقة'}
-                </span>
-                <Link
-                  href="/dashboard/kyc"
-                  className="text-xs font-semibold text-emerald-700 hover:underline"
-                >
-                  إدارة التوثيق
-                </Link>
-              </dd>
-            </div>
+            {/* القاعدة الذهبية: صف التوثيق للمستقلين فقط — العملاء لا يحتاجون KYC */}
+            {account?.role === 'freelancer' && (
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-sm text-slate-500">حالة توثيق الهوية (KYC)</dt>
+                <dd className="flex items-center gap-3 text-sm font-semibold">
+                  <span
+                    className={
+                      account.isKycVerified
+                        ? 'text-emerald-700'
+                        : 'text-amber-700'
+                    }
+                  >
+                    {account.isKycVerified ? 'موثّقة ✓' : 'غير موثّقة'}
+                  </span>
+                  <Link
+                    href="/dashboard/kyc"
+                    className="text-xs font-semibold text-emerald-700 hover:underline"
+                  >
+                    إدارة التوثيق
+                  </Link>
+                </dd>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-4 py-3">
               <dt className="text-sm text-slate-500">إشعارات المعاملات</dt>
               <dd>
