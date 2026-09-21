@@ -1,0 +1,182 @@
+'use client';
+
+/**
+ * ============================================================================
+ *  mnste9 — القائمة الجانبية للوحة التحكم (مكوّن عميل)
+ * ============================================================================
+ *  سبعة روابط (مواصفة المرحلة) مع إبراز الرابط النشط عبر usePathname:
+ *   نظرة عامة / المشاريع / العروض / المحفظة / الرسائل / الملف الشخصي /
+ *   الإعدادات.
+ *
+ *  ملاحظة موثّقة — مسارات فرعية قادمة:
+ *   الروابط الست الفرعية (projects/proposals/wallet/messages/profile/
+ *   settings) تشير إلى صفحات تُبنى في مراحل قادمة؛ "نظرة عامة" هي
+ *   الصفحة الوحيدة المفعّلة في هذه المرحلة. بنية الروابط مثبّتة الآن
+ *   كي لا تتغير لاحقاً.
+ *
+ *  استجابة الشاشات:
+ *   - حواسيب: قائمة رأسية داخل عمود 250px على يمين المحتوى.
+ *   - جوال:   شريط روابط أفقي قابل للتمرير أعلى الصفحة.
+ * ============================================================================
+ */
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+import { cn } from '@/lib/utils';
+
+/** عناصر القائمة — بالترتيب المحدد في مواصفة المرحلة */
+const NAV_ITEMS: { href: string; label: string; icon: React.ReactNode }[] = [
+  {
+    href: '/dashboard',
+    label: 'نظرة عامة',
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"
+      />
+    ),
+  },
+  {
+    href: '/dashboard/projects',
+    label: 'المشاريع',
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20.25 14.15v4.098c0 1.036-.84 1.875-1.875 1.875H5.625a1.875 1.875 0 0 1-1.875-1.875V14.15M15 8.625h4.5A1.875 1.875 0 0 1 21.375 10.5v3.675a1.875 1.875 0 0 1-1.875 1.875H4.5a1.875 1.875 0 0 1-1.875-1.875V10.5A1.875 1.875 0 0 1 4.5 8.625h4.5m0 0V6.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v2.25M15 8.625H9"
+      />
+    ),
+  },
+  {
+    href: '/dashboard/proposals',
+    label: 'العروض',
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+      />
+    ),
+  },
+  {
+    href: '/dashboard/wallet',
+    label: 'المحفظة',
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 9m18 0V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v3"
+      />
+    ),
+  },
+  {
+    href: '/dashboard/messages',
+    label: 'الرسائل',
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"
+      />
+    ),
+  },
+  {
+    href: '/dashboard/profile',
+    label: 'الملف الشخصي',
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+      />
+    ),
+  },
+  {
+    href: '/dashboard/settings',
+    label: 'الإعدادات',
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"
+      />
+    ),
+  },
+];
+
+export function DashboardSidebar() {
+  const pathname = usePathname();
+
+  /** "نظرة عامة" تُبرَز عند التطابق التام فقط؛ والبقية بالبادئة */
+  const isActive = (href: string): boolean =>
+    href === '/dashboard'
+      ? pathname === href
+      : pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    <aside className="border-b border-slate-200 bg-white lg:border-b-0 lg:border-l">
+      {/* ترويسة اللوحة */}
+      <div className="flex h-16 items-center gap-2.5 border-b border-slate-100 px-4 lg:px-5">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600">
+          <svg
+            className="h-5 w-5 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.8}
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M20 7 12 3 4 7v10l8 4 8-4V7Z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m4 7 8 4 8-4M12 21V11"
+            />
+          </svg>
+        </span>
+        <div>
+          <p className="text-sm font-bold text-slate-900">لوحة التحكم</p>
+          <p className="text-xs text-slate-400">mnste9</p>
+        </div>
+      </div>
+
+      {/* الروابط — رأسية على الحواسيب، شريط أفقي قابل للتمرير على الجوال */}
+      <nav
+        className="flex gap-1 overflow-x-auto p-3 lg:flex-col lg:overflow-x-visible"
+        aria-label="تنقل لوحة التحكم"
+      >
+        {NAV_ITEMS.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={isActive(item.href) ? 'page' : undefined}
+            className={cn(
+              'flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition',
+              isActive(item.href)
+                ? 'bg-emerald-50 font-semibold text-emerald-700'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+            )}
+          >
+            <svg
+              className="h-5 w-5 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              {item.icon}
+            </svg>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    </aside>
+  );
+}
