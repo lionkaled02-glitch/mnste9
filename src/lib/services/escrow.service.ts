@@ -1,22 +1,21 @@
 /**
  * ============================================================================
- *  mnste9 — خدمة الضامن المالي (Escrow Service) — المرحلة 9
+ *  mnste9 — خدمة الضامن المالي (Escrow Service) — المرحلة 9 (مواصفة دقيقة)
  * ============================================================================
  *  المسؤوليات:
  *   - lockFunds: حجز مبلغ من العميل لصالح مشروع (نقل من balance إلى
  *     pending_balance) وتسجيل حركة escrow_lock.
  *   - releaseFunds: تحرير الأموال لصالح المستقل مع خصم عمولة المنصة،
  *     باستخدام commission_rate المحفوظ في جدول contracts نفسه
- *     (القاعدة الذهبية للمرحلة 9 — لا تُمرَّر النسبة كمعامل خارجي إلا
- *     كقيمة افتراضية عند إنشاء العقد).
+ *     (القاعدة الذهبية للمرحلة 9).
  *
- *  ملاحظات:
- *   - كل العمليات داخل db.transaction لضمان الذرّية.
- *   - نستخدم SELECT ... FOR UPDATE لتجنب سباقات الحجز.
- *   - المبالغ NUMERIC(15,2) => نتعامل معها كـ string عبر toNumeric.
- *   - عند التحرير: يُخصم المبلغ من pending_balance للعميل، ويُضاف الصافي
- *     للمستقل، وتُسجَّل حركتا commission و escrow_release، ويُحدَّث العقد
- *     والمشروع.
+ *  المواصفة الدقيقة للمرحلة 9:
+ *   - جدول contracts يحتوي: amount, commission_rate DEFAULT 0.15,
+ *     commission, net_amount, status, escrow_locked_at, released_at.
+ *   - عند الإنشاء: commission = amount * commission_rate,
+ *     net_amount = amount - commission.
+ *   - عند التحرير: يُستخدم commission_rate من العقد نفسه، ويُحدَّث
+ *     released_at و status=completed.
  * ============================================================================
  */
 
@@ -47,15 +46,6 @@ export const ESCROW_DEFAULT_COMMISSION = 0.15;
  * lockFunds — حجز مبلغ لصالح مشروع
  * ========================================================================== */
 
-/**
- * حجز مبلغ من رصيد العميل لصالح مشروع معين.
- *
- * الخطوات:
- *   1. قفل محفظة العميل.
- *   2. التحقق من كفاية الرصيد المتاح.
- *   3. خصم المبلغ من balance وإضافته إلى pending_balance.
- *   4. تسجيل حركة escrow_lock بحالة completed.
- */
 export async function lockFunds(
   clientId: number,
   projectId: number,
@@ -66,7 +56,6 @@ export async function lockFunds(
   }
 
   return db.transaction(async (tx) => {
-    /* 1) قفل محفظة العميل */
     const [wallet] = await tx
       .select()
       .from(wallets)
@@ -82,7 +71,6 @@ export async function lockFunds(
       );
     }
 
-    /* 2) تحديث المحفظة */
     await tx
       .update(wallets)
       .set({
@@ -92,7 +80,6 @@ export async function lockFunds(
       })
       .where(eq(wallets.id, wallet.id));
 
-    /* 3) تسجيل الحركة */
     const [record] = await tx
       .insert(transactions)
       .values({
@@ -111,27 +98,15 @@ export async function lockFunds(
 }
 
 /* ============================================================================
- * releaseFunds — تحرير المبلغ للمستقل باستخدام commission_rate من العقد
+ * releaseFunds — تحرير المبلغ باستخدام commission_rate من العقد
  * ========================================================================== */
 
 /**
  * تحرير الأموال للمستقل عند اكتمال المشروع باستخدام نسبة العمولة
- * المحفوظة في جدول contracts.
+ * المحفوظة في جدول contracts (commission_rate).
  *
- * @param contractId معرّف العقد — تُقرأ منه amount و commission_rate
- * @returns العمولة والصافي ومعرّف حركة التحرير
- *
- * الخطوات:
- *   1. قراءة العقد (amount, commission_rate, freelancer_id, client_id, project_id).
- *   2. التحقق من حالة العقد active.
- *   3. احتساب العمولة من commission_rate المخزَّن في العقد.
- *   4. داخل معاملة ذرّية:
- *      - تسجيل حركة commission.
- *      - تسجيل حركة escrow_release.
- *      - إضافة الصافي إلى رصيد المستقل.
- *      - خصم الإجمالي من pending_balance للعميل.
- *      - تحويل المشروع إلى completed.
- *      - تحويل العقد إلى completed مع حفظ release_transaction_id.
+ * المواصفة: العقد يحتوي commission و net_amount مخزنان مسبقاً، لكن
+ * الخدمة تعيد احتسابهما من commission_rate لضمان استخدام النسبة من العقد.
  */
 export async function releaseFunds(
   contractId: number,
@@ -141,7 +116,6 @@ export async function releaseFunds(
   releaseTransactionId: number;
 }> {
   return db.transaction(async (tx) => {
-    /* 1) قراءة العقد مع قفل */
     const [contract] = await tx
       .select()
       .from(contracts)
@@ -157,15 +131,16 @@ export async function releaseFunds(
     const commissionRate = toNumber(contract.commissionRate);
 
     if (totalAmount <= 0) throw new Error('مبلغ العقد غير صالح');
-    if (commissionRate < 0 || commissionRate >= 1) {
+    if (commissionRate < 0 || commissionRate > 1) {
       throw new Error('نسبة العمولة في العقد غير صالحة');
     }
 
-    /* 2) احتساب العمولة والصافي من نسبة العقد نفسه */
+    // استخدام commission_rate من العقد نفسه (القاعدة الذهبية)
+    // حتى لو كانت commission و net_amount مخزنة، نعيد الحساب من النسبة
     const commission = +(totalAmount * commissionRate).toFixed(2);
     const netAmount = +(totalAmount - commission).toFixed(2);
 
-    /* 3) قفل المحافظ */
+    // قفل المحافظ
     const [clientWallet] = await tx
       .select()
       .from(wallets)
@@ -188,7 +163,7 @@ export async function releaseFunds(
       );
     }
 
-    /* 4) حركة العمولة */
+    // حركة العمولة
     await tx.insert(transactions).values({
       userId: contract.freelancerId,
       amount: toNumeric(commission),
@@ -203,7 +178,7 @@ export async function releaseFunds(
       },
     } satisfies NewTransaction);
 
-    /* 5) حركة التحرير */
+    // حركة التحرير
     const [releaseTx] = await tx
       .insert(transactions)
       .values({
@@ -223,7 +198,7 @@ export async function releaseFunds(
       } satisfies NewTransaction)
       .returning({ id: transactions.id });
 
-    /* 6) إضافة الصافي إلى رصيد المستقل */
+    // إضافة الصافي إلى رصيد المستقل
     await tx
       .update(wallets)
       .set({
@@ -232,7 +207,7 @@ export async function releaseFunds(
       })
       .where(eq(wallets.userId, contract.freelancerId));
 
-    /* 7) خصم الإجمالي من المحجوز للعميل */
+    // خصم الإجمالي من المحجوز للعميل
     await tx
       .update(wallets)
       .set({
@@ -241,18 +216,20 @@ export async function releaseFunds(
       })
       .where(eq(wallets.userId, contract.clientId));
 
-    /* 8) تحويل المشروع إلى completed */
+    // تحويل المشروع إلى completed
     await tx
       .update(projects)
       .set({ status: 'completed', updatedAt: new Date() })
       .where(eq(projects.id, contract.projectId));
 
-    /* 9) تحويل العقد إلى completed مع حفظ معرّف التحرير */
+    // تحويل العقد إلى completed مع حفظ released_at
     await tx
       .update(contracts)
       .set({
         status: 'completed',
-        releaseTransactionId: releaseTx.id,
+        releasedAt: new Date(),
+        commission: toNumeric(commission),
+        netAmount: toNumeric(netAmount),
         updatedAt: new Date(),
       })
       .where(eq(contracts.id, contract.id));
@@ -266,10 +243,9 @@ export async function releaseFunds(
 }
 
 /* ============================================================================
- * دوال مساعدة إضافية
+ * refundEscrow — استرجاع المبلغ المحجوز للعميل
  * ========================================================================== */
 
-/** استرجاع المبلغ المحجوز للعميل (عند إلغاء المشروع) */
 export async function refundEscrow(
   clientId: number,
   projectId: number,

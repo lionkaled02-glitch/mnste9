@@ -1,13 +1,9 @@
 /**
  * ============================================================================
- *  mnste9 — قائمة العقود (/dashboard/contracts) — المرحلة 9
+ *  mnste9 — قائمة العقود (/dashboard/contracts) — المرحلة 9 (مواصفة دقيقة)
  * ============================================================================
  *  تعرض عقود المستخدم الحالي (عميل أو مستقل) مع:
- *   - عنوان المشروع + الطرف الآخر + المبلغ + العمولة + الحالة + التاريخ.
- *   - رابط للتفاصيل.
- *   - حالة فراغ ودودة.
- *
- *  الحماية: middleware + فحص getCurrentUser داخل getMyContracts.
+ *   - عنوان المشروع + الطرف الآخر + المبلغ + العمولة + الصافي + الحالة.
  * ============================================================================
  */
 
@@ -46,9 +42,6 @@ function ContractRow({
   isClient: boolean;
 }) {
   const commissionRate = Number.parseFloat(contract.commissionRate);
-  const amount = Number.parseFloat(contract.amount);
-  const commissionAmount = amount * commissionRate;
-  const netAmount = amount - commissionAmount;
 
   return (
     <li>
@@ -93,11 +86,11 @@ function ContractRow({
           <p className="text-xs text-slate-400">
             الصافي{' '}
             <span dir="ltr" className="font-semibold">
-              {formatCurrency(netAmount, 'USD')}
+              {formatCurrency(contract.netAmount, 'USD')}
             </span>{' '}
             + عمولة{' '}
             <span dir="ltr" className="font-semibold">
-              {formatCurrency(commissionAmount, 'USD')}
+              {formatCurrency(contract.commission, 'USD')}
             </span>
           </p>
         </div>
@@ -131,7 +124,6 @@ export default async function ContractsPage() {
 
   return (
     <div className="space-y-6">
-      {/* الترويسة */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">العقود</h1>
@@ -149,7 +141,6 @@ export default async function ContractsPage() {
         </Link>
       </div>
 
-      {/* إحصائية سريعة */}
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-medium text-slate-500">إجمالي العقود</p>
@@ -169,7 +160,6 @@ export default async function ContractsPage() {
         </div>
       </div>
 
-      {/* القائمة */}
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         {contractsList.length === 0 ? (
           <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-300 px-6 py-16 text-center">
@@ -185,7 +175,7 @@ export default async function ContractsPage() {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0v12.75m0-12.75h7.5m-7.5 0v12.75m7.5-12.75v12.75m-7.5-12.75h7.5m-7.5 0v12.75"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0v12.75m0-12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
                 />
               </svg>
             </div>

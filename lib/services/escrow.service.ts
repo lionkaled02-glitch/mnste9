@@ -1,18 +1,9 @@
 /**
  * ============================================================================
- *  mnste9 — خدمة الضامن المالي (Escrow Service) — المرحلة 9
+ *  mnste9 — خدمة الضامن المالي (Escrow Service) — المرحلة 9 (مواصفة دقيقة)
  * ============================================================================
- *  المسؤوليات:
- *   - lockFunds: حجز مبلغ من العميل لصالح مشروع (نقل من balance إلى
- *     pending_balance) وتسجيل حركة escrow_lock.
- *   - releaseFunds: تحرير الأموال لصالح المستقل مع خصم عمولة المنصة،
- *     باستخدام commission_rate المحفوظ في جدول contracts نفسه
- *     (القاعدة الذهبية للمرحلة 9).
- *
- *  ملاحظات:
- *   - كل العمليات داخل db.transaction لضمان الذرّية.
- *   - نستخدم SELECT ... FOR UPDATE لتجنب سباقات الحجز.
- *   - المبالغ NUMERIC(15,2) => نتعامل معها كـ string عبر toNumeric.
+ *  - lockFunds: حجز مبلغ من العميل
+ *  - releaseFunds: تحرير باستخدام commission_rate من العقد
  * ============================================================================
  */
 
@@ -39,9 +30,7 @@ export async function lockFunds(
   projectId: number,
   amount: number,
 ): Promise<{ transactionId: number }> {
-  if (amount <= 0) {
-    throw new Error('المبلغ يجب أن يكون أكبر من صفر');
-  }
+  if (amount <= 0) throw new Error('المبلغ يجب أن يكون أكبر من صفر');
 
   return db.transaction(async (tx) => {
     const [wallet] = await tx
@@ -85,10 +74,6 @@ export async function lockFunds(
   });
 }
 
-/**
- * تحرير الأموال للمستقل عند اكتمال المشروع باستخدام نسبة العمولة
- * المحفوظة في جدول contracts.
- */
 export async function releaseFunds(
   contractId: number,
 ): Promise<{
@@ -112,7 +97,7 @@ export async function releaseFunds(
     const commissionRate = toNumber(contract.commissionRate);
 
     if (totalAmount <= 0) throw new Error('مبلغ العقد غير صالح');
-    if (commissionRate < 0 || commissionRate >= 1) {
+    if (commissionRate < 0 || commissionRate > 1) {
       throw new Error('نسبة العمولة في العقد غير صالحة');
     }
 
@@ -199,7 +184,9 @@ export async function releaseFunds(
       .update(contracts)
       .set({
         status: 'completed',
-        releaseTransactionId: releaseTx.id,
+        releasedAt: new Date(),
+        commission: toNumeric(commission),
+        netAmount: toNumeric(netAmount),
         updatedAt: new Date(),
       })
       .where(eq(contracts.id, contract.id));

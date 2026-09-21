@@ -1,14 +1,12 @@
 /**
  * ============================================================================
- *  mnste9 — تفاصيل العقد (/dashboard/contracts/[id]) — المرحلة 9
+ *  mnste9 — تفاصيل العقد (/dashboard/contracts/[id]) — المرحلة 9 (مواصفة دقيقة)
  * ============================================================================
  *  يعرض تفاصيل عقد واحد:
  *   - المشروع + الوصف + الحالة
- *   - العميل والمستقل + المبلغ + نسبة العمولة + العمولة والصافي
- *   - معاملات الضمان (حجز/تحرير) + التواريخ
+ *   - العميل والمستقل + المبلغ + نسبة العمولة + العمولة والصافي (مخزنان)
+ *   - escrow_locked_at و released_at + التواريخ
  *   - زر «تحرير الدفعة» للعميل عندما يكون العقد نشطاً
- *
- *  الحماية: العقد يُعرض لطرفيه فقط (client/freelancer) عبر getContractById.
  * ============================================================================
  */
 
@@ -90,13 +88,9 @@ export default async function ContractDetailsPage({
   const canRelease = isClient && contract.status === 'active';
 
   const commissionRate = Number.parseFloat(contract.commissionRate);
-  const amount = Number.parseFloat(contract.amount);
-  const commissionAmount = +(amount * commissionRate).toFixed(2);
-  const netAmount = +(amount - commissionAmount).toFixed(2);
 
   return (
     <div className="space-y-6">
-      {/* التنقل */}
       <div className="flex items-center gap-2 text-sm">
         <Link
           href="/dashboard/contracts"
@@ -108,7 +102,6 @@ export default async function ContractDetailsPage({
         <span className="font-bold text-slate-900">#{contract.id}</span>
       </div>
 
-      {/* البطاقة الرئيسية */}
       <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -116,7 +109,8 @@ export default async function ContractDetailsPage({
               {contract.projectTitle}
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              عقد #{contract.id} — مشروع #{contract.projectId} — عرض #{contract.proposalId}
+              عقد #{contract.id} — مشروع #{contract.projectId}
+              {contract.proposalId ? ` — عرض #${contract.proposalId}` : ''}
             </p>
           </div>
           <span
@@ -126,7 +120,6 @@ export default async function ContractDetailsPage({
           </span>
         </div>
 
-        {/* شبكة المعلومات */}
         <dl className="mt-8 grid gap-6 sm:grid-cols-2">
           <div className="rounded-lg bg-slate-50 p-4">
             <dt className="text-xs font-medium text-slate-500">المبلغ الإجمالي</dt>
@@ -134,11 +127,14 @@ export default async function ContractDetailsPage({
               {formatCurrency(contract.amount, 'USD')}
             </dd>
             <dd className="mt-1 text-xs text-slate-500">
-              محجوز في الضمان منذ {formatDate(contract.createdAt)}
+              محجوز في الضمان منذ{' '}
+              {contract.escrowLockedAt
+                ? formatDate(contract.escrowLockedAt)
+                : formatDate(contract.createdAt)}
             </dd>
           </div>
           <div className="rounded-lg bg-slate-50 p-4">
-            <dt className="text-xs font-medium text-slate-500">العمولة والصافي</dt>
+            <dt className="text-xs font-medium text-slate-500">العمولة والصافي (مخزنان في العقد)</dt>
             <dd className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
               <span>
                 نسبة العمولة:{' '}
@@ -149,19 +145,20 @@ export default async function ContractDetailsPage({
               <span>
                 العمولة:{' '}
                 <span className="font-bold" dir="ltr">
-                  {formatCurrency(commissionAmount, 'USD')}
+                  {formatCurrency(contract.commission, 'USD')}
                 </span>
               </span>
               <span>
                 الصافي للمستقل:{' '}
                 <span className="font-bold text-emerald-700" dir="ltr">
-                  {formatCurrency(netAmount, 'USD')}
+                  {formatCurrency(contract.netAmount, 'USD')}
                 </span>
               </span>
             </dd>
             <dd className="mt-2 text-xs leading-6 text-slate-400">
               تُحتسب العمولة من commission_rate المحفوظ في العقد نفسه — لا يُمرَّر
-              كمعامل خارجي عند التحرير (القاعدة الذهبية للمرحلة 9).
+              كمعامل خارجي عند التحرير (القاعدة الذهبية للمرحلة 9). commission =
+              amount * rate و net_amount = amount - commission.
             </dd>
           </div>
 
@@ -193,51 +190,43 @@ export default async function ContractDetailsPage({
           </div>
         </dl>
 
-        {/* معاملات الضمان */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg border border-slate-200 p-4">
-            <p className="text-xs font-medium text-slate-500">معاملة الحجز (Escrow Lock)</p>
+            <p className="text-xs font-medium text-slate-500">تاريخ الحجز (escrow_locked_at)</p>
             <p className="mt-1 text-sm font-semibold text-slate-800">
-              {contract.escrowTransactionId ? (
-                <span dir="ltr">#{contract.escrowTransactionId}</span>
-              ) : (
-                'غير متوفرة'
-              )}
+              {contract.escrowLockedAt ? formatDate(contract.escrowLockedAt) : 'لم يُحجز بعد'}
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              تم إنشاؤها عند قبول العرض وحجز المبلغ من محفظة العميل.
+              تم إنشاؤه عند قبول العرض وحجز المبلغ من محفظة العميل.
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 p-4">
-            <p className="text-xs font-medium text-slate-500">معاملة التحرير (Release)</p>
+            <p className="text-xs font-medium text-slate-500">تاريخ التحرير (released_at)</p>
             <p className="mt-1 text-sm font-semibold text-slate-800">
-              {contract.releaseTransactionId ? (
-                <span dir="ltr">#{contract.releaseTransactionId}</span>
-              ) : contract.status === 'completed' ? (
-                'تم التحرير — المعاملة محفوظة'
-              ) : (
-                'لم يُحرَّر بعد'
-              )}
+              {contract.releasedAt
+                ? formatDate(contract.releasedAt)
+                : contract.status === 'completed'
+                  ? 'تم التحرير'
+                  : 'لم يُحرَّر بعد'}
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              تُنشأ عند تحرير الدفعة — الصافي يُضاف لرصيد المستقل.
+              تُحدَّث عند تحرير الدفعة — الصافي يُضاف لرصيد المستقل.
             </p>
           </div>
         </div>
 
-        {/* إجراء التحرير */}
         {canRelease && (
           <div className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-5">
             <h2 className="text-base font-bold text-amber-900">تحرير الدفعة للمستقل</h2>
             <p className="mt-2 text-sm leading-7 text-amber-800">
               بإقرارك إنجاز العمل، سيُحوَّل الصافي{' '}
               <span dir="ltr" className="font-bold">
-                {formatCurrency(netAmount, 'USD')}
+                {formatCurrency(contract.netAmount, 'USD')}
               </span>{' '}
               إلى محفظة المستقل{' '}
               <span className="font-bold">{contract.freelancerName}</span> وتُخصم العمولة{' '}
               <span dir="ltr" className="font-bold">
-                {formatCurrency(commissionAmount, 'USD')}
+                {formatCurrency(contract.commission, 'USD')}
               </span>{' '}
               للمنصة. لا يمكن التراجع بعد التحرير.
             </p>
@@ -253,11 +242,11 @@ export default async function ContractDetailsPage({
               هذا العقد نشط والمبلغ محجوز في الضمان. عند إنجازك العمل، تواصل مع
               العميل ليحرر الدفعة — سيُحوَّل الصافي{' '}
               <span dir="ltr" className="font-bold">
-                {formatCurrency(netAmount, 'USD')}
+                {formatCurrency(contract.netAmount, 'USD')}
               </span>{' '}
               إلى محفظتك بعد خصم العمولة{' '}
               <span dir="ltr" className="font-bold">
-                {formatCurrency(commissionAmount, 'USD')}
+                {formatCurrency(contract.commission, 'USD')}
               </span>
               .
             </p>
@@ -271,14 +260,13 @@ export default async function ContractDetailsPage({
             </p>
             <p className="mt-1 text-xs text-emerald-700">
               الصافي المحرر للمستقل{' '}
-              <span dir="ltr">{formatCurrency(netAmount, 'USD')}</span> والعمولة{' '}
-              <span dir="ltr">{formatCurrency(commissionAmount, 'USD')}</span>.
+              <span dir="ltr">{formatCurrency(contract.netAmount, 'USD')}</span> والعمولة{' '}
+              <span dir="ltr">{formatCurrency(contract.commission, 'USD')}</span>.
             </p>
           </div>
         )}
       </div>
 
-      {/* روابط سريعة */}
       <div className="flex flex-wrap gap-3">
         <Link
           href={`/projects/${contract.projectId}`}

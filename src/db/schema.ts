@@ -9,7 +9,7 @@
  *    database/migrations/2026_09_21_000003_kyc_full_support.sql
  *      (أعمدة KYC الكامل: 3 وثائق + بيانات المراجعة — المرحلة 8)
  *    database/migrations/2026_09_21_000004_create_contracts.sql
- *      (جدول العقود + العمولة — المرحلة 9)
+ *      (جدول العقود + العمولة — المرحلة 9 — المواصفة الدقيقة)
  *
  *  ملاحظات معمارية:
  *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL (الذي يتضمن أيضاً Triggers
@@ -77,9 +77,6 @@ export const projectStatusEnum = pgEnum('project_status_enum', [
 /**
  * العملات المدعومة في المنصة حصراً: الدولار الأمريكي (USD) والريال
  * السعودي (SAR) — بنك الكريمي لا يدعم الريال اليمني (YER).
- *
- * تُستخدم حالياً لعمود العملة المفضلة في الملف الشخصي (هجرة 00002)،
- * وستُستخدم في المرحلة القادمة لعرض أرصدة المحفظة وحركاتها المالية.
  */
 export const currencyEnum = pgEnum('currency_enum', ['USD', 'SAR']);
 
@@ -96,7 +93,7 @@ const timestamps = {
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow()
-    .$onUpdate(() => new Date()), // يكمّل Trigger القاعدة على مستوى التطبيق
+    .$onUpdate(() => new Date()),
 };
 
 /* ---------------------------------------------------------------------------
@@ -107,21 +104,19 @@ export const users = pgTable(
   {
     id: identityId('id'),
     name: varchar('name', { length: 100 }).notNull(),
-    email: varchar('email', { length: 255 }).notNull(), // طبّع الإيميل لأحرف صغيرة في التطبيق قبل الإدخال
-    password: varchar('password', { length: 255 }).notNull(), // تجزئة bcrypt / argon2
-    role: varchar('role', { length: 20 }).notNull(), // client | freelancer | admin
+    email: varchar('email', { length: 255 }).notNull(),
+    password: varchar('password', { length: 255 }).notNull(),
+    role: varchar('role', { length: 20 }).notNull(),
     isKycVerified: boolean('is_kyc_verified').notNull().default(false),
     ...timestamps,
-
-    /* -- أعمدة الملف الشخصي والإعدادات (هجرة 00002 — إضافية اختيارية) -- */
-    phone: varchar('phone', { length: 30 }), // رقم الهاتف — صيغة دولية مثل ‎+967…
-    city: varchar('city', { length: 100 }), // المدينة
-    preferredCurrency: currencyEnum('preferred_currency'), // العملة المفضلة: USD | SAR (لا YER)
-    skills: text('skills'), // مهارات المستقل — نص مفصول بفواصل
-    bio: text('bio'), // نبذة مهنية (للمستقلين)
-    hourlyRate: numeric('hourly_rate', { precision: 15, scale: 2 }), // السعر بالساعة بالدولار
-    notifyEmail: boolean('notify_email').notNull().default(true), // تفضيل إشعارات البريد
-    notifySms: boolean('notify_sms').notNull().default(true), // تفضيل إشعارات الجوال (SMS)
+    phone: varchar('phone', { length: 30 }),
+    city: varchar('city', { length: 100 }),
+    preferredCurrency: currencyEnum('preferred_currency'),
+    skills: text('skills'),
+    bio: text('bio'),
+    hourlyRate: numeric('hourly_rate', { precision: 15, scale: 2 }),
+    notifyEmail: boolean('notify_email').notNull().default(true),
+    notifySms: boolean('notify_sms').notNull().default(true),
   },
   (t) => [
     unique('uq_users_email').on(t.email),
@@ -134,19 +129,18 @@ export const users = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * wallets — المحافظ (محفظة واحدة لكل مستخدم، والرصيد لا يكون سالباً أبداً)
+ * wallets — المحافظ
  * ------------------------------------------------------------------------- */
 export const wallets = pgTable(
   'wallets',
   {
     id: identityId('id'),
     userId: bigint('user_id', { mode: 'number' }).notNull(),
-    balance: numeric('balance', { precision: 15, scale: 2 }).notNull().default('0.00'), // الرصيد المتاح
-    pendingBalance: numeric('pending_balance', { precision: 15, scale: 2 }).notNull().default('0.00'), // المحتجز كضمان Escrow
+    balance: numeric('balance', { precision: 15, scale: 2 }).notNull().default('0.00'),
+    pendingBalance: numeric('pending_balance', { precision: 15, scale: 2 }).notNull().default('0.00'),
     ...timestamps,
   },
   (t) => [
-    // محفظة واحدة لكل مستخدم — يوفّر هذا القيد فهرس B-Tree على user_id تلقائياً
     unique('uq_wallets_user_id').on(t.userId),
     check('ck_wallets_balance_non_negative', sql`${t.balance} >= 0`),
     check('ck_wallets_pending_balance_non_negative', sql`${t.pendingBalance} >= 0`),
@@ -154,24 +148,24 @@ export const wallets = pgTable(
       name: 'fk_wallets_user_id',
       columns: [t.userId],
       foreignColumns: [users.id],
-    }).onDelete('restrict'), // لا يُحذف مستخدم له محفظة (حماية المسار التدقيقي)
+    }).onDelete('restrict'),
   ],
 );
 
 /* ---------------------------------------------------------------------------
- * transactions — الحركات المالية (إيداع، سحب، ضمان، عمولة)
+ * transactions — الحركات المالية
  * ------------------------------------------------------------------------- */
 export const transactions = pgTable(
   'transactions',
   {
     id: identityId('id'),
     userId: bigint('user_id', { mode: 'number' }).notNull(),
-    amount: numeric('amount', { precision: 15, scale: 2 }).notNull(), // موجب دائماً؛ الاتجاه يحدده type
+    amount: numeric('amount', { precision: 15, scale: 2 }).notNull(),
     type: transactionTypeEnum('type').notNull(),
-    paymentMethod: paymentMethodEnum('payment_method'), // NULL للحركات الداخلية (Escrow / العمولة)
+    paymentMethod: paymentMethodEnum('payment_method'),
     status: transactionStatusEnum('status').notNull().default('pending'),
-    referenceId: varchar('reference_id', { length: 255 }), // رقم حوالة الكريمي أو معرّف طلب PayPal
-    meta: jsonb('meta').$type<Record<string, unknown>>(), // بيانات إضافية مرنة
+    referenceId: varchar('reference_id', { length: 255 }),
+    meta: jsonb('meta').$type<Record<string, unknown>>(),
     ...timestamps,
   },
   (t) => [
@@ -184,12 +178,12 @@ export const transactions = pgTable(
       name: 'fk_transactions_user_id',
       columns: [t.userId],
       foreignColumns: [users.id],
-    }).onDelete('restrict'), // الحفاظ على المسار التدقيقي المالي
+    }).onDelete('restrict'),
   ],
 );
 
 /* ---------------------------------------------------------------------------
- * projects — المشاريع التي ينشرها العملاء
+ * projects — المشاريع
  * ------------------------------------------------------------------------- */
 export const projects = pgTable(
   'projects',
@@ -220,7 +214,7 @@ export const projects = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * proposals — عروض المستقلين (عرض واحد لكل مستقل في المشروع)
+ * proposals — عروض المستقلين
  * ------------------------------------------------------------------------- */
 export const proposals = pgTable(
   'proposals',
@@ -231,7 +225,7 @@ export const proposals = pgTable(
     amount: numeric('amount', { precision: 15, scale: 2 }).notNull(),
     durationDays: integer('duration_days').notNull(),
     comment: text('comment'),
-    status: varchar('status', { length: 20 }).notNull().default('pending'), // pending | accepted | rejected | withdrawn
+    status: varchar('status', { length: 20 }).notNull().default('pending'),
     ...timestamps,
   },
   (t) => [
@@ -249,7 +243,7 @@ export const proposals = pgTable(
       name: 'fk_proposals_project_id',
       columns: [t.projectId],
       foreignColumns: [projects.id],
-    }).onDelete('cascade'), // حذف المشروع يحذف عروضه
+    }).onDelete('cascade'),
     foreignKey({
       name: 'fk_proposals_freelancer_id',
       columns: [t.freelancerId],
@@ -259,28 +253,22 @@ export const proposals = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * kyc_documents — وثائق توثيق الهوية (الملفات مشفّرة خارج قاعدة البيانات)
+ * kyc_documents — وثائق توثيق الهوية
  * ------------------------------------------------------------------------- */
 export const kycDocuments = pgTable(
   'kyc_documents',
   {
     id: identityId('id'),
     userId: bigint('user_id', { mode: 'number' }).notNull(),
-    /**
-     * مسار ملف الوثيقة الأساسي (مشفر) — العمود التاريخي NOT NULL.
-     * في تدفق المرحلة 8 (ثلاث وثائق) يخزّن مسار الوجه الأمامي نفسه
-     * الموجود في frontFilePath — توافق خلفي مع الصفوف القديمة.
-     */
     encryptedFilePath: text('encrypted_file_path').notNull(),
-    /* -- أعمدة KYC الكامل (هجرة 00003 — إضافية اختيارية) -- */
-    frontFilePath: text('front_file_path'), // مسار مشفّر — الوجه الأمامي
-    backFilePath: text('back_file_path'), // مسار مشفّر — الوجه الخلفي
-    selfieFilePath: text('selfie_file_path'), // مسار مشفّر — السيلفي مع الوثيقة
-    rejectionReason: text('rejection_reason'), // سبب الرفض (عند الرفض فقط)
-    reviewedBy: bigint('reviewed_by', { mode: 'number' }), // معرّف المشرف المراجِع (بلا FK — سجل تاريخي)
-    reviewedAt: timestamp('reviewed_at', { withTimezone: true }), // تاريخ المراجعة
-    documentType: varchar('document_type', { length: 50 }).notNull(), // national_id | passport | driver_license | other
-    status: varchar('status', { length: 20 }).notNull().default('pending'), // pending | approved | rejected
+    frontFilePath: text('front_file_path'),
+    backFilePath: text('back_file_path'),
+    selfieFilePath: text('selfie_file_path'),
+    rejectionReason: text('rejection_reason'),
+    reviewedBy: bigint('reviewed_by', { mode: 'number' }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    documentType: varchar('document_type', { length: 50 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('pending'),
     ...timestamps,
   },
   (t) => [
@@ -298,56 +286,51 @@ export const kycDocuments = pgTable(
       name: 'fk_kyc_documents_user_id',
       columns: [t.userId],
       foreignColumns: [users.id],
-    }).onDelete('cascade'), // بيانات شخصية حساسة: تُمحى مع حساب المستخدم
+    }).onDelete('cascade'),
   ],
 );
 
 /* ---------------------------------------------------------------------------
- * contracts — العقود بين العميل والمستقل بعد قبول العرض (المرحلة 9)
+ * contracts — العقود بين العميل والمستقل (المرحلة 9 — المواصفة الدقيقة)
  * ------------------------------------------------------------------------- */
 export const contracts = pgTable(
   'contracts',
   {
     id: identityId('id'),
     projectId: bigint('project_id', { mode: 'number' }).notNull(),
-    proposalId: bigint('proposal_id', { mode: 'number' }).notNull(),
     clientId: bigint('client_id', { mode: 'number' }).notNull(),
     freelancerId: bigint('freelancer_id', { mode: 'number' }).notNull(),
+    proposalId: bigint('proposal_id', { mode: 'number' }),
     amount: numeric('amount', { precision: 15, scale: 2 }).notNull(),
     commissionRate: numeric('commission_rate', { precision: 5, scale: 4 })
       .notNull()
       .default('0.15'),
-    status: varchar('status', { length: 20 }).notNull().default('active'), // pending | active | completed | cancelled | disputed
-    escrowTransactionId: bigint('escrow_transaction_id', { mode: 'number' }),
-    releaseTransactionId: bigint('release_transaction_id', { mode: 'number' }),
+    commission: numeric('commission', { precision: 15, scale: 2 }).notNull(),
+    netAmount: numeric('net_amount', { precision: 15, scale: 2 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('pending'),
+    escrowLockedAt: timestamp('escrow_locked_at', { withTimezone: true }),
+    releasedAt: timestamp('released_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
-    unique('uq_contracts_proposal_id').on(t.proposalId),
     index('idx_contracts_project_id').on(t.projectId),
-    index('idx_contracts_proposal_id').on(t.proposalId),
     index('idx_contracts_client_id').on(t.clientId),
     index('idx_contracts_freelancer_id').on(t.freelancerId),
     index('idx_contracts_status').on(t.status),
-    index('idx_contracts_created_at').on(t.createdAt),
     check('ck_contracts_amount_positive', sql`${t.amount} > 0`),
     check(
-      'ck_contracts_commission_rate_range',
-      sql`${t.commissionRate} >= 0 AND ${t.commissionRate} < 1`,
+      'ck_contracts_commission_rate',
+      sql`${t.commissionRate} >= 0 AND ${t.commissionRate} <= 1`,
     ),
+    check('ck_contracts_net_amount_positive', sql`${t.netAmount} > 0`),
     check(
       'ck_contracts_status',
-      sql`${t.status} IN ('pending', 'active', 'completed', 'cancelled', 'disputed')`,
+      sql`${t.status} IN ('pending', 'active', 'completed', 'disputed', 'cancelled')`,
     ),
     foreignKey({
       name: 'fk_contracts_project_id',
       columns: [t.projectId],
       foreignColumns: [projects.id],
-    }).onDelete('restrict'),
-    foreignKey({
-      name: 'fk_contracts_proposal_id',
-      columns: [t.proposalId],
-      foreignColumns: [proposals.id],
     }).onDelete('restrict'),
     foreignKey({
       name: 'fk_contracts_client_id',
@@ -360,39 +343,27 @@ export const contracts = pgTable(
       foreignColumns: [users.id],
     }).onDelete('restrict'),
     foreignKey({
-      name: 'fk_contracts_escrow_transaction_id',
-      columns: [t.escrowTransactionId],
-      foreignColumns: [transactions.id],
-    }).onDelete('set null'),
-    foreignKey({
-      name: 'fk_contracts_release_transaction_id',
-      columns: [t.releaseTransactionId],
-      foreignColumns: [transactions.id],
+      name: 'fk_contracts_proposal_id',
+      columns: [t.proposalId],
+      foreignColumns: [proposals.id],
     }).onDelete('set null'),
   ],
 );
 
 /* ============================================================================
- * 3) العلاقات (Relations) — تُستخدم مع db.query.<table>.findMany({ with: ... })
+ * 3) العلاقات (Relations)
  * ========================================================================== */
 
 export const usersRelations = relations(users, ({ one, many }) => ({
-  /** محفظة المستخدم (1:1) */
   wallet: one(wallets, {
     fields: [users.id],
     references: [wallets.userId],
   }),
-  /** حركات المستخدم المالية (1:N) */
   transactions: many(transactions),
-  /** المشاريع التي نشرها المستخدم كعميل (1:N) */
   projects: many(projects),
-  /** العروض التي قدّمها المستخدم كمستقل (1:N) */
   proposals: many(proposals),
-  /** وثائق التوثيق (1:N) */
   kycDocuments: many(kycDocuments),
-  /** العقود كعميل (1:N) */
   clientContracts: many(contracts, { relationName: 'clientContracts' }),
-  /** العقود كمستقل (1:N) */
   freelancerContracts: many(contracts, { relationName: 'freelancerContracts' }),
 }));
 
@@ -411,18 +382,15 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
-  /** العميل صاحب المشروع (N:1) */
   client: one(users, {
     fields: [projects.clientId],
     references: [users.id],
   }),
-  /** عروض المستقلين على المشروع (1:N) */
   proposals: many(proposals),
-  /** عقود المشروع (1:N) */
   contracts: many(contracts),
 }));
 
-export const proposalsRelations = relations(proposals, ({ one }) => ({
+export const proposalsRelations = relations(proposals, ({ one, many }) => ({
   project: one(projects, {
     fields: [proposals.projectId],
     references: [projects.id],
@@ -431,10 +399,7 @@ export const proposalsRelations = relations(proposals, ({ one }) => ({
     fields: [proposals.freelancerId],
     references: [users.id],
   }),
-  contract: one(contracts, {
-    fields: [proposals.id],
-    references: [contracts.proposalId],
-  }),
+  contracts: many(contracts),
 }));
 
 export const kycDocumentsRelations = relations(kycDocuments, ({ one }) => ({
@@ -463,18 +428,10 @@ export const contractsRelations = relations(contracts, ({ one }) => ({
     references: [users.id],
     relationName: 'freelancerContracts',
   }),
-  escrowTransaction: one(transactions, {
-    fields: [contracts.escrowTransactionId],
-    references: [transactions.id],
-  }),
-  releaseTransaction: one(transactions, {
-    fields: [contracts.releaseTransactionId],
-    references: [transactions.id],
-  }),
 }));
 
 /* ============================================================================
- * 4) استخراج الأنواع (Type Inference) — للاستخدام الآمن في طبقة التطبيق
+ * 4) استخراج الأنواع (Type Inference)
  * ========================================================================== */
 
 export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];

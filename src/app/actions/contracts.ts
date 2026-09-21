@@ -2,19 +2,31 @@
 
 /**
  * ============================================================================
- *  mnste9 — إجراءات العقود (Server Actions) — المرحلة 9
+ *  mnste9 — إجراءات العقود (Server Actions) — المرحلة 9 (مواصفة دقيقة)
  * ============================================================================
  *  - createContract(proposalId)  : إنشاء عقد عند قبول عرض (العميل فقط).
  *  - releasePayment(contractId)  : تحرير الدفعة للمستقل (العميل فقط).
- *  - getMyContracts()            : قائمة عقود المستخدم الحالي (عميل/مستقل).
+ *  - getMyContracts()            : قائمة عقود المستخدم الحالي.
  *
- *  مبادئ التصميم:
- *   - كل إجراء نقطة دخول غير موثوقة → تحقق zod/يدوي + جلسة + دور.
- *   - الدفاع متعدد الطبقات: middleware + getCurrentUser داخل الإجراء.
- *   - العقد يخزّن commission_rate (افتراضي 0.15) ويُستخدم في releaseFunds.
- *   - حجز الأموال يتم عبر lockFunds قبل إنشاء العقد — يضمن كفاية الرصيد.
- *   - getMyContracts دالة خادم (server) تُستدعى من صفحات لوحة التحكم،
- *     وتُرجع بيانات غنية مع أسماء الأطراف وعناوين المشاريع.
+ *  المواصفة الدقيقة:
+ *   CREATE TABLE contracts (
+ *     id BIGINT PRIMARY KEY,
+ *     project_id BIGINT NOT NULL,
+ *     client_id BIGINT NOT NULL,
+ *     freelancer_id BIGINT NOT NULL,
+ *     proposal_id BIGINT (NULL, SET NULL),
+ *     amount NUMERIC(15,2) NOT NULL,
+ *     commission_rate NUMERIC(5,4) DEFAULT 0.15,
+ *     commission NUMERIC(15,2) NOT NULL,
+ *     net_amount NUMERIC(15,2) NOT NULL,
+ *     status VARCHAR(20) DEFAULT 'pending',
+ *     escrow_locked_at TIMESTAMPTZ,
+ *     released_at TIMESTAMPTZ,
+ *     created_at, updated_at
+ *   );
+ *   - commission = amount * commission_rate
+ *   - net_amount = amount - commission
+ *   - escrow.service يستخدم commission_rate من العقد نفسه
  * ============================================================================
  */
 
@@ -24,7 +36,11 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import { contracts, projects, proposals, users, wallets } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
-import { ESCROW_DEFAULT_COMMISSION, lockFunds, releaseFunds } from '@/lib/services/escrow.service';
+import {
+  ESCROW_DEFAULT_COMMISSION,
+  lockFunds,
+  releaseFunds,
+} from '@/lib/services/escrow.service';
 
 /* ============================================================================
  * أدوات داخلية
@@ -33,8 +49,15 @@ import { ESCROW_DEFAULT_COMMISSION, lockFunds, releaseFunds } from '@/lib/servic
 const toNumber = (value: string | number): number =>
   typeof value === 'number' ? value : Number.parseFloat(value);
 
+const toNumeric = (value: number): string => value.toFixed(2);
+
 function parseId(value: unknown): number | null {
-  const num = typeof value === 'string' ? Number(value) : (value as number);
+  const num =
+    typeof value === 'string'
+      ? Number(value)
+      : typeof value === 'number'
+        ? value
+        : Number.NaN;
   if (!Number.isSafeInteger(num) || num <= 0) return null;
   return num;
 }
@@ -47,14 +70,18 @@ export interface ContractListItem {
   id: number;
   projectId: number;
   projectTitle: string;
-  proposalId: number;
+  proposalId: number | null;
   clientId: number;
   clientName: string;
   freelancerId: number;
   freelancerName: string;
   amount: string;
   commissionRate: string;
+  commission: string;
+  netAmount: string;
   status: string;
+  escrowLockedAt: Date | null;
+  releasedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,35 +89,15 @@ export interface ContractListItem {
 export interface ContractDetails extends ContractListItem {
   projectDescription: string;
   projectStatus: string;
-  escrowTransactionId: number | null;
-  releaseTransactionId: number | null;
 }
 
 /* ============================================================================
  * createContract — إنشاء عقد عند قبول عرض
  * ========================================================================== */
 
-/**
- * إنشاء عقد جديد من عرض مقبول.
- *
- * الشروط:
- *  - جلسة صالحة ودور client.
- *  - العرض موجود وحالته pending.
- *  - المشروع مملوك للعميل الحالي وحالته open.
- *  - المستقل موثّق KYC (القاعدة الذهبية).
- *  - رصيد العميل كافٍ.
- *
- * الخطوات:
- *  1. قفل محفظة العميل والتحقق من الرصيد (داخل lockFunds).
- *  2. حجز المبلغ (escrow_lock).
- *  3. إدراج العقد مع commission_rate الافتراضي.
- *  4. تحديث العرض المقبول إلى accepted وبقية العروض إلى rejected.
- *  5. تحويل المشروع إلى in_progress.
- */
 export async function createContract(
   proposalId: number,
 ): Promise<AuthActionState & { contractId?: number }> {
-  // 1) الجلسة والدور
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return {
@@ -111,7 +118,6 @@ export async function createContract(
     return { success: false, message: 'معرّف العرض غير صالح' };
   }
 
-  // 2) جلب العرض مع المشروع والمستقل
   const [proposal] = await db
     .select({
       id: proposals.id,
@@ -135,7 +141,6 @@ export async function createContract(
     return { success: false, message: 'العرض غير موجود' };
   }
 
-  // 3) تحقق الملكية والحالة
   if (proposal.projectClientId !== currentUser.id) {
     return { success: false, message: 'هذا العرض ليس على أحد مشاريعك' };
   }
@@ -149,7 +154,6 @@ export async function createContract(
     };
   }
 
-  // 4) القاعدة الذهبية — المستقل يجب أن يكون موثّقاً قبل التعاقد
   if (!proposal.freelancerKyc) {
     return {
       success: false,
@@ -157,7 +161,6 @@ export async function createContract(
     };
   }
 
-  // 5) تحقق الرصيد (قبل الحجز — lockFunds يتحقق أيضاً داخل المعاملة)
   const [wallet] = await db
     .select({ balance: wallets.balance })
     .from(wallets)
@@ -174,52 +177,43 @@ export async function createContract(
     };
   }
 
-  // 6) هل يوجد عقد سابق لنفس العرض؟ (UNIQUE proposal_id)
-  const [existingContract] = await db
-    .select({ id: contracts.id })
-    .from(contracts)
-    .where(eq(contracts.proposalId, proposal.id))
-    .limit(1);
+  // حساب العمولة والصافي من commission_rate الافتراضي
+  const commissionRate = ESCROW_DEFAULT_COMMISSION;
+  const commission = +(amount * commissionRate).toFixed(2);
+  const netAmount = +(amount - commission).toFixed(2);
 
-  if (existingContract) {
+  if (netAmount <= 0) {
     return {
       success: false,
-      message: 'تم إنشاء عقد لهذا العرض مسبقاً',
-      redirectTo: `/dashboard/contracts/${existingContract.id}`,
+      message: 'صافي المبلغ بعد العمولة يجب أن يكون أكبر من صفر',
     };
   }
 
   try {
-    // 7) حجز الأموال
-    const { transactionId: escrowTxId } = await lockFunds(
-      currentUser.id,
-      proposal.projectId,
-      amount,
-    );
+    await lockFunds(currentUser.id, proposal.projectId, amount);
 
-    // 8) إنشاء العقد داخل معاملة إضافية للتحديثات المتعددة
     const result = await db.transaction(async (tx) => {
       const [newContract] = await tx
         .insert(contracts)
         .values({
           projectId: proposal.projectId,
-          proposalId: proposal.id,
           clientId: currentUser.id,
           freelancerId: proposal.freelancerId,
-          amount: proposal.amount,
-          commissionRate: ESCROW_DEFAULT_COMMISSION.toFixed(4),
+          proposalId: proposal.id,
+          amount: toNumeric(amount),
+          commissionRate: commissionRate.toFixed(4),
+          commission: toNumeric(commission),
+          netAmount: toNumeric(netAmount),
           status: 'active',
-          escrowTransactionId: escrowTxId,
+          escrowLockedAt: new Date(),
         })
         .returning({ id: contracts.id });
 
-      // قبول العرض الحالي
       await tx
         .update(proposals)
         .set({ status: 'accepted', updatedAt: new Date() })
         .where(eq(proposals.id, proposal.id));
 
-      // رفض بقية العروض المعلقة على نفس المشروع
       await tx
         .update(proposals)
         .set({ status: 'rejected', updatedAt: new Date() })
@@ -230,13 +224,11 @@ export async function createContract(
           ),
         );
 
-      // إعادة قبول العرض الحالي (لأن التحديث السابق قد يكون غيّره)
       await tx
         .update(proposals)
         .set({ status: 'accepted', updatedAt: new Date() })
         .where(eq(proposals.id, proposal.id));
 
-      // تحويل المشروع إلى in_progress
       await tx
         .update(projects)
         .set({ status: 'in_progress', updatedAt: new Date() })
@@ -259,7 +251,6 @@ export async function createContract(
       contractId: result.id,
     };
   } catch (error) {
-    // معالجة سباق UNIQUE (23505)
     if ((error as { code?: string }).code === '23505') {
       return {
         success: false,
@@ -275,7 +266,7 @@ export async function createContract(
 }
 
 /* ============================================================================
- * releasePayment — تحرير الدفعة للمستقل
+ * releasePayment — تحرير الدفعة
  * ========================================================================== */
 
 export async function releasePayment(
@@ -340,7 +331,9 @@ export async function releasePayment(
   } catch (error) {
     console.error('releasePayment failed:', error);
     const message =
-      error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحرير الدفعة';
+      error instanceof Error
+        ? error.message
+        : 'حدث خطأ غير متوقع أثناء تحرير الدفعة';
     return {
       success: false,
       message,
@@ -366,7 +359,11 @@ export async function getMyContracts(): Promise<ContractListItem[]> {
       freelancerId: contracts.freelancerId,
       amount: contracts.amount,
       commissionRate: contracts.commissionRate,
+      commission: contracts.commission,
+      netAmount: contracts.netAmount,
       status: contracts.status,
+      escrowLockedAt: contracts.escrowLockedAt,
+      releasedAt: contracts.releasedAt,
       createdAt: contracts.createdAt,
       updatedAt: contracts.updatedAt,
       clientName: users.name,
@@ -383,10 +380,9 @@ export async function getMyContracts(): Promise<ContractListItem[]> {
     .orderBy(desc(contracts.createdAt))
     .limit(100);
 
-  // نحتاج أسماء المستقلين أيضاً — نجلبها باستعلام ثانٍ (أوضح من join مزدوج على users)
-  const freelancerIds = [...new Set(rows.map((r) => r.freelancerId))];
-  const clientIds = [...new Set(rows.map((r) => r.clientId))];
-  const allUserIds = [...new Set([...freelancerIds, ...clientIds])];
+  const allUserIds = [
+    ...new Set([...rows.map((r) => r.freelancerId), ...rows.map((r) => r.clientId)]),
+  ];
 
   const usersMap = new Map<number, string>();
   if (allUserIds.length > 0) {
@@ -408,14 +404,18 @@ export async function getMyContracts(): Promise<ContractListItem[]> {
     freelancerName: usersMap.get(row.freelancerId) ?? 'مستقل',
     amount: row.amount,
     commissionRate: row.commissionRate,
+    commission: row.commission,
+    netAmount: row.netAmount,
     status: row.status,
+    escrowLockedAt: row.escrowLockedAt,
+    releasedAt: row.releasedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }));
 }
 
 /* ============================================================================
- * getContractById — تفاصيل عقد واحد (للصفحة التفصيلية)
+ * getContractById — تفاصيل عقد واحد
  * ========================================================================== */
 
 export async function getContractById(
@@ -439,9 +439,11 @@ export async function getContractById(
       freelancerId: contracts.freelancerId,
       amount: contracts.amount,
       commissionRate: contracts.commissionRate,
+      commission: contracts.commission,
+      netAmount: contracts.netAmount,
       status: contracts.status,
-      escrowTransactionId: contracts.escrowTransactionId,
-      releaseTransactionId: contracts.releaseTransactionId,
+      escrowLockedAt: contracts.escrowLockedAt,
+      releasedAt: contracts.releasedAt,
       createdAt: contracts.createdAt,
       updatedAt: contracts.updatedAt,
     })
@@ -486,16 +488,18 @@ export async function getContractById(
     freelancerName: freelancerUser[0]?.name ?? 'مستقل',
     amount: row.amount,
     commissionRate: row.commissionRate,
+    commission: row.commission,
+    netAmount: row.netAmount,
     status: row.status,
-    escrowTransactionId: row.escrowTransactionId,
-    releaseTransactionId: row.releaseTransactionId,
+    escrowLockedAt: row.escrowLockedAt,
+    releasedAt: row.releasedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
 /* ============================================================================
- * أغلفة useActionState — للنماذج التي تعمل بلا JS
+ * أغلفة useActionState
  * ========================================================================== */
 
 export async function createContractAction(
