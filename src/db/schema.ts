@@ -2,8 +2,10 @@
  * ============================================================================
  *  mnste9 — مخطط قاعدة البيانات (Drizzle ORM / PostgreSQL)
  * ============================================================================
- *  هذه الترجمة البرمجية المطابقة 1:1 لملف الهجرة:
+ *  هذه الترجمة البرمجية المطابقة 1:1 لملفات الهجرة:
  *    database/migrations/2026_09_19_000001_create_platform_tables.sql
+ *    database/migrations/2026_09_21_000002_add_user_profile_fields.sql
+ *      (أعمدة الملف الشخصي والإعدادات المضافة إلى users — المرحلة 6)
  *
  *  ملاحظات معمارية:
  *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL (الذي يتضمن أيضاً Triggers
@@ -68,6 +70,15 @@ export const projectStatusEnum = pgEnum('project_status_enum', [
   'cancelled',
 ]);
 
+/**
+ * العملات المدعومة في المنصة حصراً: الدولار الأمريكي (USD) والريال
+ * السعودي (SAR) — بنك الكريمي لا يدعم الريال اليمني (YER).
+ *
+ * تُستخدم حالياً لعمود العملة المفضلة في الملف الشخصي (هجرة 00002)،
+ * وستُستخدم في المرحلة القادمة لعرض أرصدة المحفظة وحركاتها المالية.
+ */
+export const currencyEnum = pgEnum('currency_enum', ['USD', 'SAR']);
+
 /* ============================================================================
  * 2) الجداول والقيود (CHECK / UNIQUE / FK) والفهارس
  * ========================================================================== */
@@ -97,10 +108,24 @@ export const users = pgTable(
     role: varchar('role', { length: 20 }).notNull(), // client | freelancer | admin
     isKycVerified: boolean('is_kyc_verified').notNull().default(false),
     ...timestamps,
+
+    /* -- أعمدة الملف الشخصي والإعدادات (هجرة 00002 — إضافية اختيارية) -- */
+    phone: varchar('phone', { length: 30 }), // رقم الهاتف — صيغة دولية مثل ‎+967…
+    city: varchar('city', { length: 100 }), // المدينة
+    preferredCurrency: currencyEnum('preferred_currency'), // العملة المفضلة: USD | SAR (لا YER)
+    skills: text('skills'), // مهارات المستقل — نص مفصول بفواصل
+    bio: text('bio'), // نبذة مهنية (للمستقلين)
+    hourlyRate: numeric('hourly_rate', { precision: 15, scale: 2 }), // السعر بالساعة بالدولار
+    notifyEmail: boolean('notify_email').notNull().default(true), // تفضيل إشعارات البريد
+    notifySms: boolean('notify_sms').notNull().default(true), // تفضيل إشعارات الجوال (SMS)
   },
   (t) => [
     unique('uq_users_email').on(t.email),
     check('ck_users_role', sql`${t.role} IN ('client', 'freelancer', 'admin')`),
+    check(
+      'ck_users_hourly_rate_positive',
+      sql`${t.hourlyRate} IS NULL OR ${t.hourlyRate} > 0`,
+    ),
   ],
 );
 
@@ -331,6 +356,7 @@ export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];
 export type TransactionStatus = (typeof transactionStatusEnum.enumValues)[number];
 export type TransactionType = (typeof transactionTypeEnum.enumValues)[number];
 export type ProjectStatus = (typeof projectStatusEnum.enumValues)[number];
+export type Currency = (typeof currencyEnum.enumValues)[number];
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
