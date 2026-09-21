@@ -1,21 +1,18 @@
 /**
  * ============================================================================
- *  mnste9 — صفحة نشر مشروع جديد (/projects/new)
+ *  mnste9 — صفحة نشر مشروع جديد (/projects/new) — المرحلة 10 محسّنة
  * ============================================================================
- *  بوابة صاحب العمل:
- *   - غير مسجّل أو ليس صاحب عمل (client) → رسالة
- *     "هذه الصفحة لصاحب العمل فقط" + زر "اختر نوع الحساب"
- *     (→ /select-account-type حيث يمكن تغيير نوع الحساب فعلياً).
- *   - صاحب عمل مسجّل → نموذج نشر المشروع (ProjectForm).
- *
- *  الحماية هنا على مستوى الصفحة (تجربة استخدام) وعلى مستوى الإجراء
- *  createProject نفسه (دفاع متعدد الطبقات) — الاثنان لا يُغني عن الآخر.
+ *  - يستخدم SiteHeader/Footer
+ *  - توسيع الحاوية إلى max-w-6xl لاستيعاب شبكة النموذج + الشريط الجانبي
+ *  - ProjectForm محسّن (قوالب، ضمانات، نصائح، مسودة)
  * ============================================================================
  */
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { SiteFooter } from '@/components/site-footer';
+import { SiteHeader } from '@/components/site-header';
 import { getCurrentUser } from '@/lib/auth';
 
 import { ProjectForm } from '../project-form';
@@ -29,16 +26,16 @@ export default async function NewProjectPage() {
   const isClient = currentUser?.role === 'client';
 
   return (
-    <div className="flex-1 bg-slate-50">
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <h1 className="mb-6 text-2xl font-bold tracking-tight text-slate-900">
-          انشر مشروعك الجديد
-        </h1>
+    <div className="flex min-h-screen flex-col bg-slate-50">
+      <SiteHeader />
+
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+        <h1 className="mb-6 text-2xl font-bold tracking-tight text-slate-900">انشر مشروعك الجديد</h1>
 
         {isClient ? (
           <ProjectForm />
         ) : (
-          <div className="rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
               <svg
                 className="h-7 w-7 text-slate-500"
@@ -56,17 +53,14 @@ export default async function NewProjectPage() {
               </svg>
             </span>
 
-            <p className="mt-5 text-lg font-bold text-slate-800">
-              هذه الصفحة لصاحب العمل فقط
-            </p>
+            <p className="mt-5 text-lg font-bold text-slate-800">هذه الصفحة لصاحب العمل فقط</p>
             <p className="mt-2 text-sm leading-7 text-slate-500">
-              نشر المشاريع متاح لحسابات أصحاب العمل — يمكنك اختيار نوع
-              حسابك كصاحب عمل خلال ثوانٍ.
+              نشر المشاريع متاح لحسابات أصحاب العمل — يمكنك اختيار نوع حسابك كصاحب عمل خلال ثوانٍ.
             </p>
 
             <Link
               href="/select-account-type"
-              className="mt-6 inline-block rounded-lg bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+              className="mt-6 inline-block rounded-lg bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
             >
               اختر نوع الحساب
             </Link>
@@ -74,10 +68,7 @@ export default async function NewProjectPage() {
             {!currentUser && (
               <p className="mt-5 text-sm text-slate-500">
                 لديك حساب بالفعل؟{' '}
-                <Link
-                  href="/login?from=/projects/new"
-                  className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
-                >
+                <Link href="/login?from=/projects/new" className="font-semibold text-emerald-700 hover:underline">
                   سجّل الدخول أولاً
                 </Link>
               </p>
@@ -85,6 +76,8 @@ export default async function NewProjectPage() {
           </div>
         )}
       </div>
+
+      <SiteFooter />
     </div>
   );
 }

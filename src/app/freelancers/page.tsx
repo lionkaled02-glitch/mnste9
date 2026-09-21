@@ -1,24 +1,17 @@
 /**
  * ============================================================================
- *  mnste9 — صفحة تصفح المستقلين (/freelancers)
+ *  mnste9 — صفحة تصفح المستقلين (/freelancers) — المرحلة 10 محسّنة
  * ============================================================================
- *  - العنوان "تصفح المستقلين" + بحث بالاسم (نموذج GET يعمل حتى مع تعطيل
- *    JavaScript — الحالة تعيش في معامل URL ?q= كروابط قابلة للمشاركة).
- *  - شبكة grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6.
- *  - بطاقة المستقل: صورة دائرية (دائرة زمردية بحرف الاسم — لا صور
- *    شخصيات في المخطط)، الاسم، التخصص المستنتج، شارة KYC، وزر
- *    "عرض الملف".
- *  - حالتا فراغ متميزتان: لا مستقلين على المنصة / لا نتائج للبحث.
- *
- *  ملاحظة موثّقة — هدف زر "عرض الملف":
- *   يشير إلى /freelancers/[id] — صفحة الملف العام للمستقل، وهي من
- *   مسارات المراحل القادمة؛ بنية الرابط مثبّتة الآن كي لا تتغير.
+ *  - يستخدم SiteHeader/Footer
+ *  - نفس البحث والشبكة السابقة مع تحسينات طفيفة
  * ============================================================================
  */
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { SiteFooter } from '@/components/site-footer';
+import { SiteHeader } from '@/components/site-header';
 import { listFreelancers } from '@/lib/services/freelancers';
 import { formatDate } from '@/lib/utils';
 
@@ -30,7 +23,6 @@ interface FreelancersPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-/** قراءة أول قيمة لمعامل URL (يتحمّل الصيغ المتعددة القيم) */
 function firstParam(
   searchParams: Record<string, string | string[] | undefined>,
   key: string,
@@ -39,7 +31,6 @@ function firstParam(
   return Array.isArray(value) ? value[0] : value;
 }
 
-/** عدد المستقلين بصيغة عربية سليمة */
 function formatFreelancerCount(count: number): string {
   if (count === 0) return 'لا مستقلين';
   if (count === 1) return 'مستقل واحد';
@@ -48,7 +39,6 @@ function formatFreelancerCount(count: number): string {
   return `${count} مستقلاً`;
 }
 
-/** بطاقة مستقل */
 function FreelancerCard({
   id,
   name,
@@ -65,13 +55,26 @@ function FreelancerCard({
   const initial = name.trim().charAt(0) || 'م';
 
   return (
-    <article className="flex flex-col items-center rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm">
-      {/* صورة دائرية — دائرة زمردية بحرف الاسم (لا صور في المخطط) */}
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-700">
-        {initial}
-      </span>
+    <article className="flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm transition hover:shadow">
+      <div className="relative">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 text-xl font-bold text-emerald-800">
+          {initial}
+        </span>
+        {isKycVerified && (
+          <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white shadow ring-2 ring-white">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75 7.5 15 15 9.75" />
+            </svg>
+          </span>
+        )}
+      </div>
 
-      <h2 className="mt-4 font-bold text-slate-900">{name}</h2>
+      <h2 className="mt-4 flex items-center gap-1.5 font-bold text-slate-900">
+        {name}
+        {isKycVerified && (
+          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">موثّق</span>
+        )}
+      </h2>
       <p className="mt-1 text-sm text-slate-500">{specialty}</p>
 
       <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
@@ -84,15 +87,12 @@ function FreelancerCard({
         >
           {isKycVerified ? 'هوية موثّقة (KYC) ✓' : 'الهوية غير موثّقة بعد'}
         </span>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
-          عضو منذ {formatDate(createdAt)}
-        </span>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">عضو منذ {formatDate(createdAt)}</span>
       </div>
 
-      {/* الملف العام — مسار مرحلة قادمة (راجع ترويسة الملف) */}
       <Link
         href={`/freelancers/${id}`}
-        className="mt-5 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+        className="mt-5 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
       >
         عرض الملف
       </Link>
@@ -100,9 +100,7 @@ function FreelancerCard({
   );
 }
 
-export default async function FreelancersPage({
-  searchParams,
-}: FreelancersPageProps) {
+export default async function FreelancersPage({ searchParams }: FreelancersPageProps) {
   const resolvedSearchParams = await searchParams;
 
   const rawSearch = firstParam(resolvedSearchParams, 'q')?.trim();
@@ -111,17 +109,13 @@ export default async function FreelancersPage({
   const freelancers = await listFreelancers({ search });
 
   return (
-    <div className="flex-1 bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        {/* الترويسة */}
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          تصفح المستقلين
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          ابحث عن المستقل المناسب لمشروعك القادم
-        </p>
+    <div className="flex min-h-screen flex-col bg-slate-50">
+      <SiteHeader />
 
-        {/* البحث — نموذج GET يعمل بلا JavaScript */}
+      <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-8">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">تصفح المستقلين</h1>
+        <p className="mt-1 text-sm text-slate-500">ابحث عن المستقل المناسب لمشروعك القادم</p>
+
         <form action="/freelancers" method="get" className="mt-6 flex gap-2">
           <input
             type="search"
@@ -133,31 +127,24 @@ export default async function FreelancersPage({
           />
           <button
             type="submit"
-            className="shrink-0 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            className="shrink-0 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
           >
             بحث
           </button>
         </form>
 
-        {/* عدد النتائج عند البحث */}
         {search && (
           <p className="mt-4 text-sm text-slate-500">
             نتائج البحث عن «{search}»: {formatFreelancerCount(freelancers.length)}
           </p>
         )}
 
-        {/* الشبكة / حالات الفراغ */}
         <div className="mt-6">
           {freelancers.length === 0 ? (
             search ? (
-              /* لا نتائج مطابقة للبحث */
-              <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
-                <p className="text-lg font-medium text-slate-600">
-                  لا نتائج مطابقة لبحثك
-                </p>
-                <p className="mt-2 text-sm text-slate-400">
-                  جرّب اسماً آخر أو تصفّح جميع المستقلين
-                </p>
+              <div className="flex flex-col items-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+                <p className="text-lg font-medium text-slate-600">لا نتائج مطابقة لبحثك</p>
+                <p className="mt-2 text-sm text-slate-400">جرّب اسماً آخر أو تصفّح جميع المستقلين</p>
                 <Link
                   href="/freelancers"
                   className="mt-6 rounded-lg border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700"
@@ -166,14 +153,9 @@ export default async function FreelancersPage({
                 </Link>
               </div>
             ) : (
-              /* لا مستقلين على المنصة إطلاقاً */
-              <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
-                <p className="text-lg font-medium text-slate-600">
-                  لا يوجد مستقلون حالياً
-                </p>
-                <p className="mt-2 text-sm text-slate-400">
-                  ستظهر هنا قائمة المستقلين بعد انضمامهم إلى المنصة
-                </p>
+              <div className="flex flex-col items-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+                <p className="text-lg font-medium text-slate-600">لا يوجد مستقلون حالياً</p>
+                <p className="mt-2 text-sm text-slate-400">ستظهر هنا قائمة المستقلين بعد انضمامهم إلى المنصة</p>
               </div>
             )
           ) : (
@@ -192,6 +174,8 @@ export default async function FreelancersPage({
           )}
         </div>
       </div>
+
+      <SiteFooter />
     </div>
   );
 }
