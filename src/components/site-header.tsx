@@ -22,6 +22,8 @@ import { getCurrentUser } from '@/lib/auth';
 
 import { SiteHeaderDropdown } from './site-header-dropdown';
 
+export const dynamic = 'force-dynamic';
+
 const PUBLIC_LINKS = [
   { href: '/projects', label: 'المشاريع' },
   { href: '/freelancers', label: 'المستقلون' },

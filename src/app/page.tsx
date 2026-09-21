@@ -196,18 +196,14 @@ export default function HomePage() {
     <div className="flex flex-1 flex-col bg-white">
       <SiteHeader />
 
-      {/* Hero */}
+      {/* Hero — عبارة جذابة قصيرة فقط، بلا تفاصيل تقنية */}
       <section className="bg-white">
         <div className="mx-auto max-w-6xl px-4 py-24 text-center sm:py-28">
-          <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            منصة العمل الحر الآمنة — ضمان مالي + KYC
-          </div>
           <h1 className="mx-auto max-w-3xl text-4xl font-bold leading-tight tracking-tight text-gray-900 sm:text-5xl">
             وظّف أفضل المستقلين بأمان تام
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600">
-            منصة عمل حر عربية. ضمان مالي، KYC إلزامي، دفع ببنك الكريمي و PayPal. عمولة 15% فقط.
+            انجز مشاريعك بكل احترافية مع نخبة من المستقلين — منصة العمل الحر الأولى في اليمن.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link

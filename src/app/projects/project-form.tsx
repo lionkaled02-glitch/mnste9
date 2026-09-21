@@ -396,21 +396,15 @@ export function ProjectForm() {
           <ul className="mt-4 space-y-3 text-sm leading-7 text-emerald-900/80">
             <li className="flex gap-2.5">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600" />
-              <span>
-                <span className="font-semibold">ضمان مالي (Escrow):</span> أموالك محجوزة بأمان حتى تستلم العمل وترضى عنه — لا يدفع للمستقل إلا بموافقتك.
-              </span>
+              <span>حصولك على العمل بالجودة التي وعدت بها.</span>
             </li>
             <li className="flex gap-2.5">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600" />
-              <span>
-                <span className="font-semibold">مستقلون موثّقون:</span> جميع المستقلين يمرون بـ KYC إلزامي — هوية حقيقية، حسابات أقل وهمية.
-              </span>
+              <span>تنفيذ المشروع ضمن الوقت المحدد.</span>
             </li>
             <li className="flex gap-2.5">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600" />
-              <span>
-                <span className="font-semibold">دعم وسيط عند النزاع:</span> فريق المنصة يتدخل لحل الخلافات بإنصاف — حقك محفوظ دائماً.
-              </span>
+              <span>نجاح تنفيذ المشروع أو نعيد لك ما دفعت.</span>
             </li>
           </ul>
         </section>

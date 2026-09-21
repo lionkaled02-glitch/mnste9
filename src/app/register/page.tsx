@@ -50,6 +50,7 @@ export default function RegisterPage() {
   useEffect(() => {
     if (state.success && state.redirectTo) {
       router.push(state.redirectTo);
+      router.refresh();
     }
   }, [state, router]);
 
