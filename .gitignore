@@ -71,3 +71,6 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# ملفات KYC المشفّرة (تخزين محلي للتطوير — وجّه KYC_STORAGE_DIR في الإنتاج)
+storage/

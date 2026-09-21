@@ -189,3 +189,64 @@ export function hashData(data: string, algorithm: 'sha256' | 'sha512' = 'sha256'
 
   return createHash(algorithm).update(data, 'utf8').digest('hex');
 }
+
+/* ============================================================================
+ * encryptBuffer / decryptBuffer — تشفير الملفات الثنائية (KYC)
+ * ========================================================================== */
+
+/**
+ * تشفير محتوى ملف ثنائي (Buffer) بـ AES-256-GCM — لوثائق KYC المخزَّنة
+ * خارج قاعدة البيانات («الملفات مشفّرة خارج قاعدة البيانات» بحسب المخطط).
+ *
+ * نفس مغلف v1 الخاص بـ encryptData لكن على بايتات الملف مباشرة — فملفات
+ * الهوية (صور/PDF) ليست نصوصاً UTF-8 صالحة فلا تمر عبر encryptData.
+ *
+ * @param bytes محتوى الملف الخام
+ * @returns محتوى مشفر جاهز للكتابة إلى القرص (binary: iv || tag || ciphertext)
+ *
+ * @example
+ *   const enc = encryptBuffer(await file.arrayBuffer());
+ *   await writeFile(dest, enc);
+ */
+export function encryptBuffer(bytes: Buffer | ArrayBuffer | Uint8Array): Buffer {
+  const data = bytes instanceof Buffer ? bytes : Buffer.from(bytes as ArrayBuffer);
+  if (data.length === 0) {
+    throw new Error('encryptBuffer يتوقع محتوى غير فارغ');
+  }
+
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv('aes-256-gcm', getEncryptionKey(), iv);
+
+  const ciphertext = Buffer.concat([cipher.update(data), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  return Buffer.concat([iv, authTag, ciphertext]);
+}
+
+/**
+ * فك تشفير مخرجات encryptBuffer — يرمي خطأً عند أي عبث بالوسم (GCM).
+ *
+ * @param payload المحتوى المشفر المقروء من القرص
+ * @returns محتوى الملف الأصلي
+ */
+export function decryptBuffer(payload: Buffer | Uint8Array): Buffer {
+  const envelope = payload instanceof Buffer ? payload : Buffer.from(payload);
+  if (envelope.length <= IV_LENGTH + TAG_LENGTH) {
+    throw new Error('الملف المشفر مبتور أو تالف');
+  }
+
+  const iv = envelope.subarray(0, IV_LENGTH);
+  const authTag = envelope.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
+  const ciphertext = envelope.subarray(IV_LENGTH + TAG_LENGTH);
+
+  try {
+    const decipher = createDecipheriv('aes-256-gcm', getEncryptionKey(), iv);
+    decipher.setAuthTag(authTag);
+
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  } catch {
+    throw new Error(
+      'فشل فك تشفير الملف — المحتوى معدَّل أو KYC_ENCRYPTION_KEY مختلف',
+    );
+  }
+}

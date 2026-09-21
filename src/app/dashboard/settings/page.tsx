@@ -324,8 +324,16 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                   <p className="mt-1.5 text-sm leading-7 text-slate-500">
                     {account.isKycVerified
                       ? 'حسابك موثّق — يمكنك استخدام جميع الميزات المالية عند إطلاقها.'
-                      : 'توثيق الهوية مطلوب للمعاملات المالية (الإيداع والسحب). سيُتاح رفع الوثائق في مرحلة قادمة.'}
+                      : 'توثيق الهوية مطلوب للمعاملات المالية (الإيداع والسحب). ارفع وثائقك من صفحة توثيق الهوية.'}
                   </p>
+                  <Link
+                    href="/dashboard/kyc"
+                    className="mt-3 inline-block rounded-lg border border-emerald-600 px-5 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                  >
+                    {account.isKycVerified
+                      ? 'عرض حالة التوثيق'
+                      : 'اذهب إلى توثيق الهوية'}
+                  </Link>
                 </div>
               </div>
               <span
