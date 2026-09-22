@@ -1,13 +1,13 @@
 'use client';
 
 import { useActionState } from 'react';
-import { deletePortfolioItemAction, type PortfolioItem } from '@/app/actions/portfolio';
+import { deletePortfolioItemSecureAction, type PortfolioItemDTO } from '@/app/actions/portfolio';
 import type { AuthActionState } from '@/lib/auth';
 
 const INITIAL: AuthActionState = { success: false };
 
 function DeleteButton({ id }: { id: number }) {
-  const [state, formAction, isPending] = useActionState(deletePortfolioItemAction, INITIAL);
+  const [state, formAction, isPending] = useActionState(deletePortfolioItemSecureAction, INITIAL);
   return (
     <form action={formAction} className="inline">
       <input type="hidden" name="id" value={id} />
@@ -23,7 +23,7 @@ function DeleteButton({ id }: { id: number }) {
   );
 }
 
-export function PortfolioList({ items }: { items: PortfolioItem[] }) {
+export function PortfolioList({ items }: { items: PortfolioItemDTO[] }) {
   if (!items || items.length === 0) {
     return (
       <div className="rounded-[14px] border border-dashed border-gray-300 bg-[#fcfcfc] p-8 text-center">

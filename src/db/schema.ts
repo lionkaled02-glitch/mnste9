@@ -118,6 +118,30 @@ export const users = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
+ * portfolio_items — معرض أعمال المستخدم (Portfolio)
+ * ------------------------------------------------------------------------- */
+export const portfolioItems = pgTable(
+  'portfolio_items',
+  {
+    id: identityId('id'),
+    userId: bigint('user_id', { mode: 'number' })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: 200 }).notNull(),
+    description: text('description'),
+    externalUrl: varchar('external_url', { length: 500 }),
+    imageUrl: varchar('image_url', { length: 500 }),
+    ...timestamps,
+  },
+  (t) => [
+    index('idx_portfolio_user_id').on(t.userId),
+    check('ck_portfolio_title_length', sql`length(${t.title}) >= 3`),
+  ],
+);
+
+export type PortfolioItem = typeof portfolioItems.$inferSelect;
+export type NewPortfolioItem = typeof portfolioItems.$inferInsert;
+/* ---------------------------------------------------------------------------
  * wallets — المحافظ
  * ------------------------------------------------------------------------- */
 export const wallets = pgTable(
@@ -314,7 +338,7 @@ export const contracts = pgTable(
     check('ck_contracts_net_amount_positive', sql`${t.netAmount} > 0`),
     check(
       'ck_contracts_status',
-      sql`${t.status} IN ('pending', 'active', 'completed', 'disputed', 'cancelled')`,
+      sql`${t.status} IN ('pending', 'active', 'pending_delivery', 'completed', 'disputed', 'cancelled')`,
     ),
     foreignKey({
       name: 'fk_contracts_project_id',
@@ -515,6 +539,10 @@ export const platformSettings = pgTable(
  * 3) العلاقات (Relations)
  * ========================================================================== */
 
+export const portfolioItemsRelations = relations(portfolioItems, ({ one }) => ({
+  user: one(users, { fields: [portfolioItems.userId], references: [users.id] }),
+}));
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   wallet: one(wallets, {
     fields: [users.id],
@@ -524,6 +552,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   projects: many(projects),
   proposals: many(proposals),
   kycDocuments: many(kycDocuments),
+  portfolioItems: many(portfolioItems),
   clientContracts: many(contracts, { relationName: 'clientContracts' }),
   freelancerContracts: many(contracts, { relationName: 'freelancerContracts' }),
   notifications: many(notifications),

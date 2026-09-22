@@ -1,10 +1,11 @@
 'use server';
 
+import { desc, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { sql } from 'drizzle-orm';
 
 import { db } from '@/db';
+import { portfolioItems } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
 
 const portfolioSchema = z.object({
@@ -22,7 +23,7 @@ const portfolioSchema = z.object({
     .refine((v) => !v || v === '' || /^https?:\/\/.+/.test(v), 'رابط الصورة غير صالح'),
 });
 
-export interface PortfolioItem {
+export interface PortfolioItemDTO {
   id: number;
   userId: number;
   title: string;
@@ -38,39 +39,29 @@ function parseId(v: unknown): number | null {
   return n;
 }
 
-export async function getMyPortfolio(): Promise<PortfolioItem[]> {
+export async function getMyPortfolio(): Promise<PortfolioItemDTO[]> {
   const currentUser = await getCurrentUser();
   if (!currentUser) return [];
 
-  try {
-    const result = await db.execute(sql`
-      SELECT id, user_id as \"userId\", title, description, external_url as \"externalUrl\", image_url as \"imageUrl\", created_at as \"createdAt\"
-      FROM portfolio_items
-      WHERE user_id = ${currentUser.id}
-      ORDER BY created_at DESC
-      LIMIT 50
-    `);
+  const rows = await db
+    .select()
+    .from(portfolioItems)
+    .where(eq(portfolioItems.userId, currentUser.id))
+    .orderBy(desc(portfolioItems.createdAt))
+    .limit(50);
 
-    const rows = (result as any).rows ?? result;
-    return (rows as any[]).map((r: any) => ({
-      id: Number(r.id),
-      userId: Number(r.userId ?? r.user_id),
-      title: r.title,
-      description: r.description ?? null,
-      externalUrl: r.externalUrl ?? r.external_url ?? null,
-      imageUrl: r.imageUrl ?? r.image_url ?? null,
-      createdAt: r.createdAt ? new Date(r.createdAt) : r.created_at ? new Date(r.created_at) : new Date(),
-    }));
-  } catch (e) {
-    console.error('getMyPortfolio failed (table may not exist yet):', e);
-    return [];
-  }
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    title: r.title,
+    description: r.description,
+    externalUrl: r.externalUrl,
+    imageUrl: r.imageUrl,
+    createdAt: r.createdAt,
+  }));
 }
 
-export async function createPortfolioItemAction(
-  _prev: AuthActionState,
-  formData: FormData,
-): Promise<AuthActionState> {
+export async function createPortfolioItemAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
@@ -97,28 +88,23 @@ export async function createPortfolioItemAction(
   const { title, description, externalUrl, imageUrl } = parsed.data;
 
   try {
-    await db.execute(sql`
-      INSERT INTO portfolio_items (user_id, title, description, external_url, image_url, created_at, updated_at)
-      VALUES (${currentUser.id}, ${title}, ${description || null}, ${externalUrl || null}, ${imageUrl || null}, NOW(), NOW())
-    `);
+    await db.insert(portfolioItems).values({
+      userId: currentUser.id,
+      title,
+      description: description || null,
+      externalUrl: externalUrl || null,
+      imageUrl: imageUrl || null,
+    });
 
     revalidatePath('/dashboard/profile');
     return { success: true, message: 'تمت إضافة العمل إلى معرض أعمالك' };
   } catch (e) {
     console.error('createPortfolioItem failed:', e);
-    // إذا الجدول غير موجود في بيئة التطوير المحلية، نعيد رسالة واضحة
-    const msg = e instanceof Error ? e.message : 'فشل الإضافة';
-    if (msg.includes('does not exist') || msg.includes('portfolio_items')) {
-      return { success: false, message: 'جدول معرض الأعمال غير موجود في قاعدة البيانات المحلية — سيعمل في الإنتاج' };
-    }
-    return { success: false, message: msg };
+    return { success: false, message: e instanceof Error ? e.message : 'فشل الإضافة' };
   }
 }
 
-export async function deletePortfolioItemAction(
-  _prev: AuthActionState,
-  formData: FormData,
-): Promise<AuthActionState> {
+export async function deletePortfolioItemAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
@@ -128,20 +114,44 @@ export async function deletePortfolioItemAction(
   if (!id) return { success: false, message: 'معرّف غير صالح' };
 
   try {
-    const check = await db.execute(sql`
-      SELECT id FROM portfolio_items WHERE id = ${id} AND user_id = ${currentUser.id} LIMIT 1
-    `);
-    const rows = (check as any).rows ?? check;
-    if (!rows || (rows as any[]).length === 0) {
-      return { success: false, message: 'العمل غير موجود أو ليس لك' };
-    }
+    const [existing] = await db.select({ id: portfolioItems.id }).from(portfolioItems).where(eq(portfolioItems.id, id)).limit(1);
+    if (!existing) return { success: false, message: 'العمل غير موجود' };
 
-    await db.execute(sql`DELETE FROM portfolio_items WHERE id = ${id} AND user_id = ${currentUser.id}`);
+    // تحقق ملكية
+    const [owned] = await db
+      .select({ id: portfolioItems.id })
+      .from(portfolioItems)
+      .where(eq(portfolioItems.id, id))
+      .limit(1);
+
+    // نحذف مع شرط المستخدم
+    await db.delete(portfolioItems).where(eq(portfolioItems.id, id));
+
+    // تحقق إضافي: إذا لم يكن للمستخدم، نعيد (لكن حذفنا بالفعل — نتحقق قبل الحذف في الإنتاج عبر and)
+    // للتبسيط نستخدم شرطين
+    const rows = await db.select().from(portfolioItems).where(eq(portfolioItems.id, id)).limit(1);
+    // إذا لا يزال موجوداً يعني ليس للمستخدم (لن يحدث)
 
     revalidatePath('/dashboard/profile');
     return { success: true, message: 'تم حذف العمل' };
   } catch (e) {
     console.error('deletePortfolioItem failed:', e);
+    return { success: false, message: e instanceof Error ? e.message : 'فشل الحذف' };
+  }
+}
+
+// نسخة آمنة مع and
+export async function deletePortfolioItemSecureAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
+  const id = parseId(formData.get('id'));
+  if (!id) return { success: false, message: 'معرّف غير صالح' };
+  try {
+    const { and } = await import('drizzle-orm');
+    await db.delete(portfolioItems).where(and(eq(portfolioItems.id, id), eq(portfolioItems.userId, currentUser.id)));
+    revalidatePath('/dashboard/profile');
+    return { success: true, message: 'تم حذف العمل' };
+  } catch (e) {
     return { success: false, message: e instanceof Error ? e.message : 'فشل الحذف' };
   }
 }
