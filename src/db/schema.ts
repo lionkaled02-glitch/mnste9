@@ -105,7 +105,7 @@ export const users = pgTable(
     avatarUrl: varchar('avatar_url', { length: 500 }),
     notifyEmail: boolean('notify_email').notNull().default(true),
     notifySms: boolean('notify_sms').notNull().default(true),
-    avatarUrl: varchar('avatar_url', { length: 500 }),
+    
   },
   (t) => [
     unique('uq_users_email').on(t.email),
