@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  // رفع وثائق KYC حتى 5 ميغابايت عبر Server Actions — الافتراضي 1MB
-  // يرفض الملفات الكبيرة قبل وصولها لتحقق التطبيق (راجع kyc-meta.ts)
   experimental: {
     serverActions: {
       bodySizeLimit: "6mb",
@@ -11,4 +11,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

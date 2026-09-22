@@ -262,14 +262,11 @@ export async function updateProfile(data: unknown): Promise<AuthActionState> {
   if (input.notifyEmail !== undefined) updates.notifyEmail = input.notifyEmail;
   if (input.notifySms !== undefined) updates.notifySms = input.notifySms;
 
-  // المعلومات المهنية — للمستقلين فقط (بوابة دور داخل الإجراء)
-  if (currentUser.role === 'freelancer') {
-    if (input.skills !== undefined) updates.skills = input.skills;
-    if (input.bio !== undefined) updates.bio = input.bio;
-    if (input.hourlyRate !== undefined) {
-      updates.hourlyRate =
-        input.hourlyRate === null ? null : toNumeric(input.hourlyRate);
-    }
+  // Unified Role: المعلومات المهنية متاحة للجميع (client/freelancer نفس الصلاحيات)
+  if (input.skills !== undefined) updates.skills = input.skills;
+  if (input.bio !== undefined) updates.bio = input.bio;
+  if (input.hourlyRate !== undefined) {
+    updates.hourlyRate = input.hourlyRate === null ? null : toNumeric(input.hourlyRate);
   }
 
   if (Object.keys(updates).length === 0) {

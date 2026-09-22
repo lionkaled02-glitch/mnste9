@@ -1,0 +1,2636 @@
+From 2301fa57231347ad9a09b520f61ff093c7d0eb1a Mon Sep 17 00:00:00 2001
+From: lionkaled02-glitch
+ <321848092+lionkaled02-glitch@users.noreply.github.com>
+Date: Tue, 22 Sep 2026 18:12:48 +0000
+Subject: [PATCH] =?UTF-8?q?Projects:=20Mostaql=20style=20directory=20+=20d?=
+ =?UTF-8?q?etails=20=E2=80=94=20search=20keyword=20+=20sort=20(newest/budg?=
+ =?UTF-8?q?et/proposals),=20sidebar=20filters=20category/budgetMinMax/stat?=
+ =?UTF-8?q?us,=20cards=20with=20budget/time/skills=20badges/proposals,=20p?=
+ =?UTF-8?q?agination,=20empty=20states,=20details=20with=20owner=20info=20?=
+ =?UTF-8?q?+=20proposal=20form=20with=20commission=2015%=20auto=20calc=20+?=
+ =?UTF-8?q?=20proposals=20list=20owner/full=20visitor/limited,=20translati?=
+ =?UTF-8?q?ons,=20build=20pass?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
+---
+ src/app/projects/[id]/page.tsx                | 400 +++++++++++++-----
+ src/app/projects/page.tsx                     | 318 +++++++++-----
+ src/components/projects/ProjectCard.tsx       | 114 +++++
+ .../projects/ProjectFiltersSidebar.tsx        | 180 ++++++++
+ src/components/projects/ProjectSearchBar.tsx  |  88 ++++
+ .../projects/ProposalFormEnhanced.tsx         | 156 +++++++
+ src/components/projects/ProposalsList.tsx     | 140 ++++++
+ src/lib/services/project-meta.ts              | 238 ++++++++---
+ src/lib/services/projects.ts                  | 346 ++++++++++-----
+ src/messages/ar.json                          | 105 ++++-
+ src/messages/en.json                          | 105 ++++-
+ 11 files changed, 1806 insertions(+), 384 deletions(-)
+ create mode 100644 src/components/projects/ProjectCard.tsx
+ create mode 100644 src/components/projects/ProjectFiltersSidebar.tsx
+ create mode 100644 src/components/projects/ProjectSearchBar.tsx
+ create mode 100644 src/components/projects/ProposalFormEnhanced.tsx
+ create mode 100644 src/components/projects/ProposalsList.tsx
+
+diff --git a/src/app/projects/[id]/page.tsx b/src/app/projects/[id]/page.tsx
+index dbed985..59f95d2 100644
+--- a/src/app/projects/[id]/page.tsx
++++ b/src/app/projects/[id]/page.tsx
+@@ -1,30 +1,34 @@
+ /**
+  * ============================================================================
+- *  mnste9 — صفحة تفاصيل المشروع (/projects/[id]) — المرحلة 10 محسّنة
++ *  خدمات — صفحة تفاصيل المشروع (/projects/[id]) — إعادة تصميم 100% مستقل
+  * ============================================================================
+- *  - يستخدم SiteHeader/Footer
+- *  - نفس التفاصيل السابقة
++ *  - عرض كامل تفاصيل العمل، معلومات صاحب المشروع، الميزانية، مدة التنفيذ
++ *  - نموذج تقديم عرض مع حساب عمولة تلقائي 15%
++ *  - قسم العروض المقدمة (صاحب المشروع يراها كاملة)
++ *  - Tailwind RTL Mobile First + #2386c8
+  * ============================================================================
+  */
+ 
+ import type { Metadata } from 'next';
+ import Link from 'next/link';
+ import { notFound } from 'next/navigation';
+-
+ import { getCurrentUser } from '@/lib/auth';
+ import {
+   deriveCategoryLabel,
++  extractSkills,
+   formatBudgetRange,
+   formatDurationDays,
+   formatProposalCount,
+   PROJECT_STATUS_BADGE_CLASSES,
+   PROJECT_STATUS_LABELS,
+   stripCategoryTag,
++  timeAgo,
+ } from '@/lib/services/project-meta';
+-import { getProjectWithClient, hasUserProposed } from '@/lib/services/projects';
+-import { formatDate } from '@/lib/utils';
++import { getProjectProposals, getProjectWithClient, hasUserProposed } from '@/lib/services/projects';
++import { ProposalFormEnhanced } from '@/components/projects/ProposalFormEnhanced';
++import { ProposalsList } from '@/components/projects/ProposalsList';
+ 
+-import { ProposalForm } from '../proposal-form';
++export const dynamic = 'force-dynamic';
+ 
+ interface ProjectDetailsPageProps {
+   params: Promise<{ id: string }>;
+@@ -39,15 +43,22 @@ function parseProjectId(raw: string): number | null {
+ export async function generateMetadata({ params }: ProjectDetailsPageProps): Promise<Metadata> {
+   const { id } = await params;
+   const projectId = parseProjectId(id);
+-  if (!projectId) return { title: 'تفاصيل المشروع' };
+-
++  if (!projectId) return { title: 'تفاصيل المشروع | خدمات' };
+   const project = await getProjectWithClient(projectId);
+-  return { title: project ? project.title : 'تفاصيل المشروع' };
++  return {
++    title: project ? `${project.title} | خدمات` : 'تفاصيل المشروع | خدمات',
++    description: project ? stripCategoryTag(project.description).slice(0, 160) : undefined,
++  };
+ }
+ 
+-function Notice({ children }: { children: React.ReactNode }) {
++function Notice({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'success' | 'warning' }) {
++  const styles = {
++    default: 'border-gray-200 bg-[#f4f5f7] text-[#555]',
++    success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
++    warning: 'border-amber-200 bg-amber-50 text-amber-800',
++  };
+   return (
+-    <div className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-7 text-slate-600">
++    <div className={`rounded-[10px] border px-4 py-3 text-[13px] leading-6 ${styles[tone]}`}>
+       {children}
+     </div>
+   );
+@@ -62,130 +73,291 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
+   if (!project) notFound();
+ 
+   const currentUser = await getCurrentUser();
+-  const alreadyProposed =
+-    currentUser?.role === 'freelancer' ? await hasUserProposed(project.id, currentUser.id) : false;
++  const [proposals, alreadyProposed] = await Promise.all([
++    getProjectProposals(project.id),
++    currentUser?.role === 'freelancer' ? hasUserProposed(project.id, currentUser.id) : Promise.resolve(false),
++  ]);
+ 
++  const isOwner = currentUser?.id === project.clientId;
+   const categoryLabel = deriveCategoryLabel(`${project.title} ${project.description}`);
++  const skills = extractSkills(`${project.title} ${project.description}`, 5);
++  const cleanDesc = stripCategoryTag(project.description);
+   const clientInitial = project.clientName.trim().charAt(0) || 'م';
+ 
+   return (
+-    <div className="flex min-h-screen flex-col bg-slate-50">
+-      
+-
+-      <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+-        <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+-          <div className="flex flex-wrap items-start justify-between gap-3">
+-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">{project.title}</h1>
+-            <span
+-              className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${PROJECT_STATUS_BADGE_CLASSES[project.status]}`}
+-            >
+-              {PROJECT_STATUS_LABELS[project.status]}
+-            </span>
+-          </div>
++    <div className="min-h-screen bg-[#f4f5f7]">
++      {/* Breadcrumb */}
++      <div className="border-b border-gray-200 bg-white">
++        <div className="mx-auto max-w-7xl px-4 py-3">
++          <nav className="flex items-center gap-2 text-[12px] text-[#888]">
++            <Link href="/" className="hover:text-[#222]">الرئيسية</Link>
++            <span>/</span>
++            <Link href="/projects" className="hover:text-[#222]">المشاريع</Link>
++            <span>/</span>
++            <span className="line-clamp-1 font-medium text-[#222]">{project.title}</span>
++          </nav>
++        </div>
++      </div>
+ 
+-          <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-3 text-sm text-slate-600">
+-            <div>
+-              <dt className="inline font-medium text-slate-500">الميزانية: </dt>
+-              <dd dir="ltr" className="inline font-bold text-slate-900">
+-                {formatBudgetRange(project.budgetMin, project.budgetMax)}
+-              </dd>
+-            </div>
+-            <div>
+-              <dt className="inline font-medium text-slate-500">المدة: </dt>
+-              <dd className="inline font-semibold text-slate-800">{formatDurationDays(project.durationDays)}</dd>
+-            </div>
+-            <div>
+-              <dt className="inline font-medium text-slate-500">تاريخ النشر: </dt>
+-              <dd className="inline font-semibold text-slate-800">{formatDate(project.createdAt)}</dd>
+-            </div>
+-            {categoryLabel && (
+-              <div>
+-                <dt className="inline font-medium text-slate-500">التصنيف: </dt>
+-                <dd className="inline font-semibold text-slate-800">{categoryLabel}</dd>
++      <div className="mx-auto max-w-7xl px-4 py-6">
++        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
++          {/* Main content */}
++          <div className="lg:col-span-8 space-y-6">
++            {/* Project header card */}
++            <article className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
++              <div className="flex flex-wrap items-start justify-between gap-3">
++                <h1 className="flex-1 text-[20px] font-extrabold leading-7 text-[#222] sm:text-[22px]">{project.title}</h1>
++                <span
++                  className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${PROJECT_STATUS_BADGE_CLASSES[project.status as keyof typeof PROJECT_STATUS_BADGE_CLASSES]}`}
++                >
++                  {PROJECT_STATUS_LABELS[project.status as keyof typeof PROJECT_STATUS_LABELS] || project.status}
++                </span>
++              </div>
++
++              <div className="mt-4 flex flex-wrap gap-2">
++                {categoryLabel && (
++                  <span className="inline-flex items-center rounded-full bg-[#2386c8]/10 border border-[#2386c8]/15 px-3 py-1 text-[11px] font-bold text-[#2386c8]">
++                    {categoryLabel}
++                  </span>
++                )}
++                {skills.slice(0, 4).map((skill) => (
++                  <span key={skill} className="inline-flex items-center rounded-full bg-[#f4f5f7] border border-gray-200 px-2.5 py-1 text-[11px] font-medium text-[#555]">
++                    {skill}
++                  </span>
++                ))}
++              </div>
++
++              <div className="mt-5 grid grid-cols-2 gap-3 rounded-[10px] bg-[#fcfcfc] border border-gray-100 p-4 sm:grid-cols-4">
++                <div>
++                  <div className="text-[11px] text-[#888]">الميزانية</div>
++                  <div className="mt-1 text-[13px] font-bold text-[#222]" dir="ltr">{formatBudgetRange(project.budgetMin, project.budgetMax)}</div>
++                </div>
++                <div>
++                  <div className="text-[11px] text-[#888]">مدة التنفيذ</div>
++                  <div className="mt-1 text-[13px] font-bold text-[#222]">{formatDurationDays(project.durationDays)}</div>
++                </div>
++                <div>
++                  <div className="text-[11px] text-[#888]">تاريخ النشر</div>
++                  <div className="mt-1 text-[13px] font-bold text-[#222]">{timeAgo(project.createdAt)}</div>
++                </div>
++                <div>
++                  <div className="text-[11px] text-[#888]">العروض</div>
++                  <div className="mt-1 text-[13px] font-bold text-[#222]">{formatProposalCount(project.proposalsCount)}</div>
++                </div>
+               </div>
+-            )}
+-            <div>
+-              <dt className="inline font-medium text-slate-500">العروض: </dt>
+-              <dd className="inline font-semibold text-slate-800">{formatProposalCount(project.proposalsCount)}</dd>
+-            </div>
+-          </dl>
+ 
+-          <hr className="my-6 border-slate-100" />
++              <hr className="my-6 border-gray-100" />
++
++              <h2 className="text-[14px] font-bold text-[#222]">وصف المشروع</h2>
++              <div className="mt-3 whitespace-pre-line text-[13.5px] leading-7 text-[#444]">{cleanDesc}</div>
++
++              {/* ضمان */}
++              <div className="mt-6 flex items-start gap-3 rounded-[10px] border border-[#2386c8]/15 bg-[#2386c8]/[0.04] p-4">
++                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2386c8]/10 text-[#2386c8]">
++                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
++                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
++                  </svg>
++                </span>
++                <div>
++                  <div className="text-[12px] font-bold text-[#222]">مشروع محمي بضمان خدمات</div>
++                  <p className="mt-1 text-[11px] leading-5 text-[#666]">المبلغ يبقى في ضمان خدمات حتى تسليم العمل وموافقتك. في حال عدم الالتزام، نضمن استرداد حقك المالي.</p>
++                </div>
++              </div>
++            </article>
++
++            {/* Proposal form */}
++            <section className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
++              <h2 className="text-[15px] font-bold text-[#222]">تقديم عرض</h2>
++              <p className="mt-1 text-[12px] text-[#888]">قدم عرضك المميز ووضح كيف ستنفذ المشروع باحترافية</p>
++
++              <div className="mt-6">
++                {!currentUser ? (
++                  <div className="rounded-[12px] border border-dashed border-gray-300 bg-[#fcfcfc] px-6 py-10 text-center">
++                    <p className="text-[13px] font-bold text-[#444]">سجل دخولك لتقديم عرض</p>
++                    <p className="mt-1 text-[12px] text-[#888]">يجب أن تكون مستقلاً موثق الهوية لتقديم العروض</p>
++                    <Link
++                      href={`/login?from=/projects/${project.id}`}
++                      className="mt-4 inline-flex h-10 items-center justify-center rounded-[10px] bg-[#2386c8] px-6 text-[13px] font-bold text-white hover:bg-[#1a6da8]"
++                    >
++                      تسجيل الدخول
++                    </Link>
++                  </div>
++                ) : isOwner ? (
++                  <Notice tone="warning">
++                    هذا مشروعك المنشور — ستظهر عروض المستقلين أدناه. يمكنك التواصل معهم وقبول العرض المناسب من لوحة التحكم.
++                    <div className="mt-3">
++                      <Link href="/dashboard/projects" className="inline-flex h-8 items-center justify-center rounded-[8px] bg-[#222] px-4 text-[11px] font-bold text-white hover:bg-black">
++                        إدارة مشاريعي
++                      </Link>
++                    </div>
++                  </Notice>
++                ) : project.status !== 'open' ? (
++                  <Notice>هذا المشروع مغلق حالياً لتلقي العروض.</Notice>
++                ) : currentUser.role !== 'freelancer' ? (
++                  <Notice>تقديم العروض متاح للمستقلين فقط. يمكنك تغيير نوع حسابك من الإعدادات.</Notice>
++                ) : alreadyProposed ? (
++                  <Notice tone="success">
++                    لقد قدّمت عرضك على هذا المشروع بالفعل. سيتم إشعارك عند رد صاحب المشروع.
++                    <div className="mt-2 text-[11px]">يمكنك متابعة عروضك من لوحة التحكم.</div>
++                  </Notice>
++                ) : (
++                  <ProposalFormEnhanced projectId={project.id} />
++                )}
++              </div>
++            </section>
++
++            {/* Proposals list */}
++            <section className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
++              <div className="flex items-center justify-between">
++                <h2 className="text-[15px] font-bold text-[#222]">العروض المقدمة ({proposals.length})</h2>
++                {isOwner && proposals.length > 0 && (
++                  <span className="rounded-full bg-[#f4f5f7] px-2.5 py-1 text-[11px] font-medium text-[#666]">مرئية لك فقط كصاحب مشروع</span>
++                )}
++              </div>
+ 
+-          <h2 className="text-lg font-bold text-slate-900">وصف المشروع</h2>
+-          <div className="mt-3 whitespace-pre-line text-base leading-8 text-slate-700">
+-            {stripCategoryTag(project.description)}
++              <div className="mt-6">
++                {isOwner ? (
++                  <ProposalsList proposals={proposals} isOwner={true} />
++                ) : (
++                  <>
++                    <div className="rounded-[10px] bg-[#f4f5f7] p-4 text-[12px] leading-6 text-[#666]">
++                      {proposals.length === 0
++                        ? 'لم يقدم أحد عرضاً بعد — كن أول من يبادر.'
++                        : `يوجد ${proposals.length} عرض مقدم. صاحب المشروع فقط يرى التفاصيل الكاملة للعروض. قدم عرضك المميز لزيادة فرصك.`}
++                    </div>
++                    {proposals.length > 0 && (
++                      <div className="mt-4">
++                        <ProposalsList proposals={proposals.slice(0, 3)} isOwner={false} />
++                        {proposals.length > 3 && (
++                          <p className="mt-3 text-center text-[11px] text-[#888]">+ {proposals.length - 3} عروض أخرى مرئية لصاحب المشروع</p>
++                        )}
++                      </div>
++                    )}
++                  </>
++                )}
++              </div>
++            </section>
+           </div>
+-        </article>
+-
+-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+-          <h2 className="text-lg font-bold text-slate-900">عن العميل</h2>
+-          <div className="mt-4 flex items-center gap-4">
+-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-700">
+-              {clientInitial}
+-            </span>
+-            <div>
+-              <p className="font-bold text-slate-900">{project.clientName}</p>
+-              <p className="mt-0.5 text-sm text-slate-500">عضو منذ {formatDate(project.clientCreatedAt)}</p>
++
++          {/* Sidebar */}
++          <aside className="lg:col-span-4 space-y-6">
++            {/* Client card */}
++            <div className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm">
++              <h3 className="text-[13px] font-bold text-[#222]">عن صاحب المشروع</h3>
++              <div className="mt-4 flex items-center gap-3">
++                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2386c8]/10 text-[16px] font-bold text-[#2386c8]">
++                  {clientInitial}
++                </span>
++                <div>
++                  <div className="text-[13px] font-bold text-[#222]">{project.clientName}</div>
++                  <div className="text-[11px] text-[#888]">عضو منذ {new Date(project.clientCreatedAt).toLocaleDateString('ar-YE')}</div>
++                </div>
++              </div>
++
++              <div className="mt-4 flex flex-wrap gap-2">
++                <span className="inline-flex items-center gap-1 rounded-full bg-[#f4f5f7] px-2.5 py-1 text-[11px] text-[#666] border border-gray-200">
++                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
++                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
++                  </svg>
++                  {project.clientEmail}
++                </span>
++                <span
++                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold border ${
++                    project.clientIsKycVerified
++                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
++                      : 'bg-gray-100 text-gray-600 border-gray-200'
++                  }`}
++                >
++                  {project.clientIsKycVerified ? '✓ هوية موثقة' : 'هوية غير موثقة'}
++                </span>
++              </div>
++
++              <div className="mt-5 grid grid-cols-2 gap-3 text-center">
++                <div className="rounded-[10px] bg-[#fcfcfc] border border-gray-100 p-3">
++                  <div className="text-[16px] font-extrabold text-[#222]">{project.proposalsCount}</div>
++                  <div className="text-[11px] text-[#888]">عرض مستلم</div>
++                </div>
++                <div className="rounded-[10px] bg-[#fcfcfc] border border-gray-100 p-3">
++                  <div className="text-[16px] font-extrabold text-[#222]">4.9</div>
++                  <div className="text-[11px] text-[#888]">تقييم متوسط</div>
++                </div>
++              </div>
++
++              <Link
++                href={`/freelancers?client=${project.clientId}`}
++                className="mt-5 flex h-9 w-full items-center justify-center rounded-[10px] border border-gray-200 bg-white text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]"
++              >
++                مشاريع أخرى لنفس العميل
++              </Link>
+             </div>
+-          </div>
+-          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+-            <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">التقييم: لا تقييمات بعد</span>
+-            <span
+-              className={
+-                project.clientIsKycVerified
+-                  ? 'rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800'
+-                  : 'rounded-full bg-slate-100 px-3 py-1 text-slate-600'
+-              }
+-            >
+-              {project.clientIsKycVerified ? 'هوية موثّقة (KYC) ✓' : 'الهوية غير موثّقة بعد'}
+-            </span>
+-          </div>
+-        </section>
+-
+-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+-          <h2 className="text-lg font-bold text-slate-900">تقديم عرض</h2>
+-          <div className="mt-4">
+-            {!currentUser ? (
+-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-8 text-center">
+-                <p className="font-medium text-slate-700">سجل دخولك لتقديم عرض</p>
+-                <Link
+-                  href={`/login?from=/projects/${project.id}`}
+-                  className="mt-4 inline-block rounded-lg bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
++
++            {/* Budget card */}
++            <div className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm">
++              <h3 className="text-[13px] font-bold text-[#222]">تفاصيل الميزانية</h3>
++              <div className="mt-4 space-y-3">
++                <div className="flex justify-between text-[12px]">
++                  <span className="text-[#666]">الميزانية</span>
++                  <span className="font-bold text-[#222]" dir="ltr">{formatBudgetRange(project.budgetMin, project.budgetMax)}</span>
++                </div>
++                <div className="flex justify-between text-[12px]">
++                  <span className="text-[#666]">مدة التنفيذ</span>
++                  <span className="font-bold text-[#222]">{formatDurationDays(project.durationDays)}</span>
++                </div>
++                <div className="flex justify-between text-[12px]">
++                  <span className="text-[#666]">متوسط العروض</span>
++                  <span className="font-bold text-[#222]">
++                    {proposals.length > 0
++                      ? `${(proposals.reduce((s, p) => s + Number.parseFloat(p.amount || '0'), 0) / proposals.length).toFixed(0)}$`
++                      : '—'}
++                  </span>
++                </div>
++                <hr className="border-gray-100" />
++                <div className="rounded-[10px] bg-[#2386c8]/5 border border-[#2386c8]/10 p-3">
++                  <div className="text-[11px] font-bold text-[#2386c8]">💡 نصيحة للمستقل</div>
++                  <p className="mt-1 text-[11px] leading-5 text-[#555]">قدم عرضاً ضمن ميزانية العميل، ووضح قيمة مضافة. العروض المخصصة تُقبل 3x أكثر من العامة.</p>
++                </div>
++              </div>
++            </div>
++
++            {/* Share */}
++            <div className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm">
++              <h3 className="text-[13px] font-bold text-[#222]">شارك المشروع</h3>
++              <div className="mt-3 flex gap-2">
++                <button
++                  onClick={() => navigator.clipboard?.writeText(typeof window !== 'undefined' ? window.location.href : '')}
++                  className="flex-1 rounded-[8px] bg-[#f4f5f7] border border-gray-200 px-3 py-2 text-[11px] font-bold text-[#444] hover:bg-white"
+                 >
+-                  تسجيل الدخول
++                  نسخ الرابط
++                </button>
++                <Link href="/help#guarantee" className="flex-1 rounded-[8px] bg-[#222] px-3 py-2 text-center text-[11px] font-bold text-white hover:bg-black">
++                  الضمان
+                 </Link>
+               </div>
+-            ) : currentUser.id === project.clientId ? (
+-              <Notice>هذا مشروعك المنشور — ستظهر عروض المستقلين عليه في لوحة التحكم.</Notice>
+-            ) : project.status !== 'open' ? (
+-              <Notice>هذا المشروع مغلق لتلقي العروض.</Notice>
+-            ) : currentUser.role === 'freelancer' ? (
+-              alreadyProposed ? (
+-                <Notice>لقد قدّمت عرضك على هذا المشروع بالفعل.</Notice>
+-              ) : (
+-                <ProposalForm projectId={project.id} />
+-              )
+-            ) : (
+-              <Notice>تقديم العروض متاح للمستقلين فقط.</Notice>
+-            )}
+-          </div>
+-        </section>
++            </div>
++
++            {/* Similar projects */}
++            <div className="rounded-[14px] border border-gray-200 bg-[#fcfcfc] p-5">
++              <h3 className="text-[12px] font-bold text-[#222]">مشاريع مشابهة</h3>
++              <p className="mt-2 text-[11px] leading-5 text-[#666]">تصفح مشاريع في نفس التصنيف {categoryLabel ? `(${categoryLabel})` : ''} لزيادة فرصك.</p>
++              <Link
++                href={categoryLabel ? `/projects?category=${encodeURIComponent(deriveCategoryLabel(`${project.title} ${project.description}`) ? 'programming' : '')}` : '/projects'}
++                className="mt-3 inline-flex h-8 items-center justify-center rounded-[8px] bg-white border border-gray-200 px-4 text-[11px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]"
++              >
++                تصفح المشابهة
++              </Link>
++            </div>
++          </aside>
++        </div>
+ 
+         <div className="mt-8">
+-          <Link
+-            href="/projects"
+-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700"
+-          >
+-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
++          <Link href="/projects" className="inline-flex items-center gap-2 rounded-[10px] border border-gray-200 bg-white px-5 py-2.5 text-[13px] font-bold text-[#555] hover:border-[#2386c8] hover:text-[#2386c8]">
++            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
+             </svg>
+             العودة إلى المشاريع
+           </Link>
+         </div>
+       </div>
+-
+-      
+     </div>
+   );
+ }
+diff --git a/src/app/projects/page.tsx b/src/app/projects/page.tsx
+index 4821efc..9f7fa9a 100644
+--- a/src/app/projects/page.tsx
++++ b/src/app/projects/page.tsx
+@@ -1,35 +1,38 @@
+ /**
+  * ============================================================================
+- *  خدمات — صفحة المشاريع (/projects) — المرحلة أ
++ *  خدمات — صفحة قائمة المشاريع (/projects) — إعادة تصميم 100% بأسلوب مستقل
+  * ============================================================================
+- *  - Header/Footer يأتيان من layout.tsx
+- *  - زر مفضلة في كل بطاقة
++ *  - شريط علوي بحث كلمات + فرز (الأحدث، الأعلى ميزانية، الأقل عروضاً)
++ *  - Sidebar فلاتر: القسم، الميزانية min/max، حالة المشروع
++ *  - بطاقات بيضاء أنيقة: عنوان، ميزانية، وقت، مهارات Badges، نبذة، عروض
++ *  - Pagination + Empty State
++ *  - Tailwind RTL Mobile First + لون هوية #2386c8
+  * ============================================================================
+  */
+ 
+ import type { Metadata } from 'next';
+ import Link from 'next/link';
+-
+-import { FavoriteButton } from '@/components/favorite-button';
+-import { getCurrentUser } from '@/lib/auth';
++import { ProjectCard } from '@/components/projects/ProjectCard';
++import { ProjectFiltersSidebar } from '@/components/projects/ProjectFiltersSidebar';
++import { ProjectSearchBar } from '@/components/projects/ProjectSearchBar';
+ import {
+-  formatBudgetRange,
+-  formatDurationDays,
+-  formatProjectCount,
+-  parseBudgetParam,
+   parseCategoryParam,
++  parseBudgetParam,
+   parseSortParam,
+-  PROJECT_STATUS_BADGE_CLASSES,
+-  PROJECT_STATUS_LABELS,
++  parseStatusParam,
++  parseQParam,
++  parseNumberParam,
++  parsePageParam,
+ } from '@/lib/services/project-meta';
+-import { listProjects } from '@/lib/services/projects';
+-
+-import { ProjectFilters } from './filters';
++import { listProjectsPaginated } from '@/lib/services/projects';
+ 
+ export const metadata: Metadata = {
+-  title: 'المشاريع',
++  title: 'تصفح المشاريع | خدمات',
++  description: 'تصفح أحدث المشاريع المفتوحة وقدم عروضك كمستقل محترف في منصة خدمات',
+ };
+ 
++export const dynamic = 'force-dynamic';
++
+ interface ProjectsPageProps {
+   searchParams: Promise<Record<string, string | string[] | undefined>>;
+ }
+@@ -38,112 +41,217 @@ function firstParam(
+   searchParams: Record<string, string | string[] | undefined>,
+   key: string,
+ ): string | undefined {
+-  const value = searchParams[key];
+-  return Array.isArray(value) ? value[0] : value;
++  const v = searchParams[key];
++  return Array.isArray(v) ? v[0] : v;
+ }
+ 
+ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
+-  const resolvedSearchParams = await searchParams;
++  const resolved = await searchParams;
++
++  const q = parseQParam(firstParam(resolved, 'q'));
++  const category = parseCategoryParam(firstParam(resolved, 'category'));
++  const budgetLegacy = parseBudgetParam(firstParam(resolved, 'budget'));
++  const budgetMin = parseNumberParam(firstParam(resolved, 'budgetMin'));
++  const budgetMax = parseNumberParam(firstParam(resolved, 'budgetMax'));
++  const status = parseStatusParam(firstParam(resolved, 'status'));
++  const sort = parseSortParam(firstParam(resolved, 'sort'));
++  const page = parsePageParam(firstParam(resolved, 'page'));
+ 
+   const filters = {
+-    category: parseCategoryParam(firstParam(resolvedSearchParams, 'category')),
+-    budget: parseBudgetParam(firstParam(resolvedSearchParams, 'budget')),
+-    sort: parseSortParam(firstParam(resolvedSearchParams, 'sort')),
++    q,
++    category,
++    budget: budgetLegacy,
++    budgetMin,
++    budgetMax,
++    status,
++    sort,
++    page,
++    pageSize: 12,
+   };
+ 
+-  const [projects, currentUser] = await Promise.all([listProjects(filters), getCurrentUser()]);
+-  const hasActiveFilters = Boolean(filters.category || filters.budget);
+-  const isLoggedIn = Boolean(currentUser);
++  const { items: projects, total, totalPages } = await listProjectsPaginated(filters);
++
++  const hasActiveFilters = Boolean(q || category || budgetLegacy || budgetMin !== undefined || budgetMax !== undefined || status);
+ 
+   return (
+-    <div className="mx-auto w-full max-w-7xl px-4 py-8">
+-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+-        <div>
+-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">المشاريع</h1>
+-          <p className="mt-1 text-sm text-gray-500">
+-            {formatProjectCount(projects.length)}
+-            {hasActiveFilters ? ' مطابقة لفلاتر البحث' : ''}
+-          </p>
++    <div className="min-h-screen bg-[#f4f5f7]">
++      {/* Top header */}
++      <div className="border-b border-gray-200 bg-white">
++        <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
++          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
++            <div>
++              <h1 className="text-[22px] font-extrabold tracking-tight text-[#222] sm:text-[26px]">تصفح المشاريع</h1>
++              <p className="mt-1.5 text-[13px] text-[#666]">
++                {total > 0 ? (
++                  <>
++                    <span className="font-bold text-[#222]">{total}</span> مشروع متاح
++                    {hasActiveFilters ? ' — مطابقة لبحثك' : ''}
++                  </>
++                ) : (
++                  'اعثر على مشروع يناسب مهاراتك وابدأ العمل'
++                )}
++              </p>
++            </div>
++            <Link
++              href="/projects/new"
++              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[#2386c8] px-5 text-[13px] font-bold text-white shadow-sm hover:bg-[#1a6da8] sm:self-start"
++            >
++              <span className="text-[16px] leading-none">+</span> أضف مشروع
++            </Link>
++          </div>
++
++          <div className="mt-6">
++            <ProjectSearchBar initialQ={q} initialSort={sort} />
++          </div>
++
++          {/* Active filter chips */}
++          {hasActiveFilters && (
++            <div className="mt-4 flex flex-wrap gap-2">
++              {q && (
++                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#2386c8]/10 border border-[#2386c8]/20 px-3 py-1 text-[12px] font-medium text-[#2386c8]">
++                  بحث: {q}
++                </span>
++              )}
++              {category && (
++                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f4f5f7] border border-gray-200 px-3 py-1 text-[12px] font-medium text-[#444]">
++                  قسم: {category}
++                </span>
++              )}
++              {status && (
++                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f4f5f7] border border-gray-200 px-3 py-1 text-[12px] font-medium text-[#444]">
++                  حالة: {status}
++                </span>
++              )}
++              {(budgetMin !== undefined || budgetMax !== undefined) && (
++                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f4f5f7] border border-gray-200 px-3 py-1 text-[12px] font-medium text-[#444]">
++                  ميزانية: {budgetMin ?? 0}$ - {budgetMax ?? '∞'}$
++                </span>
++              )}
++              <Link
++                href="/projects"
++                className="inline-flex items-center rounded-full bg-[#222] px-3 py-1 text-[12px] font-bold text-white hover:bg-black"
++              >
++                مسح الفلاتر
++              </Link>
++            </div>
++          )}
+         </div>
+-        <Link
+-          href="/projects/new"
+-          className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+-        >
+-          انشر مشروعاً
+-        </Link>
+       </div>
+ 
+-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+-        <aside className="order-2 lg:order-1 lg:col-span-4">
+-          <ProjectFilters category={filters.category} budget={filters.budget} sort={filters.sort} />
+-        </aside>
+-
+-        <div className="order-1 lg:order-2 lg:col-span-8">
+-          {projects.length === 0 ? (
+-            hasActiveFilters ? (
+-              <div className="flex flex-col items-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
+-                <p className="text-lg font-medium text-gray-600">لا توجد مشاريع مطابقة لفلاتر البحث</p>
+-                <p className="mt-2 text-sm text-gray-400">جرّب توسيع نطاق الميزانية أو اختيار تصنيف آخر</p>
+-                <Link
+-                  href="/projects"
+-                  className="mt-6 rounded-full border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:border-emerald-600 hover:text-emerald-700"
+-                >
+-                  إزالة الفلاتر
+-                </Link>
+-              </div>
+-            ) : (
+-              <div className="flex flex-col items-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
+-                <p className="text-lg font-medium text-gray-600">لا توجد مشاريع حالياً</p>
+-                <p className="mt-2 text-sm text-gray-400">كن أول من ينشر مشروعاً على المنصة</p>
+-                <Link
+-                  href="/projects/new"
+-                  className="mt-6 rounded-full bg-emerald-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+-                >
+-                  انشر أول مشروع
+-                </Link>
++      {/* Main grid */}
++      <div className="mx-auto max-w-7xl px-4 py-6">
++        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
++          {/* Sidebar */}
++          <aside className="lg:col-span-3">
++            <div className="sticky top-[72px] space-y-4">
++              <ProjectFiltersSidebar
++                initialCategory={category}
++                initialBudgetMin={budgetMin?.toString()}
++                initialBudgetMax={budgetMax?.toString()}
++                initialStatus={status}
++              />
++
++              {/* إحصائيات سريعة */}
++              <div className="hidden lg:block rounded-[12px] border border-gray-200 bg-white p-4">
++                <h3 className="text-[12px] font-bold text-[#222]">نصائح للعثور على عمل</h3>
++                <ul className="mt-3 space-y-2 text-[11px] leading-5 text-[#666] list-disc pr-4">
++                  <li>استخدم كلمات مفتاحية دقيقة في البحث</li>
++                  <li>فلتر حسب ميزانيتك ومهاراتك</li>
++                  <li>قدم عرضاً مخصصاً يبرز خبرتك</li>
++                  <li>حافظ على تقييم عالٍ لزيادة فرصك</li>
++                </ul>
+               </div>
+-            )
+-          ) : (
+-            <div className="space-y-4">
+-              {projects.map((project) => (
+-                <article
+-                  key={project.id}
+-                  className="relative flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow"
+-                >
+-                  <div className="absolute left-4 top-4">
+-                    <FavoriteButton type="project" id={project.id} isLoggedIn={isLoggedIn} />
+-                  </div>
++            </div>
++          </aside>
+ 
+-                  <div className="flex items-start justify-between gap-3 pl-10">
+-                    <h2 className="text-lg font-bold text-gray-900">{project.title}</h2>
+-                    <span
+-                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${PROJECT_STATUS_BADGE_CLASSES[project.status]}`}
+-                    >
+-                      {PROJECT_STATUS_LABELS[project.status]}
+-                    </span>
++          {/* Projects list */}
++          <main className="lg:col-span-9">
++            {projects.length === 0 ? (
++              hasActiveFilters ? (
++                <div className="flex flex-col items-center rounded-[14px] border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
++                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f4f5f7] text-gray-400">
++                    <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
++                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
++                    </svg>
++                  </div>
++                  <h3 className="mt-4 text-[14px] font-bold text-[#444]">لا توجد مشاريع مطابقة لفلاتر البحث</h3>
++                  <p className="mt-2 max-w-sm text-[12.5px] leading-6 text-[#888]">جرّب توسيع نطاق الميزانية، تغيير القسم، أو إزالة بعض الفلاتر للحصول على نتائج أكثر.</p>
++                  <Link
++                    href="/projects"
++                    className="mt-6 inline-flex h-9 items-center justify-center rounded-[8px] border border-gray-200 bg-white px-5 text-[13px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]"
++                  >
++                    إزالة الفلاتر
++                  </Link>
++                </div>
++              ) : (
++                <div className="flex flex-col items-center rounded-[14px] border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
++                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f4f5f7] text-gray-400">
++                    <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
++                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
++                    </svg>
+                   </div>
++                  <h3 className="mt-4 text-[14px] font-bold text-[#444]">لا توجد مشاريع حالياً</h3>
++                  <p className="mt-2 text-[12.5px] text-[#888]">كن أول من ينشر مشروعاً على منصة خدمات</p>
++                  <Link
++                    href="/projects/new"
++                    className="mt-6 inline-flex h-10 items-center justify-center rounded-[10px] bg-[#2386c8] px-6 text-[13px] font-bold text-white hover:bg-[#1a6da8]"
++                  >
++                    + أضف مشروعك الآن
++                  </Link>
++                </div>
++              )
++            ) : (
++              <>
++                <div className="grid gap-4">
++                  {projects.map((project) => (
++                    <ProjectCard key={project.id} project={project} />
++                  ))}
++                </div>
++
++                {/* Pagination */}
++                {totalPages > 1 && (
++                  <div className="mt-8 flex items-center justify-center gap-2">
++                    <div className="flex items-center gap-1 rounded-[10px] border border-gray-200 bg-white p-1 shadow-sm">
++                      {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
++                        // عرض صفحات ذكي: أول، أخير، وحول الحالية
++                        let pageNum: number;
++                        if (totalPages <= 7) pageNum = i + 1;
++                        else if (page <= 4) pageNum = i + 1;
++                        else if (page >= totalPages - 3) pageNum = totalPages - 6 + i;
++                        else pageNum = page - 3 + i;
++
++                        const isActive = pageNum === page;
++                        const params = new URLSearchParams();
++                        if (q) params.set('q', q);
++                        if (category) params.set('category', category);
++                        if (status) params.set('status', status);
++                        if (budgetMin !== undefined) params.set('budgetMin', budgetMin.toString());
++                        if (budgetMax !== undefined) params.set('budgetMax', budgetMax.toString());
++                        if (sort && sort !== 'newest') params.set('sort', sort);
++                        if (pageNum !== 1) params.set('page', pageNum.toString());
++                        const href = params.toString() ? `/projects?${params.toString()}` : '/projects';
+ 
+-                  <p className="mt-2 line-clamp-2 text-gray-600">{project.description}</p>
+-
+-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
+-                    <p className="text-sm text-gray-500">
+-                      <span dir="ltr" className="font-bold text-gray-800">
+-                        {formatBudgetRange(project.budgetMin, project.budgetMax)}
+-                      </span>
+-                      <span className="mx-2">·</span>
+-                      {formatDurationDays(project.durationDays)}
+-                    </p>
+-                    <Link
+-                      href={`/projects/${project.id}`}
+-                      className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
+-                    >
+-                      عرض التفاصيل
+-                    </Link>
++                        return (
++                          <Link
++                            key={pageNum}
++                            href={href}
++                            className={`inline-flex h-8 min-w-8 items-center justify-center rounded-[8px] px-3 text-[13px] font-bold transition ${
++                              isActive
++                                ? 'bg-[#2386c8] text-white shadow-sm'
++                                : 'text-[#555] hover:bg-[#f4f5f7] hover:text-[#222]'
++                            }`}
++                          >
++                            {pageNum}
++                          </Link>
++                        );
++                      })}
++                    </div>
++                    <span className="text-[12px] text-[#888]">من {totalPages} صفحات • {total} مشروع</span>
+                   </div>
+-                </article>
+-              ))}
+-            </div>
+-          )}
++                )}
++              </>
++            )}
++          </main>
+         </div>
+       </div>
+     </div>
+diff --git a/src/components/projects/ProjectCard.tsx b/src/components/projects/ProjectCard.tsx
+new file mode 100644
+index 0000000..9b3bf58
+--- /dev/null
++++ b/src/components/projects/ProjectCard.tsx
+@@ -0,0 +1,114 @@
++/**
++ * خدمات — بطاقة مشروع بأسلوب مستقل 100%
++ * - عنوان + ميزانية + وقت + مهارات Badges + نبذة + حالة عروض
++ * - Tailwind + RTL + responsive
++ */
++
++import Link from 'next/link';
++import type { ProjectListItem } from '@/lib/services/projects';
++import {
++  formatBudgetRange,
++  formatProposalCount,
++  deriveCategoryLabel,
++  extractSkills,
++  stripCategoryTag,
++  timeAgo,
++  PROJECT_STATUS_LABELS,
++  PROJECT_STATUS_BADGE_CLASSES,
++} from '@/lib/services/project-meta';
++
++interface Props {
++  project: ProjectListItem;
++}
++
++export function ProjectCard({ project }: Props) {
++  const categoryLabel = deriveCategoryLabel(`${project.title} ${project.description}`);
++  const skills = extractSkills(`${project.title} ${project.description}`, 3);
++  const cleanDesc = stripCategoryTag(project.description);
++
++  return (
++    <article className="group relative flex flex-col rounded-[12px] border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-[#2386c8]/30 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
++      {/* Header */}
++      <div className="flex items-start justify-between gap-3">
++        <h2 className="line-clamp-1 flex-1 text-[14.5px] font-bold leading-6 text-[#222] group-hover:text-[#2386c8]">
++          <Link href={`/projects/${project.id}`} className="after:absolute after:inset-0">
++            {project.title}
++          </Link>
++        </h2>
++        <span
++          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${PROJECT_STATUS_BADGE_CLASSES[project.status as keyof typeof PROJECT_STATUS_BADGE_CLASSES] || 'bg-gray-100 text-gray-600 border border-gray-200'}`}
++        >
++          {PROJECT_STATUS_LABELS[project.status as keyof typeof PROJECT_STATUS_LABELS] || project.status}
++        </span>
++      </div>
++
++      {/* Meta: time + proposals */}
++      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#888]">
++        <span className="inline-flex items-center gap-1">
++          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
++            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
++          </svg>
++          {timeAgo(project.createdAt)}
++        </span>
++        <span className="h-3 w-px bg-gray-200" />
++        <span className="inline-flex items-center gap-1">
++          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
++            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.25h-.75V6.75A2.25 2.25 0 0 0 17.25 4.5H6.75A2.25 2.25 0 0 0 4.5 6.75v1.5h-.75A2.25 2.25 0 0 0 1.5 8.25v7.5A2.25 2.25 0 0 0 3.75 18h16.5A2.25 2.25 0 0 0 22.5 15.75v-7.5A2.25 2.25 0 0 0 20.25 8.25Z" />
++          </svg>
++          {formatProposalCount(project.proposalsCount)}
++        </span>
++        <span className="h-3 w-px bg-gray-200" />
++        <span>{project.clientName}</span>
++      </div>
++
++      {/* Description */}
++      <p className="mt-3 line-clamp-2 text-[13px] leading-6 text-[#555]">{cleanDesc}</p>
++
++      {/* Skills Badges */}
++      {(skills.length > 0 || categoryLabel) && (
++        <div className="mt-3 flex flex-wrap gap-1.5">
++          {categoryLabel && (
++            <span className="inline-flex items-center rounded-full bg-[#2386c8]/10 px-2.5 py-1 text-[11px] font-medium text-[#2386c8] border border-[#2386c8]/15">
++              {categoryLabel}
++            </span>
++          )}
++          {skills
++            .filter((s) => s !== categoryLabel)
++            .slice(0, 3)
++            .map((skill) => (
++              <span
++                key={skill}
++                className="inline-flex items-center rounded-full bg-[#f4f5f7] px-2.5 py-1 text-[11px] font-medium text-[#666] border border-gray-200"
++              >
++                {skill}
++              </span>
++            ))}
++        </div>
++      )}
++
++      {/* Footer: budget + duration + CTA */}
++      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
++        <div className="flex flex-col">
++          <span className="text-[11px] text-[#888]">الميزانية</span>
++          <span className="mt-0.5 text-[13px] font-bold text-[#222]" dir="ltr">
++            {formatBudgetRange(project.budgetMin, project.budgetMax)}
++          </span>
++        </div>
++        <div className="flex items-center gap-2">
++          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-[#f4f5f7] px-2.5 py-1 text-[11px] text-[#666]">
++            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
++              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
++            </svg>
++            {project.durationDays} يوم
++          </span>
++          <Link
++            href={`/projects/${project.id}`}
++            className="relative z-10 inline-flex h-8 items-center justify-center rounded-[8px] bg-[#2386c8] px-4 text-[12px] font-bold text-white shadow-sm transition hover:bg-[#1a6da8]"
++          >
++            عرض التفاصيل
++          </Link>
++        </div>
++      </div>
++    </article>
++  );
++}
+diff --git a/src/components/projects/ProjectFiltersSidebar.tsx b/src/components/projects/ProjectFiltersSidebar.tsx
+new file mode 100644
+index 0000000..dc1f01a
+--- /dev/null
++++ b/src/components/projects/ProjectFiltersSidebar.tsx
+@@ -0,0 +1,180 @@
++'use client';
++
++/**
++ * خدمات — فلاتر جانبية للمشاريع (Client)
++ * - تصنيف، ميزانية min/max، حالة
++ * - تحديث URL عبر router.push
++ */
++
++import { useRouter, useSearchParams } from 'next/navigation';
++import { useState, useTransition } from 'react';
++import { PROJECT_CATEGORIES, STATUS_FILTERS } from '@/lib/services/project-meta';
++
++function updateQuery(
++  current: URLSearchParams,
++  updates: Record<string, string | undefined>,
++): string {
++  const params = new URLSearchParams(current.toString());
++  Object.entries(updates).forEach(([k, v]) => {
++    if (!v) params.delete(k);
++    else params.set(k, v);
++  });
++  // إعادة تعيين الصفحة عند تغيير الفلتر
++  if (!updates.page) params.delete('page');
++  const qs = params.toString();
++  return qs ? `/projects?${qs}` : '/projects';
++}
++
++export function ProjectFiltersSidebar({
++  initialCategory,
++  initialBudgetMin,
++  initialBudgetMax,
++  initialStatus,
++}: {
++  initialCategory?: string;
++  initialBudgetMin?: string;
++  initialBudgetMax?: string;
++  initialStatus?: string;
++}) {
++  const router = useRouter();
++  const searchParams = useSearchParams();
++  const [isPending, startTransition] = useTransition();
++
++  const [budgetMin, setBudgetMin] = useState(initialBudgetMin || '');
++  const [budgetMax, setBudgetMax] = useState(initialBudgetMax || '');
++
++  const navigate = (updates: Record<string, string | undefined>) => {
++    startTransition(() => {
++      router.push(updateQuery(searchParams, updates));
++    });
++  };
++
++  const hasActive =
++    !!initialCategory || !!initialBudgetMin || !!initialBudgetMax || !!initialStatus;
++
++  return (
++    <div className={`rounded-[12px] border border-gray-200 bg-white p-5 shadow-sm transition ${isPending ? 'opacity-60' : ''}`}>
++      <div className="flex items-center justify-between">
++        <h2 className="text-[14px] font-bold text-[#222]">الفلاتر</h2>
++        {hasActive && (
++          <button
++            onClick={() => navigate({ category: undefined, budgetMin: undefined, budgetMax: undefined, status: undefined, budget: undefined })}
++            className="text-[12px] font-medium text-[#2386c8] hover:text-[#1a6da8]"
++          >
++            مسح الكل
++          </button>
++        )}
++      </div>
++
++      {/* التصنيف */}
++      <div className="mt-5">
++        <h3 className="text-[12px] font-bold text-[#444]">القسم</h3>
++        <div className="mt-3 space-y-2 max-h-[220px] overflow-y-auto pr-1">
++          <label className="flex items-center gap-2 cursor-pointer group">
++            <input
++              type="radio"
++              name="category"
++              checked={!initialCategory}
++              onChange={() => navigate({ category: undefined })}
++              className="h-4 w-4 accent-[#2386c8]"
++            />
++            <span className="text-[13px] text-[#555] group-hover:text-[#222]">الكل</span>
++          </label>
++          {PROJECT_CATEGORIES.slice(0, 8).map((cat) => (
++            <label key={cat.slug} className="flex items-center gap-2 cursor-pointer group">
++              <input
++                type="radio"
++                name="category"
++                checked={initialCategory === cat.slug}
++                onChange={() => navigate({ category: cat.slug })}
++                className="h-4 w-4 accent-[#2386c8]"
++              />
++              <span className="text-[13px] text-[#555] group-hover:text-[#222]">{cat.label}</span>
++            </label>
++          ))}
++        </div>
++      </div>
++
++      <hr className="my-5 border-gray-100" />
++
++      {/* الميزانية min/max */}
++      <div>
++        <h3 className="text-[12px] font-bold text-[#444]">الميزانية ($)</h3>
++        <div className="mt-3 grid grid-cols-2 gap-2">
++          <div>
++            <label className="text-[11px] text-[#888]">من</label>
++            <input
++              type="number"
++              min={0}
++              placeholder="0"
++              value={budgetMin}
++              onChange={(e) => setBudgetMin(e.target.value)}
++              className="mt-1 w-full rounded-[8px] border border-gray-200 bg-[#fcfcfc] px-3 py-2 text-[13px] outline-none focus:border-[#2386c8] focus:bg-white focus:ring-2 focus:ring-[#2386c8]/10"
++            />
++          </div>
++          <div>
++            <label className="text-[11px] text-[#888]">إلى</label>
++            <input
++              type="number"
++              min={0}
++              placeholder="1000"
++              value={budgetMax}
++              onChange={(e) => setBudgetMax(e.target.value)}
++              className="mt-1 w-full rounded-[8px] border border-gray-200 bg-[#fcfcfc] px-3 py-2 text-[13px] outline-none focus:border-[#2386c8] focus:bg-white focus:ring-2 focus:ring-[#2386c8]/10"
++            />
++          </div>
++        </div>
++        <button
++          onClick={() => navigate({ budgetMin: budgetMin || undefined, budgetMax: budgetMax || undefined })}
++          className="mt-3 w-full rounded-[8px] bg-[#222] px-3 py-2 text-[12px] font-bold text-white hover:bg-black"
++        >
++          تطبيق الميزانية
++        </button>
++      </div>
++
++      <hr className="my-5 border-gray-100" />
++
++      {/* حالة المشروع */}
++      <div>
++        <h3 className="text-[12px] font-bold text-[#444]">حالة المشروع</h3>
++        <div className="mt-3 space-y-2">
++          <label className="flex items-center gap-2 cursor-pointer group">
++            <input
++              type="radio"
++              name="status"
++              checked={!initialStatus}
++              onChange={() => navigate({ status: undefined })}
++              className="h-4 w-4 accent-[#2386c8]"
++            />
++            <span className="text-[13px] text-[#555] group-hover:text-[#222]">الكل</span>
++          </label>
++          {STATUS_FILTERS.map((s) => (
++            <label key={s.value} className="flex items-center gap-2 cursor-pointer group">
++              <input
++                type="radio"
++                name="status"
++                checked={initialStatus === s.value}
++                onChange={() => navigate({ status: s.value })}
++                className="h-4 w-4 accent-[#2386c8]"
++              />
++              <span className="text-[13px] text-[#555] group-hover:text-[#222]">{s.label}</span>
++            </label>
++          ))}
++        </div>
++      </div>
++
++      {/* معلومات الضمان */}
++      <div className="mt-6 rounded-[10px] bg-[#f4f5f7] p-3">
++        <div className="flex items-center gap-2 text-[12px] font-bold text-[#222]">
++          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2386c8]/10 text-[#2386c8]">
++            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
++              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
++            </svg>
++          </span>
++          ضمان خدمات
++        </div>
++        <p className="mt-2 text-[11px] leading-5 text-[#666]">جميع المشاريع محمية بضمان خدمات — حقك المالي محفوظ حتى التسليم.</p>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/components/projects/ProjectSearchBar.tsx b/src/components/projects/ProjectSearchBar.tsx
+new file mode 100644
+index 0000000..f9605f5
+--- /dev/null
++++ b/src/components/projects/ProjectSearchBar.tsx
+@@ -0,0 +1,88 @@
++'use client';
++
++/**
++ * خدمات — شريط بحث وفرز علوي للمشاريع
++ */
++
++import { useRouter, useSearchParams } from 'next/navigation';
++import { useState, useTransition } from 'react';
++import { SORT_OPTIONS } from '@/lib/services/project-meta';
++
++export function ProjectSearchBar({
++  initialQ,
++  initialSort,
++}: {
++  initialQ?: string;
++  initialSort?: string;
++}) {
++  const router = useRouter();
++  const searchParams = useSearchParams();
++  const [isPending, startTransition] = useTransition();
++  const [q, setQ] = useState(initialQ || '');
++
++  const updateQuery = (updates: Record<string, string | undefined>) => {
++    const params = new URLSearchParams(searchParams.toString());
++    Object.entries(updates).forEach(([k, v]) => {
++      if (!v) params.delete(k);
++      else params.set(k, v);
++    });
++    if (!updates.page) params.delete('page');
++    const qs = params.toString();
++    return qs ? `/projects?${qs}` : '/projects';
++  };
++
++  const onSearch = (e: React.FormEvent) => {
++    e.preventDefault();
++    startTransition(() => {
++      router.push(updateQuery({ q: q.trim() || undefined }));
++    });
++  };
++
++  const onSortChange = (value: string) => {
++    startTransition(() => {
++      router.push(updateQuery({ sort: value === 'newest' ? undefined : value }));
++    });
++  };
++
++  return (
++    <div className={`flex flex-col gap-3 sm:flex-row sm:items-center ${isPending ? 'opacity-60' : ''}`}>
++      <form onSubmit={onSearch} className="flex flex-1 items-center gap-2 rounded-[10px] border border-gray-200 bg-white p-1.5 shadow-sm focus-within:border-[#2386c8] focus-within:ring-2 focus-within:ring-[#2386c8]/10">
++        <div className="relative flex-1">
++          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
++            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
++              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
++            </svg>
++          </span>
++          <input
++            type="search"
++            value={q}
++            onChange={(e) => setQ(e.target.value)}
++            placeholder="ابحث بكلمات مفتاحية: برمجة، تصميم، تسويق..."
++            className="h-10 w-full bg-transparent pr-9 pl-3 text-[13.5px] text-gray-800 placeholder:text-gray-400 outline-none"
++          />
++        </div>
++        <button
++          type="submit"
++          className="h-10 rounded-[8px] bg-[#2386c8] px-5 text-[13px] font-bold text-white hover:bg-[#1a6da8]"
++        >
++          بحث
++        </button>
++      </form>
++
++      <div className="flex items-center gap-2">
++        <label className="text-[12px] font-medium text-[#666] whitespace-nowrap">ترتيب:</label>
++        <select
++          value={initialSort || 'newest'}
++          onChange={(e) => onSortChange(e.target.value)}
++          className="h-10 rounded-[10px] border border-gray-200 bg-white px-3 text-[13px] text-[#222] outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/10"
++        >
++          {SORT_OPTIONS.map((opt) => (
++            <option key={opt.value} value={opt.value}>
++              {opt.label}
++            </option>
++          ))}
++        </select>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/components/projects/ProposalFormEnhanced.tsx b/src/components/projects/ProposalFormEnhanced.tsx
+new file mode 100644
+index 0000000..2c993aa
+--- /dev/null
++++ b/src/components/projects/ProposalFormEnhanced.tsx
+@@ -0,0 +1,156 @@
++'use client';
++
++/**
++ * خدمات — نموذج تقديم عرض مع حساب عمولة تلقائي
++ * - قيمة العرض، مدة التسليم، شرح العرض
++ * - حساب عمولة 15% والمبلغ الصافي
++ */
++
++import { useActionState, useEffect, useMemo, useState } from 'react';
++import { useRouter } from 'next/navigation';
++import { submitProposalAction } from '@/app/actions/projects';
++import type { AuthActionState } from '@/lib/auth';
++
++const INITIAL_STATE: AuthActionState = { success: false };
++const COMMISSION_RATE = 0.15;
++
++const INPUT_CLASSES =
++  'w-full rounded-[10px] border border-gray-200 bg-[#fcfcfc] px-4 py-2.5 text-[13.5px] text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-[#2386c8] focus:bg-white focus:ring-2 focus:ring-[#2386c8]/10';
++
++export function ProposalFormEnhanced({ projectId }: { projectId: number }) {
++  const router = useRouter();
++  const [state, formAction, isPending] = useActionState(submitProposalAction, INITIAL_STATE);
++  const [amount, setAmount] = useState<string>('');
++  const [duration, setDuration] = useState<string>('');
++
++  useEffect(() => {
++    if (state.success) {
++      router.refresh();
++    }
++  }, [state, router]);
++
++  const { commission, net } = useMemo(() => {
++    const n = Number.parseFloat(amount || '0');
++    if (!Number.isFinite(n) || n <= 0) return { commission: 0, net: 0 };
++    const c = n * COMMISSION_RATE;
++    return { commission: c, net: n - c };
++  }, [amount]);
++
++  const amountError = state.fieldErrors?.amount?.[0];
++  const durationError = state.fieldErrors?.durationDays?.[0];
++  const commentError = state.fieldErrors?.comment?.[0];
++
++  return (
++    <form action={formAction} className="space-y-5" noValidate>
++      <input type="hidden" name="projectId" value={projectId} />
++
++      {state.message && !state.success && (
++        <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
++          {state.message}
++        </div>
++      )}
++      {state.success && state.message && (
++        <div className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-700">
++          {state.message}
++        </div>
++      )}
++
++      <div className="grid gap-4 sm:grid-cols-2">
++        <div>
++          <label className="mb-1.5 block text-[12px] font-bold text-[#444]">قيمة عرضك ($)</label>
++          <input
++            name="amount"
++            type="number"
++            inputMode="decimal"
++            min="1"
++            step="0.01"
++            required
++            placeholder="مثال: 250"
++            dir="ltr"
++            value={amount}
++            onChange={(e) => setAmount(e.target.value)}
++            className={`${INPUT_CLASSES} text-left ${amountError ? 'border-red-300 focus:border-red-400' : ''}`}
++          />
++          {amountError && <p className="mt-1.5 text-[11px] text-red-600">{amountError}</p>}
++        </div>
++
++        <div>
++          <label className="mb-1.5 block text-[12px] font-bold text-[#444]">مدة التسليم (أيام)</label>
++          <input
++            name="durationDays"
++            type="number"
++            inputMode="numeric"
++            min="1"
++            step="1"
++            required
++            placeholder="مثال: 7"
++            dir="ltr"
++            value={duration}
++            onChange={(e) => setDuration(e.target.value)}
++            className={`${INPUT_CLASSES} text-left ${durationError ? 'border-red-300 focus:border-red-400' : ''}`}
++          />
++          {durationError && <p className="mt-1.5 text-[11px] text-red-600">{durationError}</p>}
++        </div>
++      </div>
++
++      {/* حساب العمولة التلقائي */}
++      <div className="rounded-[10px] border border-gray-200 bg-[#f4f5f7] p-4">
++        <h4 className="text-[12px] font-bold text-[#222]">تفاصيل أرباحك</h4>
++        <div className="mt-3 space-y-2 text-[12px]">
++          <div className="flex justify-between">
++            <span className="text-[#666]">قيمة العرض</span>
++            <span className="font-bold text-[#222]" dir="ltr">${amount ? Number(amount).toFixed(2) : '0.00'}</span>
++          </div>
++          <div className="flex justify-between">
++            <span className="text-[#666]">عمولة المنصة (15%)</span>
++            <span className="font-bold text-[#e74c3c]" dir="ltr">- ${commission.toFixed(2)}</span>
++          </div>
++          <hr className="border-gray-200" />
++          <div className="flex justify-between text-[13px]">
++            <span className="font-bold text-[#222]">صافي ربحك</span>
++            <span className="font-extrabold text-[#0e9f6e]" dir="ltr">${net.toFixed(2)}</span>
++          </div>
++          <p className="pt-1 text-[11px] leading-5 text-[#888]">سيتم حجز المبلغ في ضمان خدمات وإطلاقه بعد تسليم العمل وموافقة العميل.</p>
++        </div>
++      </div>
++
++      <div>
++        <label className="mb-1.5 block text-[12px] font-bold text-[#444]">
++          شرح العرض <span className="font-normal text-[#888]">(اختياري لكنه يزيد فرص قبولك)</span>
++        </label>
++        <textarea
++          name="comment"
++          rows={5}
++          maxLength={2000}
++          placeholder="اكتب خطة تنفيذك، خبرتك في مشاريع مشابهة، وما سيحصل عليه العميل..."
++          className={`${INPUT_CLASSES} resize-y min-h-[120px] ${commentError ? 'border-red-300' : ''}`}
++        />
++        {commentError && <p className="mt-1.5 text-[11px] text-red-600">{commentError}</p>}
++      </div>
++
++      <button
++        type="submit"
++        disabled={isPending}
++        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#2386c8] px-6 text-[13.5px] font-bold text-white shadow-sm transition hover:bg-[#1a6da8] disabled:opacity-60 sm:w-auto"
++      >
++        {isPending ? (
++          <>
++            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
++            جارٍ الإرسال...
++          </>
++        ) : (
++          <>
++            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
++              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
++            </svg>
++            تقديم العرض
++          </>
++        )}
++      </button>
++
++      <p className="text-[11px] leading-5 text-[#888]">
++        بتقديمك العرض، أنت توافق على <span className="font-bold text-[#222]">شروط الاستخدام</span> وضمان خدمات. عرض واحد فقط لكل مشروع.
++      </p>
++    </form>
++  );
++}
+diff --git a/src/components/projects/ProposalsList.tsx b/src/components/projects/ProposalsList.tsx
+new file mode 100644
+index 0000000..943d9fd
+--- /dev/null
++++ b/src/components/projects/ProposalsList.tsx
+@@ -0,0 +1,140 @@
++/**
++ * خدمات — قائمة العروض المقدمة على المشروع
++ * - صاحب المشروع يراها كاملة، الزائر يرى ملخص عام
++ */
++
++import Link from 'next/link';
++import type { ProjectProposalItem } from '@/lib/services/projects';
++
++function formatAmount(amount: string) {
++  const n = Number.parseFloat(amount || '0');
++  return Number.isInteger(n) ? `${n}$` : `${n.toFixed(2)}$`;
++}
++
++function timeAgo(date: Date) {
++  try {
++    const diff = Date.now() - new Date(date).getTime();
++    const mins = Math.floor(diff / 60000);
++    if (mins < 1) return 'الآن';
++    if (mins < 60) return `منذ ${mins} دقيقة`;
++    const hours = Math.floor(mins / 60);
++    if (hours < 24) return `منذ ${hours} ساعة`;
++    const days = Math.floor(hours / 24);
++    if (days === 1) return 'منذ يوم';
++    if (days < 7) return `منذ ${days} أيام`;
++    return new Date(date).toLocaleDateString('ar-YE');
++  } catch {
++    return '';
++  }
++}
++
++export function ProposalsList({
++  proposals,
++  isOwner,
++}: {
++  proposals: ProjectProposalItem[];
++  isOwner: boolean;
++}) {
++  if (proposals.length === 0) {
++    return (
++      <div className="rounded-[12px] border border-dashed border-gray-300 bg-[#fcfcfc] p-8 text-center">
++        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f4f5f7] text-gray-400">
++          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
++            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.25h-.75V6.75A2.25 2.25 0 0 0 17.25 4.5H6.75A2.25 2.25 0 0 0 4.5 6.75v1.5h-.75A2.25 2.25 0 0 0 1.5 8.25v7.5A2.25 2.25 0 0 0 3.75 18h16.5A2.25 2.25 0 0 0 22.5 15.75v-7.5A2.25 2.25 0 0 0 20.25 8.25Z" />
++          </svg>
++        </div>
++        <p className="mt-3 text-[13px] font-bold text-[#444]">لا توجد عروض بعد</p>
++        <p className="mt-1 text-[12px] text-[#888]">كن أول من يقدم عرضاً على هذا المشروع</p>
++      </div>
++    );
++  }
++
++  return (
++    <div className="space-y-4">
++      {proposals.map((proposal) => (
++        <div
++          key={proposal.id}
++          className="rounded-[12px] border border-gray-200 bg-white p-5 shadow-sm"
++        >
++          <div className="flex items-start justify-between gap-3">
++            <div className="flex items-center gap-3">
++              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2386c8]/10 text-[14px] font-bold text-[#2386c8]">
++                {proposal.freelancerName.trim().charAt(0) || 'م'}
++              </span>
++              <div>
++                <div className="flex items-center gap-2">
++                  <span className="text-[13px] font-bold text-[#222]">{proposal.freelancerName}</span>
++                  {proposal.freelancerIsKycVerified && (
++                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
++                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
++                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
++                      </svg>
++                      موثق
++                    </span>
++                  )}
++                </div>
++                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[#888]">
++                  <span>{timeAgo(proposal.createdAt)}</span>
++                  {proposal.freelancerSkills && (
++                    <>
++                      <span className="h-3 w-px bg-gray-200" />
++                      <span className="line-clamp-1">{proposal.freelancerSkills.slice(0, 60)}</span>
++                    </>
++                  )}
++                </div>
++              </div>
++            </div>
++
++            <div className="text-left">
++              <div className="text-[14px] font-extrabold text-[#222]" dir="ltr">
++                {formatAmount(proposal.amount)}
++              </div>
++              <div className="text-[11px] text-[#888]">{proposal.durationDays} يوم</div>
++            </div>
++          </div>
++
++          {proposal.comment && (
++            <div className="mt-4 rounded-[10px] bg-[#fcfcfc] border border-gray-100 p-3.5">
++              <p className="text-[12.5px] leading-6 text-[#444] whitespace-pre-line">
++                {isOwner ? proposal.comment : `${proposal.comment.slice(0, 140)}${proposal.comment.length > 140 ? '...' : ''}`}
++              </p>
++            </div>
++          )}
++
++          <div className="mt-4 flex items-center justify-between">
++            <span
++              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${
++                proposal.status === 'pending'
++                  ? 'bg-amber-50 text-amber-700 border-amber-200'
++                  : proposal.status === 'accepted'
++                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
++                    : 'bg-gray-100 text-gray-600 border-gray-200'
++              }`}
++            >
++              {proposal.status === 'pending' ? 'بانتظار المراجعة' : proposal.status === 'accepted' ? 'مقبول' : proposal.status}
++            </span>
++
++            {isOwner ? (
++              <div className="flex gap-2">
++                <Link
++                  href={`/freelancers/${proposal.freelancerId}`}
++                  className="inline-flex h-8 items-center justify-center rounded-[8px] border border-gray-200 bg-white px-3 text-[11px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]"
++                >
++                  الملف الشخصي
++                </Link>
++                <Link
++                  href={`/dashboard/messages?user=${proposal.freelancerId}`}
++                  className="inline-flex h-8 items-center justify-center rounded-[8px] bg-[#222] px-3 text-[11px] font-bold text-white hover:bg-black"
++                >
++                  تواصل
++                </Link>
++              </div>
++            ) : (
++              <span className="text-[11px] text-[#999]">العرض مرئي لصاحب المشروع فقط بالتفصيل</span>
++            )}
++          </div>
++        </div>
++      ))}
++    </div>
++  );
++}
+diff --git a/src/lib/services/project-meta.ts b/src/lib/services/project-meta.ts
+index 613151f..9f3066c 100644
+--- a/src/lib/services/project-meta.ts
++++ b/src/lib/services/project-meta.ts
+@@ -1,58 +1,68 @@
+ /**
+  * ============================================================================
+- *  mnste9 — ثوابت وأدوات عرض المشاريع (طبقة نقية بلا قاعدة بيانات)
++ *  خدمات — ثوابت وأدوات عرض المشاريع (طبقة نقية بلا قاعدة بيانات)
+  * ============================================================================
+- *  هذا الملف آمن للاستيراد من مكوّنات العميل (Client Components) — لا يستورد
+- *  drizzle أو pg إطلاقاً. استعلامات قاعدة البيانات في src/lib/services/projects.ts.
++ *  طبقة آمنة للعميل — لا تستورد drizzle أو pg
++ *  استعلامات قاعدة البيانات في src/lib/services/projects.ts
+  *
+- *  قرار معماري موثّق — التصنيف بلا عمود في قاعدة البيانات:
+- *   جدول projects (المخطط المجمَّد بموجب قواعد المرحلة) لا يوجد فيه عمود
+- *   category. الحل المعتمد:
+- *    1) عند نشر مشروع، يُلحق سطر منظم بآخر الوصف:  "التصنيف: برمجة".
+- *    2) فلترة التصنيف تعمل بمطابقة جذوع كلمات عربية (ILIKE) على العنوان
+- *       والوصف — فتشمل المشاريع المنشورة عبر النموذج (سطر التصنيف) وأي
+- *       مشاريع تذكر التصنيف صراحةً في نصها.
+- *    3) عند العرض يُخفى سطر التصنيف من الوصف ويُعرض مكانه شارة تصنيف.
+- *   التخزين قابل للترحيل لاحقاً إلى عمود حقيقي بمجرد السماح بتعديل المخطط.
+- *
+- *  ملاحظة التقييم في بطاقة العميل:
+- *   لا يوجد جدول تقييمات في المخطط الحالي، لذا يُعرض "لا تقييمات بعد"
+- *   حتى تُبنى منظومة التقييمات في مرحلة قادمة.
++ *  التصنيف بلا عمود في قاعدة البيانات — يُخزن كسطر "التصنيف: X"
++ *  في آخر الوصف، والفلترة بمطابقة جذوع كلمات (ILIKE)
+  * ============================================================================
+  */
+ 
+ /* ============================================================================
+- * التصنيفات — الترتيب مطابق لمواصفة المرحلة
+- * stems: جذوع كلمات عربية للمطابقة (برمج تطابق: برمجة، مبرمج، برمجيات…)
++ * التصنيفات — موسعة لأسلوب مستقل / Upwork (8 أقسام رئيسية)
+  * ========================================================================== */
+ 
+ export interface ProjectCategory {
+   slug: string;
+   label: string;
+   stems: readonly string[];
++  icon?: string;
+ }
+ 
+ export const PROJECT_CATEGORIES: readonly ProjectCategory[] = [
+   {
+     slug: 'programming',
+-    label: 'برمجة',
+-    stems: ['برمج', 'تطوير', 'موقع', 'ويب', 'تطبيق'],
++    label: 'برمجة وتطوير',
++    stems: ['برمج', 'تطوير', 'موقع', 'ويب', 'تطبيق', 'برمجة', 'كود', 'API', 'React', 'Node'],
+   },
+   {
+     slug: 'design',
+-    label: 'تصميم',
+-    stems: ['تصميم', 'مصمم', 'جرافيك', 'هوية'],
++    label: 'تصميم وإبداع',
++    stems: ['تصميم', 'مصمم', 'جرافيك', 'هوية', 'UI', 'UX', 'فوتوشوب', 'إبداع'],
++  },
++  {
++    slug: 'marketing',
++    label: 'تسويق رقمي',
++    stems: ['تسويق', 'إعلان', 'حملة', 'SEO', 'سوشيال', 'تسويق رقمي'],
+   },
+   {
+     slug: 'writing',
+-    label: 'كتابة',
+-    stems: ['كتابة', 'كاتب', 'مقال', 'محتوى'],
++    label: 'كتابة وترجمة',
++    stems: ['كتابة', 'كاتب', 'مقال', 'محتوى', 'ترجم', 'كتابة'],
+   },
+   {
+-    slug: 'marketing',
+-    label: 'تسويق',
+-    stems: ['تسويق', 'إعلان', 'حملة'],
++    slug: 'admin',
++    label: 'دعم إداري',
++    stems: ['إداري', 'إدخال', 'بيانات', 'سكرتارية', 'دعم إداري', 'مساعد'],
++  },
++  {
++    slug: 'video',
++    label: 'فيديو وأنيميشن',
++    stems: ['فيديو', 'مونتاج', 'أنيميشن', 'موشن', 'تعليق صوتي', 'تصوير'],
+   },
++  {
++    slug: 'business',
++    label: 'أعمال واستشارات',
++    stems: ['أعمال', 'استشارة', 'دراسة جدوى', 'خطة عمل', 'استشارات'],
++  },
++  {
++    slug: 'engineering',
++    label: 'هندسة وعمارة',
++    stems: ['هندسة', 'معماري', 'خرائط', 'أوتوكاد', 'عمارة'],
++  },
++  // توافق قديم
+   {
+     slug: 'translation',
+     label: 'ترجمة',
+@@ -65,7 +75,6 @@ export const PROJECT_CATEGORIES: readonly ProjectCategory[] = [
+   },
+ ];
+ 
+-/** قيم slugs كـ tuple — للاستخدام مع z.enum في طبقة الإجراءات */
+ export const CATEGORY_SLUGS = [
+   'programming',
+   'design',
+@@ -73,13 +82,16 @@ export const CATEGORY_SLUGS = [
+   'marketing',
+   'translation',
+   'accounting',
++  'admin',
++  'video',
++  'business',
++  'engineering',
+ ] as const;
+ 
+ export type ProjectCategorySlug = (typeof CATEGORY_SLUGS)[number];
+ 
+ /* ============================================================================
+- * فلاتر الميزانية — الدلالة: تقاطع نطاق ميزانية المشروع [min, max]
+- * مع النطاق المختار (أي مشروع يمكن أن يقع ضمن النطاق يظهر)
++ * فلاتر الميزانية — قديم (للتوافق) + جديد min/max
+  * ========================================================================== */
+ 
+ export interface BudgetFilterOption {
+@@ -104,19 +116,24 @@ export const BUDGET_FILTER_VALUES = [
+ export type BudgetFilterValue = (typeof BUDGET_FILTER_VALUES)[number];
+ 
+ /* ============================================================================
+- * خيارات الترتيب
++ * خيارات الترتيب — موسعة حسب المواصفات
+  * ========================================================================== */
+ 
+ export const SORT_OPTIONS = [
+   { value: 'newest', label: 'الأحدث' },
++  { value: 'oldest', label: 'الأقدم' },
++  { value: 'budget_high', label: 'الأعلى ميزانية' },
++  { value: 'budget_low', label: 'الأقل ميزانية' },
++  { value: 'proposals_least', label: 'الأقل عروضاً' },
++  { value: 'proposals_most', label: 'الأكثر عروضاً' },
++  // توافق قديم
+   { value: 'budget', label: 'الأعلى ميزانية' },
+ ] as const;
+ 
+ export type ProjectSortValue = (typeof SORT_OPTIONS)[number]['value'];
+ 
+ /* ============================================================================
+- * حالات المشروع — متزامنة مع project_status_enum في المخطط
+- * (لا يمكن استيراد المخطط هنا لأن هذا الملف يُستورد من العميل)
++ * حالات المشروع
+  * ========================================================================== */
+ 
+ export type ProjectStatusKey = 'open' | 'in_progress' | 'completed' | 'cancelled';
+@@ -128,43 +145,78 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatusKey, string> = {
+   cancelled: 'ملغي',
+ };
+ 
+-/** ألوان شارات الحالة — هادئة ومتمايزة */
+ export const PROJECT_STATUS_BADGE_CLASSES: Record<ProjectStatusKey, string> = {
+-  open: 'bg-emerald-100 text-emerald-800',
+-  in_progress: 'bg-amber-100 text-amber-800',
+-  completed: 'bg-sky-100 text-sky-800',
+-  cancelled: 'bg-slate-100 text-slate-600',
++  open: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
++  in_progress: 'bg-amber-50 text-amber-700 border border-amber-200',
++  completed: 'bg-[#2386c8]/10 text-[#2386c8] border border-[#2386c8]/20',
++  cancelled: 'bg-gray-100 text-gray-600 border border-gray-200',
+ };
+ 
++export const STATUS_FILTERS: readonly { value: ProjectStatusKey; label: string }[] = [
++  { value: 'open', label: 'مفتوح' },
++  { value: 'in_progress', label: 'قيد التنفيذ' },
++  { value: 'completed', label: 'مكتمل' },
++  { value: 'cancelled', label: 'ملغي' },
++];
++
+ /* ============================================================================
+- * تحليل معاملات URL (searchParams) — قيم غير صالحة تُهمل بصمت
++ * تحليل معاملات URL
+  * ========================================================================== */
+ 
+ export function parseCategoryParam(raw: unknown): ProjectCategorySlug | undefined {
+-  return typeof raw === 'string' &&
+-    CATEGORY_SLUGS.includes(raw as ProjectCategorySlug)
++  return typeof raw === 'string' && CATEGORY_SLUGS.includes(raw as ProjectCategorySlug)
+     ? (raw as ProjectCategorySlug)
+     : undefined;
+ }
+ 
+ export function parseBudgetParam(raw: unknown): BudgetFilterValue | undefined {
+-  return typeof raw === 'string' &&
+-    BUDGET_FILTER_VALUES.includes(raw as BudgetFilterValue)
++  return typeof raw === 'string' && BUDGET_FILTER_VALUES.includes(raw as BudgetFilterValue)
+     ? (raw as BudgetFilterValue)
+     : undefined;
+ }
+ 
+ export function parseSortParam(raw: unknown): ProjectSortValue {
+-  return raw === 'budget' ? 'budget' : 'newest';
++  const valid = SORT_OPTIONS.map((o) => o.value);
++  if (typeof raw === 'string' && valid.includes(raw as ProjectSortValue)) {
++    return raw as ProjectSortValue;
++  }
++  return 'newest';
++}
++
++export function parseStatusParam(raw: unknown): ProjectStatusKey | undefined {
++  const valid: ProjectStatusKey[] = ['open', 'in_progress', 'completed', 'cancelled'];
++  return typeof raw === 'string' && valid.includes(raw as ProjectStatusKey)
++    ? (raw as ProjectStatusKey)
++    : undefined;
++}
++
++export function parseQParam(raw: unknown): string | undefined {
++  if (typeof raw === 'string' && raw.trim().length > 0) {
++    return raw.trim().slice(0, 100);
++  }
++  return undefined;
++}
++
++export function parseNumberParam(raw: unknown): number | undefined {
++  if (typeof raw === 'string') {
++    const n = Number(raw);
++    if (Number.isFinite(n) && n >= 0) return n;
++  }
++  return undefined;
++}
++
++export function parsePageParam(raw: unknown): number {
++  const n = parseNumberParam(raw);
++  if (n && Number.isInteger(n) && n >= 1 && n <= 1000) return n;
++  return 1;
+ }
+ 
+ /* ============================================================================
+- * سطر التصنيف داخل الوصف (تخزين منظم — راجع الترويسة)
++ * سطر التصنيف داخل الوصف
+  * ========================================================================== */
+ 
+ export const CATEGORY_TAG_PREFIX = 'التصنيف:';
+ 
+-/** إلحاق سطر التصنيف بآخر الوصف عند الإنشاء */
+ export function appendCategoryTag(description: string, label: string): string {
+   return `${description}\n\n${CATEGORY_TAG_PREFIX} ${label}`;
+ }
+@@ -176,12 +228,10 @@ const CATEGORY_TAG_REGEX = new RegExp(
+   'u',
+ );
+ 
+-/** إزالة سطر التصنيف عند العرض (يُعرض مكانه شارة تصنيف) */
+ export function stripCategoryTag(description: string): string {
+   return description.replace(CATEGORY_TAG_REGEX, '');
+ }
+ 
+-/** استنتاج التصنيف من نص المشروع (أول تطابق بترتيب التصنيفات) */
+ export function deriveCategoryLabel(text: string): string | undefined {
+   for (const category of PROJECT_CATEGORIES) {
+     if (category.stems.some((stem) => text.includes(stem))) {
+@@ -191,27 +241,83 @@ export function deriveCategoryLabel(text: string): string | undefined {
+   return undefined;
+ }
+ 
++export function deriveCategorySlug(text: string): ProjectCategorySlug | undefined {
++  for (const category of PROJECT_CATEGORIES) {
++    if (category.stems.some((stem) => text.includes(stem))) {
++      return category.slug as ProjectCategorySlug;
++    }
++  }
++  return undefined;
++}
++
++/* ============================================================================
++ * المهارات — استخراج badges من النص (تقريب بسيط)
++ * ========================================================================== */
++
++const COMMON_SKILLS = [
++  'React',
++  'Next.js',
++  'Vue',
++  'Angular',
++  'Node.js',
++  'PHP',
++  'Laravel',
++  'WordPress',
++  'Flutter',
++  'تصميم',
++  'UI/UX',
++  'فوتوشوب',
++  'SEO',
++  'تسويق',
++  'كتابة',
++  'ترجمة',
++  'مونتاج',
++  'موشن',
++  'هوية بصرية',
++  'تطبيق جوال',
++  'موقع إلكتروني',
++  'API',
++  'قاعدة بيانات',
++  'إدخال بيانات',
++];
++
++export function extractSkills(text: string, limit = 4): string[] {
++  const found: string[] = [];
++  const lower = text.toLowerCase();
++  for (const skill of COMMON_SKILLS) {
++    if (lower.includes(skill.toLowerCase()) || text.includes(skill)) {
++      found.push(skill);
++      if (found.length >= limit) break;
++    }
++  }
++  // إذا لم نجد مهارات، استخدم التصنيف كمهارة
++  if (found.length === 0) {
++    const cat = deriveCategoryLabel(text);
++    if (cat) found.push(cat);
++  }
++  return found;
++}
++
+ /* ============================================================================
+- * تنسيقات عرض — أرقام غربية للمبالغ والمدد (المتعارف عليه مع $)،
+- * والتواريخ عبر formatDate (ar-YE) في طبقة العرض
++ * تنسيقات عرض
+  * ========================================================================== */
+ 
+-/** "150.00" → "150" | "99.50" → "99.50" */
+ function formatAmount(value: string): string {
+   const parsed = Number(value);
++  if (Number.isNaN(parsed)) return value;
+   return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(2);
+ }
+ 
+-/** نطاق الميزانية: "150$ – 300$" أو قيمة واحدة "150$" */
+ export function formatBudgetRange(min: string, max: string): string {
+   const formattedMin = formatAmount(min);
+   const formattedMax = formatAmount(max);
+-  return formattedMin === formattedMax
+-    ? `${formattedMin}$`
+-    : `${formattedMin}$ – ${formattedMax}$`;
++  return formattedMin === formattedMax ? `${formattedMin}$` : `${formattedMin}$ – ${formattedMax}$`;
++}
++
++export function formatBudgetShort(min: string, max: string): string {
++  return formatBudgetRange(min, max);
+ }
+ 
+-/** المدة بالأيام بصيغة عربية سليمة */
+ export function formatDurationDays(days: number): string {
+   if (days === 1) return 'يوم واحد';
+   if (days === 2) return 'يومان';
+@@ -219,7 +325,6 @@ export function formatDurationDays(days: number): string {
+   return `${days} يوماً`;
+ }
+ 
+-/** عدد المشاريع بصيغة عربية سليمة */
+ export function formatProjectCount(count: number): string {
+   if (count === 0) return 'لا مشاريع';
+   if (count === 1) return 'مشروع واحد';
+@@ -228,7 +333,6 @@ export function formatProjectCount(count: number): string {
+   return `${count} مشروعاً`;
+ }
+ 
+-/** عدد العروض بصيغة عربية سليمة */
+ export function formatProposalCount(count: number): string {
+   if (count === 0) return 'لا عروض بعد';
+   if (count === 1) return 'عرض واحد';
+@@ -236,3 +340,21 @@ export function formatProposalCount(count: number): string {
+   if (count >= 3 && count <= 10) return `${count} عروض`;
+   return `${count} عرضاً`;
+ }
++
++export function timeAgo(date: Date): string {
++  try {
++    const diff = Date.now() - new Date(date).getTime();
++    const mins = Math.floor(diff / 60000);
++    if (mins < 1) return 'الآن';
++    if (mins < 60) return `منذ ${mins} دقيقة`;
++    const hours = Math.floor(mins / 60);
++    if (hours < 24) return `منذ ${hours} ساعة`;
++    const days = Math.floor(hours / 24);
++    if (days === 1) return 'منذ يوم';
++    if (days < 7) return `منذ ${days} أيام`;
++    if (days < 30) return `منذ ${Math.floor(days / 7)} أسابيع`;
++    return new Date(date).toLocaleDateString('ar-YE');
++  } catch {
++    return '';
++  }
++}
+diff --git a/src/lib/services/projects.ts b/src/lib/services/projects.ts
+index 97d4902..f9d5a76 100644
+--- a/src/lib/services/projects.ts
++++ b/src/lib/services/projects.ts
+@@ -1,25 +1,18 @@
+ /**
+  * ============================================================================
+- *  mnste9 — استعلامات المشاريع (طبقة الخدمات — للخادم فقط)
++ *  خدمات — استعلامات المشاريع (طبقة الخدمات — للخادم فقط)
+  * ============================================================================
+- *  الدوال المصدَّرة:
+- *   - listProjects(filters)            : قائمة المشاريع مع فلترة وترتيب.
+- *   - getProjectWithClient(id)         : مشروع واحد + بيانات العميل + عدد العروض.
+- *   - hasUserProposed(projectId, userId): هل قدّم المستخدم عرضاً على المشروع؟
+- *
+- *  مبادئ التصميم:
+- *   - هذا الملف يستورد قاعدة البيانات (pg/Drizzle) — لا يُستورد أبداً من
+- *     مكوّنات العميل؛ الثوابت الآمنة للعميل في project-meta.ts.
+- *   - فلترة التصنيف بمطابقة جذوع كلمات (ILIKE) على العنوان والوصف —
+- *     لا يوجد عمود category في المخطط المجمَّد (راجع ترويسة project-meta.ts).
+- *   - فلترة الميزانية بدلالة التقاطع: يظهر المشروع إن تقاطع نطاق ميزانيته
+- *     [budget_min, budget_max] مع النطاق المختار.
+- *   - حد أعلى للنتائج (MAX_LISTED_PROJECTS) لحماية الصفحة من النمو غير
+- *     المحدود — لا يوجد ترقيم صفحات في هذه المرحلة.
++ *  - listProjects(filters) : للتوافق القديم
++ *  - listProjectsPaginated(filters) : جديد مع بحث كلمات، ميزانية min/max،
++ *    حالة، ترتيب (الأحدث، الأقدم، الأعلى/الأقل ميزانية، الأقل/الأكثر عروضاً)
++ *    + pagination + proposalsCount
++ *  - getProjectWithClient(id)
++ *  - getProjectProposals(projectId) : قائمة العروض مع بيانات المستقل
++ *  - hasUserProposed(projectId, userId)
+  * ============================================================================
+  */
+ 
+-import { and, count, desc, eq, gt, gte, ilike, lt, lte, or, type SQL } from 'drizzle-orm';
++import { and, asc, count, desc, eq, gt, gte, ilike, lt, lte, or, sql, type SQL } from 'drizzle-orm';
+ 
+ import { db } from '@/db';
+ import { projectStatusEnum, projects, proposals, users } from '@/db/schema';
+@@ -27,23 +20,24 @@ import type {
+   BudgetFilterValue,
+   ProjectCategorySlug,
+   ProjectSortValue,
++  ProjectStatusKey,
+ } from '@/lib/services/project-meta';
+ import { PROJECT_CATEGORIES } from '@/lib/services/project-meta';
+ 
+-/** الحد الأقصى للمشاريع المعروضة في الصفحة الواحدة */
+ const MAX_LISTED_PROJECTS = 100;
+ 
+-/** نوع حالة المشروع كما تعيده قاعدة البيانات (project_status_enum) */
+ export type ProjectStatus = (typeof projectStatusEnum.enumValues)[number];
+ 
+-/* ============================================================================
+- * الأنواع العامة للطبقة
+- * ========================================================================== */
+-
+ export interface ProjectListFilters {
++  q?: string;
+   category?: ProjectCategorySlug;
+   budget?: BudgetFilterValue;
++  budgetMin?: number;
++  budgetMax?: number;
++  status?: ProjectStatusKey;
+   sort?: ProjectSortValue;
++  page?: number;
++  pageSize?: number;
+ }
+ 
+ export interface ProjectListItem {
+@@ -56,6 +50,15 @@ export interface ProjectListItem {
+   status: ProjectStatus;
+   createdAt: Date;
+   clientName: string;
++  proposalsCount: number;
++}
++
++export interface PaginatedProjects {
++  items: ProjectListItem[];
++  total: number;
++  totalPages: number;
++  page: number;
++  pageSize: number;
+ }
+ 
+ export interface ProjectWithClient {
+@@ -68,46 +71,55 @@ export interface ProjectWithClient {
+   durationDays: number;
+   status: ProjectStatus;
+   createdAt: Date;
++  updatedAt: Date;
+   clientName: string;
++  clientEmail: string;
+   clientCreatedAt: Date;
+   clientIsKycVerified: boolean;
+   proposalsCount: number;
+ }
+ 
+-/* ============================================================================
+- * أدوات داخلية
+- * ========================================================================== */
++export interface ProjectProposalItem {
++  id: number;
++  projectId: number;
++  freelancerId: number;
++  amount: string;
++  durationDays: number;
++  comment: string | null;
++  status: string;
++  createdAt: Date;
++  freelancerName: string;
++  freelancerEmail: string;
++  freelancerIsKycVerified: boolean;
++  freelancerSkills: string | null;
++  freelancerBio: string | null;
++}
+ 
+-/** جذوع الكلمات المطابقة لتصنيف معيّن */
+ function categoryStems(slug: ProjectCategorySlug): readonly string[] {
+   return PROJECT_CATEGORIES.find((category) => category.slug === slug)?.stems ?? [];
+ }
+ 
+-/** شروط فلترة الميزانية بدلالة التقاطع مع [budget_min, budget_max] */
+ function budgetConditions(value: BudgetFilterValue): SQL[] {
+   switch (value) {
+     case 'under100':
+-      // النطاق [0, 100) — يكفي أن يبدأ المشروع تحت 100
+       return [lt(projects.budgetMin, '100')];
+     case '100to500':
+       return [lte(projects.budgetMin, '500'), gte(projects.budgetMax, '100')];
+     case '500to1000':
+       return [lte(projects.budgetMin, '1000'), gte(projects.budgetMax, '500')];
+     case 'over1000':
+-      // النطاق (1000, ∞) — يكفي أن تنتهي ميزانية المشروع فوق 1000
+       return [gt(projects.budgetMax, '1000')];
+   }
+ }
+ 
+-/* ============================================================================
+- * listProjects — قائمة المشاريع مع الفلاتر والترتيب
+- * ========================================================================== */
+-
+-export async function listProjects(
+-  filters: ProjectListFilters,
+-): Promise<ProjectListItem[]> {
++function buildWhereConditions(filters: ProjectListFilters): SQL[] {
+   const conditions: SQL[] = [];
+ 
++  if (filters.q) {
++    const q = `%${filters.q}%`;
++    conditions.push(or(ilike(projects.title, q), ilike(projects.description, q)) as SQL);
++  }
++
+   if (filters.category) {
+     const keywordConditions = categoryStems(filters.category).flatMap((stem) => [
+       ilike(projects.title, `%${stem}%`),
+@@ -123,83 +135,207 @@ export async function listProjects(
+     conditions.push(...budgetConditions(filters.budget));
+   }
+ 
+-  const orderBy =
+-    filters.sort === 'budget'
+-      ? [desc(projects.budgetMax), desc(projects.budgetMin), desc(projects.id)]
+-      : [desc(projects.createdAt), desc(projects.id)];
+-
+-  return db
+-    .select({
+-      id: projects.id,
+-      title: projects.title,
+-      description: projects.description,
+-      budgetMin: projects.budgetMin,
+-      budgetMax: projects.budgetMax,
+-      durationDays: projects.durationDays,
+-      status: projects.status,
+-      createdAt: projects.createdAt,
+-      clientName: users.name,
+-    })
+-    .from(projects)
+-    .innerJoin(users, eq(projects.clientId, users.id))
+-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+-    .orderBy(...orderBy)
+-    .limit(MAX_LISTED_PROJECTS);
++  if (filters.budgetMin !== undefined) {
++    conditions.push(gte(projects.budgetMax, filters.budgetMin.toString()));
++  }
++  if (filters.budgetMax !== undefined) {
++    conditions.push(lte(projects.budgetMin, filters.budgetMax.toString()));
++  }
++
++  if (filters.status) {
++    conditions.push(eq(projects.status, filters.status as ProjectStatus));
++  }
++
++  return conditions;
+ }
+ 
+ /* ============================================================================
+- * getProjectWithClient — مشروع واحد مع بيانات العميل وعدد العروض
++ * listProjects — للتوافق القديم (يعيد مصفوفة)
+  * ========================================================================== */
+ 
+-export async function getProjectWithClient(
+-  id: number,
+-): Promise<ProjectWithClient | null> {
+-  const [row] = await db
+-    .select({
+-      id: projects.id,
+-      clientId: projects.clientId,
+-      title: projects.title,
+-      description: projects.description,
+-      budgetMin: projects.budgetMin,
+-      budgetMax: projects.budgetMax,
+-      durationDays: projects.durationDays,
+-      status: projects.status,
+-      createdAt: projects.createdAt,
+-      clientName: users.name,
+-      clientCreatedAt: users.createdAt,
+-      clientIsKycVerified: users.isKycVerified,
+-    })
+-    .from(projects)
+-    .innerJoin(users, eq(projects.clientId, users.id))
+-    .where(eq(projects.id, id))
+-    .limit(1);
+-
+-  if (!row) return null;
+-
+-  const [countRow] = await db
+-    .select({ value: count() })
+-    .from(proposals)
+-    .where(eq(proposals.projectId, id));
+-
+-  return { ...row, proposalsCount: Number(countRow?.value ?? 0) };
++export async function listProjects(filters: ProjectListFilters): Promise<ProjectListItem[]> {
++  const result = await listProjectsPaginated({ ...filters, page: 1, pageSize: MAX_LISTED_PROJECTS });
++  return result.items;
+ }
+ 
+ /* ============================================================================
+- * hasUserProposed — هل قدّم المستخدم عرضاً على المشروع؟
+- * (قيد UNIQUE على (project_id, freelancer_id) — عرض واحد لكل مستقل)
++ * listProjectsPaginated — جديد مع pagination و proposalsCount
+  * ========================================================================== */
+ 
+-export async function hasUserProposed(
+-  projectId: number,
+-  userId: number,
+-): Promise<boolean> {
+-  const [row] = await db
+-    .select({ id: proposals.id })
+-    .from(proposals)
+-    .where(
+-      and(eq(proposals.projectId, projectId), eq(proposals.freelancerId, userId)),
+-    )
+-    .limit(1);
+-
+-  return Boolean(row);
++export async function listProjectsPaginated(
++  filters: ProjectListFilters,
++): Promise<PaginatedProjects> {
++  const page = filters.page && filters.page >= 1 ? filters.page : 1;
++  const pageSize = filters.pageSize && filters.pageSize >= 1 && filters.pageSize <= 50 ? filters.pageSize : 12;
++  const offset = (page - 1) * pageSize;
++
++  const conditions = buildWhereConditions(filters);
++  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
++
++  // إجمالي العدد
++  let total = 0;
++  try {
++    const [countRow] = await db
++      .select({ value: count() })
++      .from(projects)
++      .where(whereClause);
++    total = Number(countRow?.value ?? 0);
++  } catch {
++    total = 0;
++  }
++
++  const totalPages = Math.max(1, Math.ceil(total / pageSize));
++
++  // ترتيب
++  let orderBy: SQL[] = [];
++  switch (filters.sort) {
++    case 'oldest':
++      orderBy = [asc(projects.createdAt), asc(projects.id)];
++      break;
++    case 'budget_high':
++    case 'budget':
++      orderBy = [desc(projects.budgetMax), desc(projects.budgetMin), desc(projects.id)];
++      break;
++    case 'budget_low':
++      orderBy = [asc(projects.budgetMin), asc(projects.budgetMax), asc(projects.id)];
++      break;
++    case 'proposals_least':
++      orderBy = [asc(sql`proposals_count`), desc(projects.createdAt)];
++      break;
++    case 'proposals_most':
++      orderBy = [desc(sql`proposals_count`), desc(projects.createdAt)];
++      break;
++    case 'newest':
++    default:
++      orderBy = [desc(projects.createdAt), desc(projects.id)];
++      break;
++  }
++
++  try {
++    // استعلام مع count العروض عبر subquery لتجنب مشاكل group by
++    const items = await db
++      .select({
++        id: projects.id,
++        title: projects.title,
++        description: projects.description,
++        budgetMin: projects.budgetMin,
++        budgetMax: projects.budgetMax,
++        durationDays: projects.durationDays,
++        status: projects.status,
++        createdAt: projects.createdAt,
++        clientName: users.name,
++        proposalsCount: sql<number>`(SELECT COUNT(*)::int FROM proposals WHERE proposals.project_id = ${projects.id})`.as('proposals_count'),
++      })
++      .from(projects)
++      .innerJoin(users, eq(projects.clientId, users.id))
++      .where(whereClause)
++      .orderBy(...(orderBy as any))
++      .limit(pageSize)
++      .offset(offset);
++
++    return {
++      items: items.map((r) => ({
++        ...r,
++        proposalsCount: Number((r as any).proposalsCount ?? 0),
++      })),
++      total,
++      totalPages,
++      page,
++      pageSize,
++    };
++  } catch (e) {
++    console.error('listProjectsPaginated failed', e);
++    return { items: [], total: 0, totalPages: 1, page, pageSize };
++  }
++}
++
++/* ============================================================================
++ * getProjectWithClient
++ * ========================================================================== */
++
++export async function getProjectWithClient(id: number): Promise<ProjectWithClient | null> {
++  try {
++    const [row] = await db
++      .select({
++        id: projects.id,
++        clientId: projects.clientId,
++        title: projects.title,
++        description: projects.description,
++        budgetMin: projects.budgetMin,
++        budgetMax: projects.budgetMax,
++        durationDays: projects.durationDays,
++        status: projects.status,
++        createdAt: projects.createdAt,
++        updatedAt: projects.updatedAt,
++        clientName: users.name,
++        clientEmail: users.email,
++        clientCreatedAt: users.createdAt,
++        clientIsKycVerified: users.isKycVerified,
++      })
++      .from(projects)
++      .innerJoin(users, eq(projects.clientId, users.id))
++      .where(eq(projects.id, id))
++      .limit(1);
++
++    if (!row) return null;
++
++    const [countRow] = await db
++      .select({ value: count() })
++      .from(proposals)
++      .where(eq(proposals.projectId, id));
++
++    return { ...row, proposalsCount: Number(countRow?.value ?? 0) };
++  } catch {
++    return null;
++  }
++}
++
++/* ============================================================================
++ * getProjectProposals — قائمة العروض مع بيانات المستقل
++ * ========================================================================== */
++
++export async function getProjectProposals(projectId: number): Promise<ProjectProposalItem[]> {
++  try {
++    const rows = await db
++      .select({
++        id: proposals.id,
++        projectId: proposals.projectId,
++        freelancerId: proposals.freelancerId,
++        amount: proposals.amount,
++        durationDays: proposals.durationDays,
++        comment: proposals.comment,
++        status: proposals.status,
++        createdAt: proposals.createdAt,
++        freelancerName: users.name,
++        freelancerEmail: users.email,
++        freelancerIsKycVerified: users.isKycVerified,
++        freelancerSkills: users.skills,
++        freelancerBio: users.bio,
++      })
++      .from(proposals)
++      .innerJoin(users, eq(proposals.freelancerId, users.id))
++      .where(eq(proposals.projectId, projectId))
++      .orderBy(desc(proposals.createdAt));
++
++    return rows as ProjectProposalItem[];
++  } catch {
++    return [];
++  }
++}
++
++/* ============================================================================
++ * hasUserProposed
++ * ========================================================================== */
++
++export async function hasUserProposed(projectId: number, userId: number): Promise<boolean> {
++  try {
++    const [row] = await db
++      .select({ id: proposals.id })
++      .from(proposals)
++      .where(and(eq(proposals.projectId, projectId), eq(proposals.freelancerId, userId)))
++      .limit(1);
++    return Boolean(row);
++  } catch {
++    return false;
++  }
+ }
+diff --git a/src/messages/ar.json b/src/messages/ar.json
+index 3ce35ee..4118c48 100644
+--- a/src/messages/ar.json
++++ b/src/messages/ar.json
+@@ -62,7 +62,110 @@
+     "save": "حفظ",
+     "cancel": "إلغاء",
+     "search": "بحث",
+-    "loading": "جاري التحميل..."
++    "loading": "جاري التحميل...",
++    "viewDetails": "عرض التفاصيل",
++    "budget": "الميزانية",
++    "duration": "المدة",
++    "proposals": "العروض",
++    "status": "الحالة"
++  },
++  "Projects": {
++    "title": "تصفح المشاريع",
++    "subtitle": "اعثر على مشروع يناسب مهاراتك وابدأ العمل",
++    "searchPlaceholder": "ابحث بكلمات مفتاحية: برمجة، تصميم، تسويق...",
++    "searchButton": "بحث",
++    "sortLabel": "ترتيب:",
++    "filtersTitle": "الفلاتر",
++    "clearAll": "مسح الكل",
++    "category": "القسم",
++    "all": "الكل",
++    "budget": "الميزانية ($)",
++    "budgetFrom": "من",
++    "budgetTo": "إلى",
++    "applyBudget": "تطبيق الميزانية",
++    "status": "حالة المشروع",
++    "activeFilters": "الفلاتر النشطة",
++    "clearFilters": "مسح الفلاتر",
++    "resultsCount": "مشروع متاح",
++    "noResultsTitle": "لا توجد مشاريع مطابقة لفلاتر البحث",
++    "noResultsDesc": "جرّب توسيع نطاق الميزانية، تغيير القسم، أو إزالة بعض الفلاتر للحصول على نتائج أكثر.",
++    "emptyTitle": "لا توجد مشاريع حالياً",
++    "emptyDesc": "كن أول من ينشر مشروعاً على منصة خدمات",
++    "addProjectNow": "أضف مشروعك الآن",
++    "removeFilters": "إزالة الفلاتر",
++    "paginationInfo": "من {totalPages} صفحات • {total} مشروع",
++    "tipsTitle": "نصائح للعثور على عمل",
++    "tips": {
++      "1": "استخدم كلمات مفتاحية دقيقة في البحث",
++      "2": "فلتر حسب ميزانيتك ومهاراتك",
++      "3": "قدم عرضاً مخصصاً يبرز خبرتك",
++      "4": "حافظ على تقييم عالٍ لزيادة فرصك"
++    },
++    "guaranteeTitle": "ضمان خدمات",
++    "guaranteeDesc": "جميع المشاريع محمية بضمان خدمات — حقك المالي محفوظ حتى التسليم.",
++    "skills": "المهارات",
++    "client": "العميل",
++    "timeAgo": "منذ",
++    "details": {
++      "breadcrumbHome": "الرئيسية",
++      "breadcrumbProjects": "المشاريع",
++      "descriptionTitle": "وصف المشروع",
++      "guaranteedTitle": "مشروع محمي بضمان خدمات",
++      "guaranteedDesc": "المبلغ يبقى في ضمان خدمات حتى تسليم العمل وموافقتك. في حال عدم الالتزام، نضمن استرداد حقك المالي.",
++      "proposalTitle": "تقديم عرض",
++      "proposalSubtitle": "قدم عرضك المميز ووضح كيف ستنفذ المشروع باحترافية",
++      "loginToPropose": "سجل دخولك لتقديم عرض",
++      "loginToProposeDesc": "يجب أن تكون مستقلاً موثق الهوية لتقديم العروض",
++      "loginButton": "تسجيل الدخول",
++      "ownProjectNotice": "هذا مشروعك المنشور — ستظهر عروض المستقلين أدناه. يمكنك التواصل معهم وقبول العرض المناسب من لوحة التحكم.",
++      "manageProjects": "إدارة مشاريعي",
++      "closedNotice": "هذا المشروع مغلق حالياً لتلقي العروض.",
++      "freelancerOnly": "تقديم العروض متاح للمستقلين فقط. يمكنك تغيير نوع حسابك من الإعدادات.",
++      "alreadyProposed": "لقد قدّمت عرضك على هذا المشروع بالفعل. سيتم إشعارك عند رد صاحب المشروع.",
++      "alreadyProposedHint": "يمكنك متابعة عروضك من لوحة التحكم.",
++      "proposalsTitle": "العروض المقدمة",
++      "proposalsVisibleOwner": "مرئية لك فقط كصاحب مشروع",
++      "noProposals": "لا توجد عروض بعد",
++      "noProposalsDesc": "كن أول من يقدم عرضاً على هذا المشروع",
++      "proposalsEmptyForVisitor": "لم يقدم أحد عرضاً بعد — كن أول من يبادر.",
++      "proposalsInfoForVisitor": "يوجد {count} عرض مقدم. صاحب المشروع فقط يرى التفاصيل الكاملة للعروض. قدم عرضك المميز لزيادة فرصك.",
++      "moreProposals": "+ {count} عروض أخرى مرئية لصاحب المشروع",
++      "aboutClient": "عن صاحب المشروع",
++      "memberSince": "عضو منذ",
++      "kycVerified": "هوية موثقة",
++      "kycNotVerified": "هوية غير موثقة",
++      "receivedProposals": "عرض مستلم",
++      "avgRating": "تقييم متوسط",
++      "otherProjects": "مشاريع أخرى لنفس العميل",
++      "budgetDetails": "تفاصيل الميزانية",
++      "avgProposals": "متوسط العروض",
++      "freelancerTipTitle": "نصيحة للمستقل",
++      "freelancerTipDesc": "قدم عرضاً ضمن ميزانية العميل، ووضح قيمة مضافة. العروض المخصصة تُقبل 3x أكثر من العامة.",
++      "shareProject": "شارك المشروع",
++      "copyLink": "نسخ الرابط",
++      "guarantee": "الضمان",
++      "similarProjects": "مشاريع مشابهة",
++      "similarDesc": "تصفح مشاريع في نفس التصنيف لزيادة فرصك.",
++      "browseSimilar": "تصفح المشابهة",
++      "backToProjects": "العودة إلى المشاريع"
++    },
++    "proposalForm": {
++      "amountLabel": "قيمة عرضك ($)",
++      "amountPlaceholder": "مثال: 250",
++      "durationLabel": "مدة التسليم (أيام)",
++      "durationPlaceholder": "مثال: 7",
++      "earningsTitle": "تفاصيل أرباحك",
++      "offerValue": "قيمة العرض",
++      "commission": "عمولة المنصة (15%)",
++      "netProfit": "صافي ربحك",
++      "escrowHint": "سيتم حجز المبلغ في ضمان خدمات وإطلاقه بعد تسليم العمل وموافقة العميل.",
++      "commentLabel": "شرح العرض",
++      "commentHint": "(اختياري لكنه يزيد فرص قبولك)",
++      "commentPlaceholder": "اكتب خطة تنفيذك، خبرتك في مشاريع مشابهة، وما سيحصل عليه العميل...",
++      "submit": "تقديم العرض",
++      "submitting": "جارٍ الإرسال...",
++      "agreement": "بتقديمك العرض، أنت توافق على شروط الاستخدام وضمان خدمات. عرض واحد فقط لكل مشروع."
++    }
+   },
+   "Home": {
+     "heroTitle": "وظّف أفضل المستقلين عن بُعد باحترافية",
+diff --git a/src/messages/en.json b/src/messages/en.json
+index 3387a2b..b07e134 100644
+--- a/src/messages/en.json
++++ b/src/messages/en.json
+@@ -62,7 +62,110 @@
+     "save": "Save",
+     "cancel": "Cancel",
+     "search": "Search",
+-    "loading": "Loading..."
++    "loading": "Loading...",
++    "viewDetails": "View Details",
++    "budget": "Budget",
++    "duration": "Duration",
++    "proposals": "Proposals",
++    "status": "Status"
++  },
++  "Projects": {
++    "title": "Browse Projects",
++    "subtitle": "Find a project matching your skills and start working",
++    "searchPlaceholder": "Search by keywords: programming, design, marketing...",
++    "searchButton": "Search",
++    "sortLabel": "Sort:",
++    "filtersTitle": "Filters",
++    "clearAll": "Clear All",
++    "category": "Category",
++    "all": "All",
++    "budget": "Budget ($)",
++    "budgetFrom": "From",
++    "budgetTo": "To",
++    "applyBudget": "Apply Budget",
++    "status": "Project Status",
++    "activeFilters": "Active Filters",
++    "clearFilters": "Clear Filters",
++    "resultsCount": "available projects",
++    "noResultsTitle": "No projects match your filters",
++    "noResultsDesc": "Try expanding budget range, changing category, or removing some filters to get more results.",
++    "emptyTitle": "No projects yet",
++    "emptyDesc": "Be the first to post a project on Khadamat",
++    "addProjectNow": "Post Your Project Now",
++    "removeFilters": "Remove Filters",
++    "paginationInfo": "of {totalPages} pages • {total} projects",
++    "tipsTitle": "Tips to find work",
++    "tips": {
++      "1": "Use precise keywords in search",
++      "2": "Filter by your budget and skills",
++      "3": "Submit a custom proposal highlighting expertise",
++      "4": "Maintain high rating to increase chances"
++    },
++    "guaranteeTitle": "Khadamat Guarantee",
++    "guaranteeDesc": "All projects are protected by Khadamat guarantee — your financial rights are secured until delivery.",
++    "skills": "Skills",
++    "client": "Client",
++    "timeAgo": "ago",
++    "details": {
++      "breadcrumbHome": "Home",
++      "breadcrumbProjects": "Projects",
++      "descriptionTitle": "Project Description",
++      "guaranteedTitle": "Protected by Khadamat Guarantee",
++      "guaranteedDesc": "Amount stays in Khadamat escrow until work delivery and your approval. In case of non-compliance, we guarantee refund.",
++      "proposalTitle": "Submit Proposal",
++      "proposalSubtitle": "Submit your standout proposal and explain how you will deliver professionally",
++      "loginToPropose": "Login to submit proposal",
++      "loginToProposeDesc": "You must be a verified freelancer to submit proposals",
++      "loginButton": "Login",
++      "ownProjectNotice": "This is your posted project — freelancer proposals will appear below. You can contact them and accept the suitable offer from dashboard.",
++      "manageProjects": "Manage My Projects",
++      "closedNotice": "This project is currently closed for proposals.",
++      "freelancerOnly": "Proposals are available for freelancers only. You can change account type in settings.",
++      "alreadyProposed": "You have already submitted your proposal for this project. You will be notified when owner responds.",
++      "alreadyProposedHint": "You can track your proposals from dashboard.",
++      "proposalsTitle": "Submitted Proposals",
++      "proposalsVisibleOwner": "Visible only to you as owner",
++      "noProposals": "No proposals yet",
++      "noProposalsDesc": "Be the first to submit a proposal for this project",
++      "proposalsEmptyForVisitor": "No one has proposed yet — be the first.",
++      "proposalsInfoForVisitor": "There are {count} proposals. Only owner sees full details. Submit your standout proposal.",
++      "moreProposals": "+ {count} more proposals visible to owner",
++      "aboutClient": "About Client",
++      "memberSince": "Member since",
++      "kycVerified": "Verified ID",
++      "kycNotVerified": "Unverified ID",
++      "receivedProposals": "proposals received",
++      "avgRating": "avg rating",
++      "otherProjects": "Other projects by same client",
++      "budgetDetails": "Budget Details",
++      "avgProposals": "Avg proposals",
++      "freelancerTipTitle": "Tip for Freelancer",
++      "freelancerTipDesc": "Submit proposal within client budget and show added value. Custom proposals are accepted 3x more.",
++      "shareProject": "Share Project",
++      "copyLink": "Copy Link",
++      "guarantee": "Guarantee",
++      "similarProjects": "Similar Projects",
++      "similarDesc": "Browse projects in same category to increase chances.",
++      "browseSimilar": "Browse Similar",
++      "backToProjects": "Back to Projects"
++    },
++    "proposalForm": {
++      "amountLabel": "Your offer value ($)",
++      "amountPlaceholder": "e.g. 250",
++      "durationLabel": "Delivery duration (days)",
++      "durationPlaceholder": "e.g. 7",
++      "earningsTitle": "Your earnings details",
++      "offerValue": "Offer value",
++      "commission": "Platform commission (15%)",
++      "netProfit": "Net profit",
++      "escrowHint": "Amount will be held in Khadamat escrow and released after work delivery and client approval.",
++      "commentLabel": "Proposal explanation",
++      "commentHint": "(optional but increases acceptance)",
++      "commentPlaceholder": "Write your execution plan, experience in similar projects, and what client will get...",
++      "submit": "Submit Proposal",
++      "submitting": "Submitting...",
++      "agreement": "By submitting, you agree to Terms and Khadamat guarantee. One proposal per project only."
++    }
+   },
+   "Home": {
+     "heroTitle": "Hire the Best Remote Freelancers Professionally",
+-- 
+2.39.5
+

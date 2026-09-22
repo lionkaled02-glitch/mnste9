@@ -1,63 +1,38 @@
 /**
  * ============================================================================
- *  mnste9 — خدمة الضامن المالي (Escrow Service)
+ *  mnste9 — خدمة الضامن المالي (Escrow Service) — المرحلة 9 (مواصفة دقيقة)
  * ============================================================================
- *  المسؤوليات:
- *   - lockFunds: حجز مبلغ من العميل لصالح مشروع (نقل من balance إلى
- *     pending_balance) وتسجيل حركة escrow_lock.
- *   - releaseFunds: تحرير الأموال لصالح المستقل مع خصم عمولة المنصة،
- *     وإكمال المشروع.
- *
- *  ملاحظات:
- *   - كل العمليات داخل db.transaction لضمان الذرّية.
- *   - نستخدم SELECT ... FOR UPDATE لتجنب سباقات الحجز.
- *   - المبالغ NUMERIC(15,2) => نتعامل معها كـ string عبر toNumeric.
+ *  - lockFunds: حجز مبلغ من العميل
+ *  - releaseFunds: تحرير باستخدام commission_rate من العقد
  * ============================================================================
  */
 
-import { and, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
 import {
+  contracts,
   projects,
   transactions,
   wallets,
   type NewTransaction,
 } from '@/db/schema';
 
-/* ============================================================================
- * أدوات داخلية
- * ========================================================================== */
-
 const toNumber = (value: string | number): number =>
   typeof value === 'number' ? value : Number.parseFloat(value);
 
 const toNumeric = (value: number): string => value.toFixed(2);
 
-/* ============================================================================
- * lockFunds — حجز مبلغ لصالح مشروع
- * ========================================================================== */
+export const ESCROW_DEFAULT_COMMISSION = 0.15;
 
-/**
- * حجز مبلغ من رصيد العميل لصالح مشروع معين.
- *
- * الخطوات:
- *   1. قفل محفظة العميل.
- *   2. التحقق من كفاية الرصيد المتاح.
- *   3. خصم المبلغ من balance وإضافته إلى pending_balance.
- *   4. تسجيل حركة escrow_lock بحالة completed.
- */
 export async function lockFunds(
   clientId: number,
   projectId: number,
   amount: number,
 ): Promise<{ transactionId: number }> {
-  if (amount <= 0) {
-    throw new Error('المبلغ يجب أن يكون أكبر من صفر');
-  }
+  if (amount <= 0) throw new Error('المبلغ يجب أن يكون أكبر من صفر');
 
   return db.transaction(async (tx) => {
-    /* 1) قفل محفظة العميل */
     const [wallet] = await tx
       .select()
       .from(wallets)
@@ -73,7 +48,6 @@ export async function lockFunds(
       );
     }
 
-    /* 2) تحديث المحفظة */
     await tx
       .update(wallets)
       .set({
@@ -83,7 +57,6 @@ export async function lockFunds(
       })
       .where(eq(wallets.id, wallet.id));
 
-    /* 3) تسجيل الحركة */
     const [record] = await tx
       .insert(transactions)
       .values({
@@ -101,86 +74,169 @@ export async function lockFunds(
   });
 }
 
-/* ============================================================================
- * releaseFunds — تحرير المبلغ للمستقل مع خصم العمولة
- * ========================================================================== */
-
-/**
- * تحرير الأموال للمستقل عند اكتمال المشروع.
- *
- * الخطوات:
- *   1. احتساب عمولة المنصة (default 15%).
- *   2. تسجيل حركة commission.
- *   3. تسجيل حركة escrow_release بحالة completed.
- *   4. إضافة صافي المبلغ إلى الرصيد المتاح للمستقل.
- *   5. تحويل المشروع إلى completed.
- */
 export async function releaseFunds(
-  freelancerId: number,
-  projectId: number,
-  totalAmount: number,
-  commissionRate = 0.15,
+  contractId: number,
 ): Promise<{
   commission: number;
   netAmount: number;
   releaseTransactionId: number;
 }> {
-  if (totalAmount <= 0) throw new Error('المبلغ يجب أن يكون أكبر من صفر');
-  if (commissionRate < 0 || commissionRate >= 1) {
-    throw new Error('نسبة العمولة يجب أن تكون بين 0 و 1');
-  }
-
   return db.transaction(async (tx) => {
-    /* 1) احتساب العمولة والصافي */
+    const [contract] = await tx
+      .select()
+      .from(contracts)
+      .where(eq(contracts.id, contractId))
+      .for('update');
+
+    if (!contract) throw new Error('العقد غير موجود');
+    if (contract.status !== 'active') {
+      throw new Error('العقد ليس في حالة نشطة — لا يمكن تحرير الدفعة');
+    }
+
+    const totalAmount = toNumber(contract.amount);
+    const commissionRate = toNumber(contract.commissionRate);
+
+    if (totalAmount <= 0) throw new Error('مبلغ العقد غير صالح');
+    if (commissionRate < 0 || commissionRate > 1) {
+      throw new Error('نسبة العمولة في العقد غير صالحة');
+    }
+
     const commission = +(totalAmount * commissionRate).toFixed(2);
     const netAmount = +(totalAmount - commission).toFixed(2);
 
-    /* 2) حركة العمولة */
-    await tx
-      .insert(transactions)
-      .values({
-        userId: freelancerId,
-        amount: toNumeric(commission),
-        type: 'commission',
-        paymentMethod: null,
-        status: 'completed',
-        referenceId: `COMMISSION-${projectId}`,
-        meta: { projectId, rate: commissionRate },
-      } satisfies NewTransaction);
+    const [clientWallet] = await tx
+      .select()
+      .from(wallets)
+      .where(eq(wallets.userId, contract.clientId))
+      .for('update');
 
-    /* 3) حركة التحرير */
+    const [freelancerWallet] = await tx
+      .select()
+      .from(wallets)
+      .where(eq(wallets.userId, contract.freelancerId))
+      .for('update');
+
+    if (!clientWallet) throw new Error('محفظة العميل غير موجودة');
+    if (!freelancerWallet) throw new Error('محفظة المستقل غير موجودة');
+
+    const clientPending = toNumber(clientWallet.pendingBalance);
+    if (clientPending < totalAmount) {
+      throw new Error(
+        `الرصيد المحجوز للعميل غير كافٍ — المحجوز ${clientPending} والمطلوب ${totalAmount}`,
+      );
+    }
+
+    await tx.insert(transactions).values({
+      userId: contract.freelancerId,
+      amount: toNumeric(commission),
+      type: 'commission',
+      paymentMethod: null,
+      status: 'completed',
+      referenceId: `COMMISSION-${contract.projectId}`,
+      meta: {
+        projectId: contract.projectId,
+        contractId: contract.id,
+        rate: commissionRate,
+      },
+    } satisfies NewTransaction);
+
     const [releaseTx] = await tx
       .insert(transactions)
       .values({
-        userId: freelancerId,
+        userId: contract.freelancerId,
         amount: toNumeric(netAmount),
         type: 'escrow_release',
         paymentMethod: null,
         status: 'completed',
-        referenceId: `ESCROW-${projectId}`,
-        meta: { projectId, action: 'release', totalAmount },
+        referenceId: `ESCROW-${contract.projectId}`,
+        meta: {
+          projectId: contract.projectId,
+          contractId: contract.id,
+          action: 'release',
+          totalAmount,
+          commissionRate,
+        },
       } satisfies NewTransaction)
       .returning({ id: transactions.id });
 
-    /* 4) إضافة الصافي إلى رصيد المستقل */
     await tx
       .update(wallets)
       .set({
         balance: sql`${wallets.balance} + ${toNumeric(netAmount)}::numeric`,
         updatedAt: new Date(),
       })
-      .where(eq(wallets.userId, freelancerId));
+      .where(eq(wallets.userId, contract.freelancerId));
 
-    /* 5) تحويل المشروع إلى completed */
+    await tx
+      .update(wallets)
+      .set({
+        pendingBalance: sql`${wallets.pendingBalance} - ${toNumeric(totalAmount)}::numeric`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallets.userId, contract.clientId));
+
     await tx
       .update(projects)
       .set({ status: 'completed', updatedAt: new Date() })
-      .where(eq(projects.id, projectId));
+      .where(eq(projects.id, contract.projectId));
+
+    await tx
+      .update(contracts)
+      .set({
+        status: 'completed',
+        releasedAt: new Date(),
+        commission: toNumeric(commission),
+        netAmount: toNumeric(netAmount),
+        updatedAt: new Date(),
+      })
+      .where(eq(contracts.id, contract.id));
 
     return {
       commission,
       netAmount,
       releaseTransactionId: releaseTx.id,
     };
+  });
+}
+
+export async function refundEscrow(
+  clientId: number,
+  projectId: number,
+  amount: number,
+): Promise<{ transactionId: number }> {
+  if (amount <= 0) throw new Error('المبلغ يجب أن يكون أكبر من صفر');
+
+  return db.transaction(async (tx) => {
+    const [wallet] = await tx
+      .select()
+      .from(wallets)
+      .where(eq(wallets.userId, clientId))
+      .for('update');
+
+    if (!wallet) throw new Error('محفظة العميل غير موجودة');
+
+    await tx
+      .update(wallets)
+      .set({
+        balance: sql`${wallets.balance} + ${toNumeric(amount)}::numeric`,
+        pendingBalance: sql`${wallets.pendingBalance} - ${toNumeric(amount)}::numeric`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallets.id, wallet.id));
+
+    const [record] = await tx
+      .insert(transactions)
+      .values({
+        userId: clientId,
+        amount: toNumeric(amount),
+        type: 'escrow_release',
+        paymentMethod: null,
+        status: 'completed',
+        referenceId: `ESCROW-${projectId}`,
+        meta: { projectId, action: 'refund' },
+      } satisfies NewTransaction)
+      .returning({ id: transactions.id });
+
+    return { transactionId: record.id };
   });
 }

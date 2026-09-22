@@ -4,6 +4,7 @@
  * ============================================================================
  *  الدالة المصدَّرة:
  *   - listFreelancers({ search, limit }) : قائمة المستقلين مع بحث بالاسم.
+ *   - getFreelancerById(id) : تفاصيل مستقل واحد (للصفحة العامة).
  *
  *  قرار موثّق — "التخصص" بلا عمود في قاعدة البيانات:
  *   جدول users (المخطط المجمَّد) لا يحتوي عمود تخصص. الحل المعتمد:
@@ -44,6 +45,21 @@ export interface FreelancerListItem {
   isKycVerified: boolean;
   createdAt: Date;
   /** التخصص المستنتج (أو UNSPECIALIZED_LABEL) — راجع الترويسة */
+  specialty: string;
+}
+
+export interface FreelancerDetail {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  isKycVerified: boolean;
+  createdAt: Date;
+  phone: string | null;
+  city: string | null;
+  skills: string | null;
+  bio: string | null;
+  hourlyRate: string | null;
   specialty: string;
 }
 
@@ -97,9 +113,7 @@ export async function listFreelancers(
 
   const conditions: SQL[] = [eq(users.role, 'freelancer')];
   if (search) {
-    conditions.push(
-      ilike(users.name, `%${escapeLikePattern(search)}%`),
-    );
+    conditions.push(ilike(users.name, `%${escapeLikePattern(search)}%`));
   }
 
   const rows = await db
@@ -143,4 +157,39 @@ export async function listFreelancers(
     ...row,
     specialty: deriveSpecialty(textsByFreelancer.get(row.id) ?? []),
   }));
+}
+
+export async function getFreelancerById(id: number): Promise<FreelancerDetail | null> {
+  const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      isKycVerified: users.isKycVerified,
+      createdAt: users.createdAt,
+      phone: users.phone,
+      city: users.city,
+      skills: users.skills,
+      bio: users.bio,
+      hourlyRate: users.hourlyRate,
+    })
+    .from(users)
+    .where(and(eq(users.id, id), eq(users.role, 'freelancer')))
+    .limit(1);
+
+  if (!user) return null;
+
+  const proposalRows = await db
+    .select({ title: projects.title, description: projects.description })
+    .from(proposals)
+    .innerJoin(projects, eq(proposals.projectId, projects.id))
+    .where(eq(proposals.freelancerId, id));
+
+  const texts = proposalRows.map((r) => `${r.title} ${r.description}`);
+
+  return {
+    ...user,
+    specialty: deriveSpecialty(texts),
+  };
 }
