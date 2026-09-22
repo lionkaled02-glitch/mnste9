@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
-
-/**
- * ملاحظة: تم استبدال خطوط Google (Geist) بخطوط النظام لتفادي فشل البناء
- * في البيئات غير المتصلة (offline) — الخطوط الأصلية كانت تتطلب اتصالاً
- * بـ fonts.googleapis.com أثناء البناء. التصميم يحافظ على نفس المظهر
- * عبر fallback إلى system-ui.
- */
 
 export const metadata: Metadata = {
   title: {
@@ -17,14 +12,22 @@ export const metadata: Metadata = {
     "منصة عربية آمنة تجمع أصحاب الأعمال والمستقلين — محافظ رقمية، ضمان مالي (Escrow)، ودفع عبر الكريمي وPayPal.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const dir = locale === "ar" ? "rtl" : "ltr";
+
   return (
-    <html lang="ar" dir="rtl" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang={locale} dir={dir} className="h-full antialiased">
+      <body className="min-h-full flex flex-col">
+        <NextIntlClientProvider messages={messages} locale={locale}>
+          {children}
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

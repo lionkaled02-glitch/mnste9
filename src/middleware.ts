@@ -1,53 +1,49 @@
 /**
  * ============================================================================
- *  mnste9 — حماية المسارات (Route Protection)
+ *  mnste9 — Middleware موحد (i18n + حماية المسارات) — المرحلة 1
  * ============================================================================
- *  يحمي صفحات المنصة الخاصة:
- *    /dashboard/*  و  /wallet/*  و  /contracts/*
- *  بإعادة توجيه غير المسجلين إلى /login مع الاحتفاظ بالمسار الأصلي في
- *  معامل ?from= للعودة إليه بعد الدخول.
- *
- *  ملاحظات معمارية:
- *   - التحقق هنا بالتوقيع فقط (JWT عبر jose — وحدة session.ts الخفيفة)
- *     بلا وصول لقاعدة البيانات: الـ middleware يجب أن يبقى سريعاً وخفيف
- *     الاعتماديات، والتحقق الكامل من المستخدم يحدث في الطبقات الداخلية
- *     (getCurrentUser) — الطبقات الدفاعية المتعددة.
- *   - سياسة fail-closed: أي رمز مفقود/غير صالح/منتهي = غير موثّق → إعادة
- *     توجيه فورية.
- *   - في Next.js 16 أُعيدت تسمية هذا الملف تقليدياً إلى proxy.ts —
- *     الاسم الحالي (middleware.ts) مدعوم للتوافق الخلفي.
+ *  - i18n: يستخدم next-intl لتحديد اللغة من كوكي NEXT_LOCALE أو Accept-Language
+ *    العربية افتراضية (ar)، الإنجليزية خيار ثانٍ (en)، بدون prefix في URL
+ *  - حماية: يحمي /dashboard/* و /wallet/* و /contracts/* بإعادة توجيه
+ *    غير المسجلين إلى /login مع ?from=
+ *  - سياسة fail-closed: أي رمز مفقود/غير صالح = غير موثّق → redirect
  * ============================================================================
  */
 
+import createMiddleware from 'next-intl/middleware';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { SESSION_COOKIE_NAME, verifySession } from '@/lib/session';
+import { routing } from '@/i18n/routing';
 
-/** المسارات المحمية — تطابق matcher أدناه (دفاع مزدوج) */
+const intlMiddleware = createMiddleware(routing);
+
 const PROTECTED_PREFIXES = ['/dashboard', '/wallet', '/contracts'];
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
+  // حماية المسارات الخاصة
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
-  if (!isProtected) {
-    return NextResponse.next();
+
+  if (isProtected) {
+    const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const session = await verifySession(token);
+
+    if (!session) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('from', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
-  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  const session = await verifySession(token);
-
-  if (session) {
-    return NextResponse.next();
-  }
-
-  const loginUrl = new URL('/login', request.url);
-  loginUrl.searchParams.set('from', pathname);
-  return NextResponse.redirect(loginUrl);
+  // توجيه اللغة (next-intl)
+  return intlMiddleware(request);
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/wallet/:path*', '/contracts/:path*'],
+  // يطابق جميع المسارات عدا api و _next و الملفات الثابتة
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };

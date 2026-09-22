@@ -1,0 +1,79 @@
+{
+  "Header": {
+    "home": "Home",
+    "projects": "Projects",
+    "freelancers": "Freelancers",
+    "help": "Help Center",
+    "about": "About Us",
+    "dashboard": "Dashboard",
+    "postProject": "Post Project",
+    "login": "Login",
+    "register": "Sign Up",
+    "logout": "Logout",
+    "profile": "Profile",
+    "myWorks": "My Works",
+    "settings": "Settings",
+    "english": "English",
+    "arabic": "العربية"
+  },
+  "Footer": {
+    "aboutPlatform": "About Platform",
+    "aboutText": "Arabic freelance platform — connecting clients and freelancers in a secure environment with Escrow and mandatory KYC verification.",
+    "quickLinks": "Quick Links",
+    "browseProjects": "Browse Projects",
+    "freelancers": "Freelancers",
+    "aboutUs": "About Us",
+    "helpCenter": "Help Center",
+    "forFreelancers": "For Freelancers",
+    "createFreelancer": "Create Freelancer Account",
+    "kyc": "KYC Verification",
+    "wallet": "Wallet & Payments",
+    "tips": "Tips for Freelancers",
+    "contact": "Contact Us",
+    "paymentMethods": "Payment Methods",
+    "rights": "All rights reserved © 2026 mnste9 — Arabic Freelance Platform",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "madeInYemen": "Made in Yemen 🇾🇪"
+  },
+  "Common": {
+    "login": "Login",
+    "register": "Sign Up",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "search": "Search",
+    "loading": "Loading..."
+  },
+  "Home": {
+    "heroTitle": "Hire the Best Freelancers Safely",
+    "heroDescription": "Get your projects done professionally with top freelancers",
+    "heroCta": "Get Started",
+    "heroSecondary": "Browse Projects",
+    "featuresTitle": "Why mnste9?",
+    "features": {
+      "escrow": "Escrow Protection",
+      "escrowDesc": "Project funds are held in a secure wallet and released only after work is completed and approved.",
+      "kyc": "Mandatory KYC",
+      "kycDesc": "Identity verification is mandatory for all users — verified identity means clear responsibility and mutual trust.",
+      "kuraimi": "Kuraimi Bank Payments",
+      "kuraimiDesc": "Deposit easily via local Kuraimi Bank transfers — ideal for users in Yemen.",
+      "paypal": "PayPal Payments",
+      "paypalDesc": "For international clients — instant deposit and withdrawal via PayPal in USD."
+    },
+    "stepsTitle": "How It Works?",
+    "steps": {
+      "register": "Create Account",
+      "registerDesc": "Create your account in a minute and choose your type: client or freelancer, then verify your identity.",
+      "post": "Post Your Project",
+      "postDesc": "Write a clear description of your project and set your budget and timeline.",
+      "hire": "Choose Freelancer",
+      "hireDesc": "Compare proposals and choose the best freelancer with financial protection.",
+      "pay": "Get Your Work",
+      "payDesc": "Track progress, receive final work and release payment when satisfied."
+    }
+  }
+}

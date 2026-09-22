@@ -1,32 +1,37 @@
 /**
  * ============================================================================
- *  mnste9 — الشريط العلوي (Site Header) — المرحلة 10 نهائي
+ *  mnste9 — الشريط العلوي (Site Header) — المرحلة 1 i18n + المرحلة 10
  * ============================================================================
  *  - بعد تسجيل الدخول: يخفي login/register ويعرض Avatar + dropdown
- *  - Dropdown: الملف الشخصي، أعمالي، الإعدادات، تسجيل الخروج
- *  - نشر مشروع يظهر في القائمة العلوية بعد تسجيل الدخول — معيار نجاح
+ *  - نشر مشروع يظهر في القائمة العلوية بعد تسجيل الدخول
+ *  - زر تبديل اللغة (عربي | English) — يبدل كوكي NEXT_LOCALE ويعيد التحميل
+ *  - يدعم next-intl مع ترجمات Header
  *  - force-dynamic لمنع cache
  * ============================================================================
  */
 
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import { getCurrentUser } from '@/lib/auth';
 
 import { SiteHeaderDropdown } from './site-header-dropdown';
+import { LanguageSwitcher } from './language-switcher';
 
 export const dynamic = 'force-dynamic';
-
-const PUBLIC_LINKS = [
-  { href: '/projects', label: 'المشاريع' },
-  { href: '/freelancers', label: 'المستقلون' },
-  { href: '/help', label: 'مركز المساعدة' },
-  { href: '/about', label: 'من نحن' },
-];
 
 export async function SiteHeader() {
   const currentUser = await getCurrentUser();
   const initial = currentUser?.name?.trim().charAt(0) || 'م';
+  const t = await getTranslations('Header');
+
+  const PUBLIC_LINKS = [
+    { href: '/', label: t('home') },
+    { href: '/projects', label: t('projects') },
+    { href: '/freelancers', label: t('freelancers') },
+    { href: '/help', label: t('help') },
+    { href: '/about', label: t('about') },
+  ];
 
   return (
     <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/80 backdrop-blur">
@@ -64,20 +69,21 @@ export async function SiteHeader() {
                 href="/projects/new"
                 className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
               >
-                نشر مشروع
+                {t('postProject')}
               </Link>
             )}
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           {currentUser ? (
             <>
               <Link
                 href="/dashboard"
                 className="hidden rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 sm:inline-flex"
               >
-                لوحة التحكم
+                {t('dashboard')}
               </Link>
               <SiteHeaderDropdown name={currentUser.name} email={currentUser.email} initial={initial} />
             </>
@@ -87,13 +93,13 @@ export async function SiteHeader() {
                 href="/login"
                 className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:text-emerald-700"
               >
-                تسجيل الدخول
+                {t('login')}
               </Link>
               <Link
                 href="/register"
                 className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
               >
-                إنشاء حساب
+                {t('register')}
               </Link>
             </>
           )}
@@ -116,7 +122,7 @@ export async function SiteHeader() {
               href="/projects/new"
               className="whitespace-nowrap rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
             >
-              نشر مشروع
+              {t('postProject')}
             </Link>
           )}
         </nav>
