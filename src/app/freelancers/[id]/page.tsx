@@ -18,8 +18,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { SiteFooter } from '@/components/site-footer';
-import { SiteHeader } from '@/components/site-header';
 import { FavoriteButton } from '@/components/favorite-button';
 import { getCurrentUser } from '@/lib/auth';
 import { getFreelancerById } from '@/lib/services/freelancers';
@@ -65,10 +63,7 @@ export default async function FreelancerDetailPage({ params }: Props) {
   const skills = parseSkills(freelancer.skills);
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <SiteHeader />
-
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+    <div className="mx-auto w-full max-w-5xl px-4 py-8">
         <Link
           href="/freelancers"
           className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
@@ -204,9 +199,6 @@ export default async function FreelancerDetailPage({ params }: Props) {
             </section>
           </div>
         </div>
-      </main>
-
-      <SiteFooter />
     </div>
   );
 }

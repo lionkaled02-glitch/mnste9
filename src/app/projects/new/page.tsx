@@ -11,8 +11,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SiteFooter } from '@/components/site-footer';
-import { SiteHeader } from '@/components/site-header';
 import { getCurrentUser } from '@/lib/auth';
 
 import { ProjectForm } from '../project-form';
@@ -27,7 +25,7 @@ export default async function NewProjectPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <SiteHeader />
+      
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <h1 className="mb-6 text-2xl font-bold tracking-tight text-slate-900">انشر مشروعك الجديد</h1>
@@ -77,7 +75,7 @@ export default async function NewProjectPage() {
         )}
       </div>
 
-      <SiteFooter />
+      
     </div>
   );
 }

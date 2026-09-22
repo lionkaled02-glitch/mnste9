@@ -10,8 +10,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SiteFooter } from '@/components/site-footer';
-import { SiteHeader } from '@/components/site-header';
 
 export const metadata: Metadata = {
   title: 'من نحن',
@@ -67,7 +65,7 @@ const VALUES = [
 export default function AboutPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <SiteHeader />
+      
 
       <main className="flex-1">
         {/* Hero */}
@@ -208,7 +206,7 @@ export default function AboutPage() {
         </section>
       </main>
 
-      <SiteFooter />
+      
     </div>
   );
 }

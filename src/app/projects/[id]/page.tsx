@@ -11,8 +11,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { SiteFooter } from '@/components/site-footer';
-import { SiteHeader } from '@/components/site-header';
 import { getCurrentUser } from '@/lib/auth';
 import {
   deriveCategoryLabel,
@@ -72,7 +70,7 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <SiteHeader />
+      
 
       <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
         <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -187,7 +185,7 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
         </div>
       </div>
 
-      <SiteFooter />
+      
     </div>
   );
 }

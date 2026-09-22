@@ -1,19 +1,16 @@
 /**
  * ============================================================================
- *  mnste9 — الصفحة الرئيسية (/) — المرحلة 1 i18n + المرحلة 10
+ *  خدمات — الصفحة الرئيسية (/) — المرحلة أ
  * ============================================================================
- *  - يستخدم SiteHeader/Footer مع next-intl
- *  - Hero جذاب قصير + 4 ميزات + 4 خطوات
+ *  - Hero جذاب + 4 ميزات + 4 خطوات
  *  - يدعم العربية والإنجليزية
+ *  - Header/Footer يأتيان من layout.tsx
  * ============================================================================
  */
 
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
-
-import { SiteFooter } from '@/components/site-footer';
-import { SiteHeader } from '@/components/site-header';
 
 export const metadata: Metadata = {
   title: 'وظّف أفضل المستقلين بأمان تام',
@@ -142,9 +139,7 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-white">
-      <SiteHeader />
-
+    <div className="flex flex-1 flex-col">
       <section className="bg-white">
         <div className="mx-auto max-w-6xl px-4 py-24 text-center sm:py-28">
           <h1 className="mx-auto max-w-3xl text-4xl font-bold leading-tight tracking-tight text-gray-900 sm:text-5xl">
@@ -168,7 +163,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-t border-gray-100 bg-gray-50">
+      <section className="border-t border-gray-200 bg-[#f4f5f7]">
         <div className="mx-auto max-w-6xl px-4 py-20">
           <h2 className="mb-10 text-center text-2xl font-bold text-gray-900">{t('featuresTitle')}</h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -212,8 +207,6 @@ export default async function HomePage() {
           </ol>
         </div>
       </section>
-
-      <SiteFooter />
     </div>
   );
 }

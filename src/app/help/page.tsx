@@ -11,8 +11,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { SiteFooter } from '@/components/site-footer';
-import { SiteHeader } from '@/components/site-header';
 
 export const metadata: Metadata = {
   title: 'مركز المساعدة',
@@ -104,7 +102,7 @@ const ARTICLES: Article[] = [
 export default function HelpPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <SiteHeader />
+      
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
         <div className="mb-8 text-center">
@@ -211,7 +209,7 @@ export default function HelpPage() {
         </section>
       </main>
 
-      <SiteFooter />
+      
     </div>
   );
 }
