@@ -74,3 +74,10 @@ Thumbs.db
 
 # ملفات KYC المشفّرة (تخزين محلي للتطوير — وجّه KYC_STORAGE_DIR في الإنتاج)
 storage/
+# Temporary analysis files
+*.txt
+*.patch
+!ar.json
+!en.json
+!package.json
+!tsconfig.json

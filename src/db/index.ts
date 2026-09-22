@@ -30,12 +30,13 @@ const isLocalConnection = /localhost|127\.0\.0\.1|::1/.test(connectionString);
 
 /** الرابط يتضمن توجيه SSL بالفعل (مثل روابط Neon الجاهزة) */
 const urlSpecifiesSsl = /[?&]sslmode=/.test(connectionString);
-
 export const pool = new Pool({
   connectionString,
-  max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 10_000,
+  max: 20,
+  idleTimeoutMillis: 60_000, // زيادة
+  connectionTimeoutMillis: 30_000, // زيادة إلى 30 ثانية
+  keepAlive: true, // إضافة
+  keepAliveInitialDelayMillis: 10_000, // إضافة
   ssl: isLocalConnection || urlSpecifiesSsl ? undefined : { rejectUnauthorized: true },
 });
 
