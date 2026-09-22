@@ -81,6 +81,7 @@ const PROFILE_FIELD_NAMES = [
   'skills',
   'bio',
   'hourlyRate',
+  'avatarUrl',
   'notifyEmail',
   'notifySms',
 ] as const;
@@ -206,6 +207,12 @@ const updateProfileSchema = z.object({
         .nullable(),
     )
     .optional(),
+  avatarUrl: clearableText(
+    z
+      .string({ error: 'رابط الصورة غير صالح' })
+      .url('رابط الصورة يجب أن يكون رابطاً صحيحاً')
+      .max(500, 'رابط الصورة طويل جداً (الحد 500 حرف)'),
+  ).optional(),
   notifyEmail: booleanField,
   notifySms: booleanField,
 });
@@ -262,12 +269,13 @@ export async function updateProfile(data: unknown): Promise<AuthActionState> {
   if (input.notifyEmail !== undefined) updates.notifyEmail = input.notifyEmail;
   if (input.notifySms !== undefined) updates.notifySms = input.notifySms;
 
-  // Unified Role: المعلومات المهنية متاحة للجميع (client/freelancer نفس الصلاحيات)
+  // المعلومات المهنية متاحة للمستقل أساساً، لكن لا نمنع التخزين للعميل (الترقية)
   if (input.skills !== undefined) updates.skills = input.skills;
   if (input.bio !== undefined) updates.bio = input.bio;
   if (input.hourlyRate !== undefined) {
     updates.hourlyRate = input.hourlyRate === null ? null : toNumeric(input.hourlyRate);
   }
+  if (input.avatarUrl !== undefined) updates.avatarUrl = input.avatarUrl;
 
   if (Object.keys(updates).length === 0) {
     return { success: true, message: 'لا توجد تغييرات لحفظها' };

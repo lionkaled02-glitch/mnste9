@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * خدمات — القائمة الجانبية للوحة التحكم — نظام موحد + #2386c8
- * - كل المستخدمين يرون نفس الروابط بما فيها KYC
+ * خدمات — القائمة الجانبية للوحة التحكم — أدوار + #2386c8
+ * - role prop لتحديد الروابط: KYC للمستقل فقط، أصبح مستقلاً للعميل فقط
  */
 
 import { Link } from '@/i18n/navigation';
@@ -14,6 +14,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
+  roles?: ('client' | 'freelancer' | 'admin')[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -76,17 +77,32 @@ const NAV_ITEMS: NavItem[] = [
   {
     href: '/dashboard/kyc',
     label: 'توثيق الهوية',
+    roles: ['freelancer', 'admin'],
     icon: (
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
     ),
   },
+  {
+    href: '/dashboard/become-freelancer',
+    label: 'أصبح مستقلاً',
+    roles: ['client'],
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    ),
+  },
 ];
 
-export function DashboardSidebar({ role: _role }: { role?: string | null }) {
+export function DashboardSidebar({ role }: { role: string | null }) {
   const pathname = usePathname();
-  const navItems = NAV_ITEMS;
 
-  const isActive = (href: string): boolean => (href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
+  const filtered = NAV_ITEMS.filter((item) => {
+    if (!item.roles) return true;
+    if (!role) return false;
+    return item.roles.includes(role as any);
+  });
+
+  const isActive = (href: string): boolean =>
+    href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <aside className="border-b border-slate-200 bg-white lg:border-b-0 lg:border-l">
@@ -104,12 +120,15 @@ export function DashboardSidebar({ role: _role }: { role?: string | null }) {
       </div>
 
       <nav className="flex gap-1 overflow-x-auto p-3 lg:flex-col lg:overflow-x-visible" aria-label="تنقل لوحة التحكم">
-        {navItems.map((item) => (
+        {filtered.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             aria-current={isActive(item.href) ? 'page' : undefined}
-            className={cn('flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition', isActive(item.href) ? 'bg-[#2386c8]/10 font-semibold text-[#2386c8]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900')}
+            className={cn(
+              'flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition',
+              isActive(item.href) ? 'bg-[#2386c8]/10 font-semibold text-[#2386c8]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+            )}
           >
             <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
               {item.icon}

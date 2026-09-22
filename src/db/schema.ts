@@ -102,6 +102,7 @@ export const users = pgTable(
     skills: text('skills'),
     bio: text('bio'),
     hourlyRate: numeric('hourly_rate', { precision: 15, scale: 2 }),
+    avatarUrl: varchar('avatar_url', { length: 500 }),
     notifyEmail: boolean('notify_email').notNull().default(true),
     notifySms: boolean('notify_sms').notNull().default(true),
     avatarUrl: varchar('avatar_url', { length: 500 }),

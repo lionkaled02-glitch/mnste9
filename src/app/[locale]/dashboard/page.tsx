@@ -105,18 +105,18 @@ export default async function DashboardPage() {
       .then((r) => r[0]),
   ]);
 
-  // Unified Role: كل المستخدمين لديهم دورين
   const isAdmin = currentUser.role === 'admin';
+  const isFreelancer = currentUser.role === 'freelancer';
+  const isClient = currentUser.role === 'client';
 
-  // Section 5: مؤشر إكمال الحساب — 4 خطوات للجميع بدون freelancerOnly
   const steps = [
-    { key: 'phone', label: 'تأكيد الجوال', done: !!profile?.phone, href: '/dashboard/profile' as const },
-    { key: 'bio', label: 'إضافة نبذة', done: !!profile?.bio, href: '/dashboard/profile' as const },
-    { key: 'skills', label: 'إضافة المهارات', done: !!profile?.skills, href: '/dashboard/profile' as const },
-    { key: 'kyc', label: 'توثيق الهوية', done: !!profile?.isKycVerified, href: '/dashboard/kyc' as const },
+    { key: 'phone', label: 'تأكيد الجوال', done: !!profile?.phone, href: '/dashboard/profile' as const, roles: ['client', 'freelancer', 'admin'] as const },
+    { key: 'bio', label: 'إضافة نبذة', done: !!profile?.bio, href: '/dashboard/profile' as const, roles: ['freelancer', 'admin'] as const },
+    { key: 'skills', label: 'إضافة المهارات', done: !!profile?.skills, href: '/dashboard/profile' as const, roles: ['freelancer', 'admin'] as const },
+    { key: 'kyc', label: 'توثيق الهوية', done: !!profile?.isKycVerified, href: '/dashboard/kyc' as const, roles: ['freelancer', 'admin'] as const },
   ];
 
-  const visibleSteps = steps;
+  const visibleSteps = steps.filter((s) => (s.roles as readonly string[]).includes(currentUser.role));
   const completed = visibleSteps.filter((s) => s.done).length;
   const completionPercent = visibleSteps.length ? Math.round((completed / visibleSteps.length) * 100) : 100;
 
@@ -130,8 +130,8 @@ export default async function DashboardPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-[22px] font-extrabold text-[#222]">مرحباً، {currentUser.name}</h1>
-            <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${isAdmin ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-[#2386c8]/10 text-[#2386c8] border-[#2386c8]/20'}`}>
-              {isAdmin ? 'مشرف' : 'مستخدم'}
+            <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${isAdmin ? 'bg-purple-50 text-purple-700 border-purple-200' : isFreelancer ? 'bg-[#2386c8]/10 text-[#2386c8] border-[#2386c8]/20' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+              {isAdmin ? 'مشرف' : isFreelancer ? 'مستقل' : 'صاحب عمل'}
             </span>
           </div>
           <div className="mt-2 flex items-center gap-2">
@@ -297,9 +297,14 @@ export default async function DashboardPage() {
               <Link href="/dashboard/wallet" className="flex items-center gap-2 rounded-[10px] border border-gray-200 bg-white p-3 text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">
                 <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-emerald-50 text-emerald-600">$</span>شحن المحفظة
               </Link>
-              {!profile?.isKycVerified && (
+              {(isFreelancer || isAdmin) && !profile?.isKycVerified && (
                 <Link href="/dashboard/kyc" className="flex items-center gap-2 rounded-[10px] bg-amber-50 border border-amber-200 p-3 text-[12px] font-bold text-amber-800 hover:bg-amber-100">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-amber-100 text-amber-700">✓</span>توثيق الهوية
+                  <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-amber-100 text-amber-700">✓</span>توثيق الهوية (مطلوب للمستقل)
+                </Link>
+              )}
+              {isClient && (
+                <Link href="/dashboard/become-freelancer" className="flex items-center gap-2 rounded-[10px] bg-[#2386c8]/10 border border-[#2386c8]/20 p-3 text-[12px] font-bold text-[#2386c8] hover:bg-[#2386c8]/20">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#2386c8]/10 text-[#2386c8]">↑</span>أصبح مستقلاً
                 </Link>
               )}
               <Link href="/dashboard/messages" className="flex items-center gap-2 rounded-[10px] border border-gray-200 bg-white p-3 text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">

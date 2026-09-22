@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * خدمات — نموذج الملف الشخصي — نظام موحد + #2386c8
- * - المعلومات المهنية متاحة للجميع (client/freelancer نفس الصلاحيات)
+ * خدمات — نموذج الملف الشخصي — أدوار + avatarUrl + #2386c8
  */
 
 import { useActionState, useState, useMemo } from 'react';
@@ -51,6 +50,7 @@ interface ProfileFormProps {
     skills: string | null;
     bio: string | null;
     hourlyRate: string | null;
+    avatarUrl: string | null;
   };
 }
 
@@ -87,6 +87,7 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
   const skillsError = fieldError('skills');
   const bioError = fieldError('bio');
   const hourlyRateError = fieldError('hourlyRate');
+  const avatarUrlError = fieldError('avatarUrl');
 
   const inputClasses = (hasError: boolean): string =>
     `${INPUT_CLASSES} ${
@@ -122,6 +123,27 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
             className={inputClasses(Boolean(nameError))}
           />
           {nameError && <p className="mt-1.5 text-sm text-red-600">{nameError}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="profile-avatarUrl" className="mb-2 block text-sm font-medium text-gray-700">
+            رابط الصورة الرمزية <span className="text-slate-400">(اختياري)</span>
+          </label>
+          <input
+            id="profile-avatarUrl"
+            name="avatarUrl"
+            type="url"
+            dir="ltr"
+            maxLength={500}
+            defaultValue={defaultValues.avatarUrl ?? ''}
+            placeholder="https://example.com/avatar.jpg"
+            className={`${inputClasses(Boolean(avatarUrlError))} text-left`}
+          />
+          {avatarUrlError ? (
+            <p className="mt-1.5 text-sm text-red-600">{avatarUrlError}</p>
+          ) : (
+            <p className="mt-1.5 text-xs text-slate-400">رابط مباشر لصورتك — الحد 500 حرف.</p>
+          )}
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
@@ -209,11 +231,10 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
         </div>
       </fieldset>
 
-      {/* المعلومات المهنية — للجميع في النظام الموحد */}
       <fieldset className="space-y-6" disabled={isPending}>
         <legend className={SECTION_TITLE_CLASSES}>
           المعلومات المهنية
-          <span className="ms-2 text-xs font-medium text-slate-400">تظهر للآخرين عند تصفح ملفك</span>
+          <span className="ms-2 text-xs font-medium text-slate-400">للمستقلين — تظهر عند الترقية</span>
         </legend>
 
         <div>

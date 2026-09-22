@@ -157,8 +157,8 @@ export async function registerUser(data: unknown): Promise<AuthActionState> {
 
     return {
       success: true,
-      message: 'تم إنشاء حسابك بنجاح — مرحباً بك في خدمات',
-      redirectTo: '/dashboard',
+      message: 'تم إنشاء حسابك بنجاح — اختر نوع حسابك',
+      redirectTo: '/select-account-type',
     };
   } catch (error) {
     /* سباق INSERT: قيد UNIQUE التقط التكرار بعد الفحص المسبق */
@@ -283,12 +283,16 @@ export async function selectAccountType(data: unknown): Promise<AuthActionState>
       .set({ role: parsed.data.accountType })
       .where(eq(users.id, currentUser.id));
 
+    if (parsed.data.accountType === 'freelancer') {
+      return {
+        success: true,
+        message: 'تم تفعيل حسابك كمستقل — وثّق هويتك للمتابعة',
+        redirectTo: '/dashboard/kyc',
+      };
+    }
     return {
       success: true,
-      message:
-        parsed.data.accountType === 'client'
-          ? 'تم تفعيل حسابك كصاحب عمل'
-          : 'تم تفعيل حسابك كمستقل',
+      message: 'تم تفعيل حسابك كصاحب عمل',
       redirectTo: '/dashboard',
     };
   } catch (error) {
@@ -298,4 +302,12 @@ export async function selectAccountType(data: unknown): Promise<AuthActionState>
       message: 'حدث خطأ غير متوقع — حاول مرة أخرى',
     };
   }
+}
+
+export async function selectAccountTypeAction(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const accountType = formData.get('accountType');
+  return selectAccountType({ accountType });
 }
