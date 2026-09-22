@@ -9,6 +9,8 @@
  *    database/migrations/2026_09_21_000004_create_contracts.sql
  *    database/migrations/2026_09_22_000005_add_platform_tables.sql
  *      (notifications, conversations, messages, reviews, wishlist, platform_settings)
+ *    + portfolio_items (from main branch migration)
+ *    + pending_delivery in contracts status
  *
  *  ملاحظات معمارية:
  *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL (الذي يتضمن أيضاً Triggers
@@ -141,6 +143,7 @@ export const portfolioItems = pgTable(
 
 export type PortfolioItem = typeof portfolioItems.$inferSelect;
 export type NewPortfolioItem = typeof portfolioItems.$inferInsert;
+
 /* ---------------------------------------------------------------------------
  * wallets — المحافظ
  * ------------------------------------------------------------------------- */
@@ -304,7 +307,7 @@ export const kycDocuments = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * contracts — العقود بين العميل والمستقل (المرحلة 9)
+ * contracts — العقود بين العميل والمستقل (المرحلة 9) — يشمل pending_delivery
  * ------------------------------------------------------------------------- */
 export const contracts = pgTable(
   'contracts',
@@ -364,7 +367,7 @@ export const contracts = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * notifications — الإشعارات (المرحلة الجديدة 000005)
+ * notifications — الإشعارات
  * ------------------------------------------------------------------------- */
 export const notifications = pgTable(
   'notifications',
