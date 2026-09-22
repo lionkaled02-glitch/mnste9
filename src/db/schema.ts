@@ -118,6 +118,30 @@ export const users = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
+ * portfolio_items — معرض أعمال المستخدم (Portfolio)
+ * ------------------------------------------------------------------------- */
+export const portfolioItems = pgTable(
+  'portfolio_items',
+  {
+    id: identityId('id'),
+    userId: bigint('user_id', { mode: 'number' })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: 200 }).notNull(),
+    description: text('description'),
+    externalUrl: varchar('external_url', { length: 500 }),
+    imageUrl: varchar('image_url', { length: 500 }),
+    ...timestamps,
+  },
+  (t) => [
+    index('idx_portfolio_user_id').on(t.userId),
+    check('ck_portfolio_title_length', sql`length(${t.title}) >= 3`),
+  ],
+);
+
+export type PortfolioItem = typeof portfolioItems.$inferSelect;
+export type NewPortfolioItem = typeof portfolioItems.$inferInsert;
+/* ---------------------------------------------------------------------------
  * wallets — المحافظ
  * ------------------------------------------------------------------------- */
 export const wallets = pgTable(
