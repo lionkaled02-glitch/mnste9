@@ -75,7 +75,7 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
   const currentUser = await getCurrentUser();
   const [proposals, alreadyProposed] = await Promise.all([
     getProjectProposals(project.id),
-    currentUser?.role === 'freelancer' ? hasUserProposed(project.id, currentUser.id) : Promise.resolve(false),
+    currentUser ? hasUserProposed(project.id, currentUser.id) : Promise.resolve(false),
   ]);
 
   const isOwner = currentUser?.id === project.clientId;
@@ -193,8 +193,6 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
                   </Notice>
                 ) : project.status !== 'open' ? (
                   <Notice>هذا المشروع مغلق حالياً لتلقي العروض.</Notice>
-                ) : currentUser.role !== 'freelancer' ? (
-                  <Notice>تقديم العروض متاح للمستقلين فقط. يمكنك تغيير نوع حسابك من الإعدادات.</Notice>
                 ) : alreadyProposed ? (
                   <Notice tone="success">
                     لقد قدّمت عرضك على هذا المشروع بالفعل. سيتم إشعارك عند رد صاحب المشروع.

@@ -129,14 +129,7 @@ export async function uploadKycDocuments(
     };
   }
 
-  // 2) القاعدة الذهبية: رفع الوثائق متاح للمستقلين فقط
-  if (currentUser.role !== 'freelancer') {
-    return {
-      success: false,
-      message: 'KYC للمستقلين فقط — حسابك لا يحتاج توثيق هوية',
-      redirectTo: '/dashboard',
-    };
-  }
+  // Unified Role: أي مستخدم مسجل يمكنه رفع KYC (client/freelancer نفس الصلاحيات)
 
   // 3) استخراج المدخلات — نوع الوثيقة + الملفات الثلاثة (FormData فقط)
   if (!(data instanceof FormData)) {

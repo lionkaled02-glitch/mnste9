@@ -72,8 +72,15 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     return NextResponse.redirect(newUrl);
   }
 
-  // 2) حماية المسارات مع بادئة اللغة
+  // 2) /select-account-type → redirect إلى /dashboard (النظام الموحد)
   const pathWithoutLocale = getPathWithoutLocale(pathname);
+  if (pathWithoutLocale === '/select-account-type' || pathWithoutLocale.startsWith('/select-account-type/')) {
+    const locale = pathname.split('/')[1] || DEFAULT_LOCALE;
+    const dashboardUrl = new URL(`/${locale}/dashboard`, request.url);
+    return NextResponse.redirect(dashboardUrl);
+  }
+
+  // 3) حماية المسارات مع بادئة اللغة — /register و /login عامة
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => pathWithoutLocale === prefix || pathWithoutLocale.startsWith(`${prefix}/`),
   );
@@ -83,7 +90,6 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     const session = await verifySession(token);
 
     if (!session) {
-      // إعادة توجيه إلى صفحة تسجيل الدخول مع الحفاظ على اللغة
       const locale = pathname.split('/')[1] || DEFAULT_LOCALE;
       const loginUrl = new URL(`/${locale}/login`, request.url);
       loginUrl.searchParams.set('from', pathname);
@@ -91,7 +97,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     }
   }
 
-  // 3) توجيه اللغة (next-intl)
+  // 4) توجيه اللغة (next-intl)
   return intlMiddleware(request);
 }
 

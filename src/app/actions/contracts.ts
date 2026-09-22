@@ -106,13 +106,7 @@ export async function createContract(
       redirectTo: '/login',
     };
   }
-  if (currentUser.role !== 'client') {
-    return {
-      success: false,
-      message: 'إنشاء العقود متاح لأصحاب العمل فقط',
-    };
-  }
-
+  // Unified Role: أي مستخدم يمكنه إنشاء عقد عبر قبول عرض على مشروعه
   const parsedId = parseId(proposalId);
   if (!parsedId) {
     return { success: false, message: 'معرّف العرض غير صالح' };
@@ -303,7 +297,8 @@ export async function releasePayment(
     };
   }
 
-  if (contract.status !== 'active') {
+  // Unified: السماح بالتحرير من active أو pending_delivery
+  if (contract.status !== 'active' && (contract.status as string) !== 'pending_delivery') {
     return {
       success: false,
       message:
@@ -540,11 +535,8 @@ export async function submitDeliveryAction(
   if (contract.status !== 'active') return { success: false, message: `لا يمكن التسليم — حالة العقد: ${contract.status}` };
 
   try {
-    try {
-      await db.update(contracts).set({ status: 'pending_delivery' as any, updatedAt: new Date() }).where(eq(contracts.id, contractId));
-    } catch {
-      // fallback keep active
-    }
+    // تفعيل pending_delivery — موجود في schema و CHECK constraint
+    await db.update(contracts).set({ status: 'pending_delivery', updatedAt: new Date() }).where(eq(contracts.id, contractId));
 
     const { getOrCreateConversation } = await import('@/lib/services/messages');
     const convId = await getOrCreateConversation({

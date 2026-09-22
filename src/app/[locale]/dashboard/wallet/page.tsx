@@ -115,7 +115,7 @@ export default async function WalletPage({ searchParams }: Props) {
             <Link href="/dashboard/wallet?action=withdraw" className="inline-flex h-9 items-center justify-center rounded-[8px] border border-white/40 bg-transparent px-5 text-[12px] font-bold text-white hover:bg-white/10">
               سحب الأرباح
             </Link>
-            {account?.role === 'freelancer' && !account.isKycVerified && (
+            {!account?.isKycVerified && (
               <Link href="/dashboard/kyc" className="inline-flex h-9 items-center justify-center rounded-[8px] bg-amber-400 px-4 text-[11px] font-bold text-amber-950 hover:bg-amber-300">
                 وثّق هويتك للسحب
               </Link>

@@ -1,12 +1,7 @@
 /**
- * ============================================================================
- *  خدمات — لوحة التحكم الرئيسية (/dashboard) — إعادة تصميم 100% مستقل
- * ============================================================================
- *  - بطاقات إحصائيات: الرصيد، المشاريع النشطة، العروض، التوثيق
- *  - قائمة العقود والمشاريع مع أزرار متابعة ومحادثة
- *  - تجاوب مع حالة المستخدم (عميل / مستقل)
- *  - Tailwind RTL + #2386c8 + Mobile First + i18n Link
- * ============================================================================
+ * خدمات — لوحة التحكم الرئيسية (/dashboard) — نظام موحد + #2386c8
+ * - كل مستخدم له دورين (عميل + مستقل) إلا admin
+ * - مؤشر إكمال الحساب للجميع: phone, bio, skills, kyc
  */
 
 import type { Metadata } from 'next';
@@ -110,17 +105,18 @@ export default async function DashboardPage() {
       .then((r) => r[0]),
   ]);
 
-  const isClient = currentUser.role === 'client';
-  const isFreelancer = currentUser.role === 'freelancer';
+  // Unified Role: كل المستخدمين لديهم دورين
+  const isAdmin = currentUser.role === 'admin';
 
+  // Section 5: مؤشر إكمال الحساب — 4 خطوات للجميع بدون freelancerOnly
   const steps = [
     { key: 'phone', label: 'تأكيد الجوال', done: !!profile?.phone, href: '/dashboard/profile' as const },
     { key: 'bio', label: 'إضافة نبذة', done: !!profile?.bio, href: '/dashboard/profile' as const },
-    { key: 'skills', label: 'إضافة المهارات', done: !!profile?.skills, href: '/dashboard/profile' as const, freelancerOnly: true },
-    { key: 'kyc', label: 'توثيق الهوية', done: !!profile?.isKycVerified, href: '/dashboard/kyc' as const, freelancerOnly: true },
+    { key: 'skills', label: 'إضافة المهارات', done: !!profile?.skills, href: '/dashboard/profile' as const },
+    { key: 'kyc', label: 'توثيق الهوية', done: !!profile?.isKycVerified, href: '/dashboard/kyc' as const },
   ];
 
-  const visibleSteps = steps.filter((s) => !(s as any).freelancerOnly || isFreelancer);
+  const visibleSteps = steps;
   const completed = visibleSteps.filter((s) => s.done).length;
   const completionPercent = visibleSteps.length ? Math.round((completed / visibleSteps.length) * 100) : 100;
 
@@ -130,13 +126,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-[22px] font-extrabold text-[#222]">مرحباً، {currentUser.name}</h1>
-            <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${isClient ? 'bg-[#2386c8]/10 text-[#2386c8] border-[#2386c8]/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-              {isClient ? 'صاحب عمل' : isFreelancer ? 'مستقل محترف' : currentUser.role}
+            <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold border ${isAdmin ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-[#2386c8]/10 text-[#2386c8] border-[#2386c8]/20'}`}>
+              {isAdmin ? 'مشرف' : 'مستخدم'}
             </span>
           </div>
           <div className="mt-2 flex items-center gap-2">
@@ -147,9 +142,8 @@ export default async function DashboardPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href={isClient ? '/projects/new' : '/projects'} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[#2386c8] px-5 text-[13px] font-bold text-white shadow-sm hover:bg-[#1a6da8]">
-            <span className="text-[16px]">+</span>
-            {isClient ? 'أضف مشروع' : 'تصفح المشاريع'}
+          <Link href="/projects/new" className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[#2386c8] px-5 text-[13px] font-bold text-white shadow-sm hover:bg-[#1a6da8]">
+            <span className="text-[16px]">+</span>أضف مشروع
           </Link>
           <Link href="/dashboard/wallet" className="inline-flex h-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-4 text-[13px] font-bold text-[#444] hover:border-[#222] hover:text-[#222]">
             المحفظة
@@ -157,7 +151,6 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="الرصيد المتاح"
@@ -169,12 +162,12 @@ export default async function DashboardPage() {
         <StatCard
           label="المشاريع النشطة"
           value={`${stats.activeProjects}`}
-          sub={isClient ? 'مشاريعك المفتوحة والجارية' : 'منافساتك الجارية'}
+          sub="مشاريعك المفتوحة والجارية"
           accent="emerald"
           icon={<path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.098c0 1.036-.84 1.875-1.875 1.875H5.625a1.875 1.875 0 0 1-1.875-1.875V14.15M15 8.625h4.5A1.875 1.875 0 0 1 21.375 10.5v3.675a1.875 1.875 0 0 1-1.875 1.875H4.5a1.875 1.875 0 0 1-1.875-1.875V10.5A1.875 1.875 0 0 1 4.5 8.625h4.5m0 0V6.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v2.25M15 8.625H9" />}
         />
         <StatCard
-          label={isClient ? 'العروض المستلمة' : 'العروض المقدمة'}
+          label="العروض"
           value={`${stats.proposals}`}
           sub={`${proposalCounts.pending} قيد الانتظار • ${proposalCounts.accepted} مقبولة`}
           accent="amber"
@@ -182,29 +175,25 @@ export default async function DashboardPage() {
         />
         <StatCard
           label="حالة التوثيق"
-          value={profile?.isKycVerified ? 'موثق ✓' : isFreelancer ? 'غير موثق' : 'غير مطلوب'}
-          sub={profile?.isKycVerified ? 'KYC معتمد' : isFreelancer ? 'وثّق هويتك لزيادة الثقة' : 'للمستقلين فقط'}
+          value={profile?.isKycVerified ? 'موثق ✓' : 'غير موثق'}
+          sub={profile?.isKycVerified ? 'KYC معتمد' : 'وثّق هويتك لزيادة الثقة'}
           accent={profile?.isKycVerified ? 'green' : 'amber'}
           icon={<path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />}
         />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Contracts */}
           <section className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-bold text-[#222]">العقود النشطة ({contracts.filter((c) => c.status === 'active').length})</h2>
-              <Link href="/dashboard/contracts" className="text-[12px] font-bold text-[#2386c8] hover:text-[#1a6da8]">
-                عرض الكل ←
-              </Link>
+              <Link href="/dashboard/contracts" className="text-[12px] font-bold text-[#2386c8] hover:text-[#1a6da8]">عرض الكل ←</Link>
             </div>
 
             {contracts.length === 0 ? (
               <div className="mt-6 rounded-[12px] border border-dashed border-gray-300 bg-[#fcfcfc] p-8 text-center">
                 <p className="text-[13px] font-medium text-[#666]">لا توجد عقود حالياً</p>
-                <p className="mt-1 text-[11px] text-[#999]">{isClient ? 'اقبل عرضاً لإنشاء عقد' : 'قدم عروضاً ليتم قبولها كعقود'}</p>
+                <p className="mt-1 text-[11px] text-[#999]">اقبل عرضاً لإنشاء عقد أو قدم عروضاً ليتم قبولها كعقود</p>
               </div>
             ) : (
               <div className="mt-5 space-y-3">
@@ -213,12 +202,10 @@ export default async function DashboardPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-[13px] font-bold text-[#222] line-clamp-1">{contract.projectTitle}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${contract.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                          {contract.status}
-                        </span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${contract.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>{contract.status}</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-[11px] text-[#888]">
-                        <span>{isClient ? contract.freelancerName : contract.clientName}</span>
+                        <span>{contract.clientId === currentUser.id ? contract.freelancerName : contract.clientName}</span>
                         <span className="h-3 w-px bg-gray-200" />
                         <span dir="ltr">{formatCurrency(contract.amount, 'USD')}</span>
                         <span className="h-3 w-px bg-gray-200" />
@@ -226,12 +213,8 @@ export default async function DashboardPage() {
                       </div>
                     </div>
                     <div className="flex gap-1.5">
-                      <Link href={`/dashboard/contracts/${contract.id}`} className="inline-flex h-8 items-center justify-center rounded-[8px] bg-[#222] px-3 text-[11px] font-bold text-white hover:bg-black">
-                        التفاصيل
-                      </Link>
-                      <Link href="/dashboard/messages" className="inline-flex h-8 items-center justify-center rounded-[8px] border border-gray-200 bg-white px-3 text-[11px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">
-                        محادثة
-                      </Link>
+                      <Link href={`/dashboard/contracts/${contract.id}`} className="inline-flex h-8 items-center justify-center rounded-[8px] bg-[#222] px-3 text-[11px] font-bold text-white hover:bg-black">التفاصيل</Link>
+                      <Link href="/dashboard/messages" className="inline-flex h-8 items-center justify-center rounded-[8px] border border-gray-200 bg-white px-3 text-[11px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">محادثة</Link>
                     </div>
                   </div>
                 ))}
@@ -239,19 +222,14 @@ export default async function DashboardPage() {
             )}
           </section>
 
-          {/* Latest projects */}
           <section className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-bold text-[#222]">آخر المشاريع</h2>
-              <Link href="/projects" className="text-[12px] font-bold text-[#2386c8] hover:text-[#1a6da8]">
-                تصفح المشاريع ←
-              </Link>
+              <Link href="/projects" className="text-[12px] font-bold text-[#2386c8] hover:text-[#1a6da8]">تصفح المشاريع ←</Link>
             </div>
 
             {latestProjects.length === 0 ? (
-              <p className="mt-5 rounded-[10px] border border-dashed border-gray-300 p-8 text-center text-[12px] text-[#888]">
-                {isClient ? 'لم تنشر أي مشاريع بعد' : 'لا توجد مشاريع مفتوحة'}
-              </p>
+              <p className="mt-5 rounded-[10px] border border-dashed border-gray-300 p-8 text-center text-[12px] text-[#888]">لم تنشر أي مشاريع بعد</p>
             ) : (
               <div className="mt-5 space-y-3">
                 {latestProjects.map((project) => (
@@ -266,15 +244,12 @@ export default async function DashboardPage() {
                         <span>{formatDate(project.createdAt)}</span>
                       </div>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${PROJECT_STATUS_BADGE_CLASSES[project.status as keyof typeof PROJECT_STATUS_BADGE_CLASSES]}`}>
-                      {PROJECT_STATUS_LABELS[project.status as keyof typeof PROJECT_STATUS_LABELS]}
-                    </span>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${PROJECT_STATUS_BADGE_CLASSES[project.status as keyof typeof PROJECT_STATUS_BADGE_CLASSES]}`}>{PROJECT_STATUS_LABELS[project.status as keyof typeof PROJECT_STATUS_LABELS]}</span>
                   </Link>
                 ))}
               </div>
             )}
 
-            {/* Proposals progress */}
             <div className="mt-6 rounded-[10px] bg-[#f4f5f7] p-4">
               <div className="flex justify-between text-[11px] text-[#666]">
                 <span>تقدم العروض</span>
@@ -287,26 +262,21 @@ export default async function DashboardPage() {
           </section>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
           <section className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="text-[13px] font-bold text-[#222]">إكمال الحساب</h2>
             <p className="mt-1 text-[11px] text-[#888]">أكمل خطواتك لزيادة الثقة</p>
-
             <div className="mt-4 space-y-2.5">
               {visibleSteps.map((step) => (
                 <Link key={step.key} href={step.href} className={`flex items-center justify-between rounded-[10px] border p-3 transition ${step.done ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white hover:border-[#2386c8]/30'}`}>
                   <div className="flex items-center gap-2.5">
-                    <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-bold ${step.done ? 'bg-emerald-600 text-white' : 'bg-[#f4f5f7] text-[#999] border border-gray-200'}`}>
-                      {step.done ? '✓' : '•'}
-                    </span>
+                    <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-bold ${step.done ? 'bg-emerald-600 text-white' : 'bg-[#f4f5f7] text-[#999] border border-gray-200'}`}>{step.done ? '✓' : '•'}</span>
                     <span className={`text-[12px] font-bold ${step.done ? 'text-emerald-800' : 'text-[#444]'}`}>{step.label}</span>
                   </div>
                   <span className={`text-[11px] ${step.done ? 'text-emerald-700' : 'text-[#999]'}`}>{step.done ? 'مكتمل' : 'إكمال'}</span>
                 </Link>
               ))}
             </div>
-
             <div className="mt-5">
               <div className="flex justify-between text-[11px] text-[#666]">
                 <span>التقدم</span>
@@ -322,22 +292,18 @@ export default async function DashboardPage() {
             <h2 className="text-[13px] font-bold text-[#222]">إجراءات سريعة</h2>
             <div className="mt-4 grid gap-2">
               <Link href="/projects/new" className="flex items-center gap-2 rounded-[10px] border border-gray-200 bg-white p-3 text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">
-                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#2386c8]/10 text-[#2386c8]">+</span>
-                أضف مشروع جديد
+                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#2386c8]/10 text-[#2386c8]">+</span>أضف مشروع جديد
               </Link>
               <Link href="/dashboard/wallet" className="flex items-center gap-2 rounded-[10px] border border-gray-200 bg-white p-3 text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">
-                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-emerald-50 text-emerald-600">$</span>
-                شحن المحفظة
+                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-emerald-50 text-emerald-600">$</span>شحن المحفظة
               </Link>
-              {isFreelancer && !profile?.isKycVerified && (
+              {!profile?.isKycVerified && (
                 <Link href="/dashboard/kyc" className="flex items-center gap-2 rounded-[10px] bg-amber-50 border border-amber-200 p-3 text-[12px] font-bold text-amber-800 hover:bg-amber-100">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-amber-100 text-amber-700">✓</span>
-                  توثيق الهوية
+                  <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-amber-100 text-amber-700">✓</span>توثيق الهوية
                 </Link>
               )}
               <Link href="/dashboard/messages" className="flex items-center gap-2 rounded-[10px] border border-gray-200 bg-white p-3 text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">
-                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#f4f5f7] text-[#666]">✉</span>
-                الرسائل
+                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#f4f5f7] text-[#666]">✉</span>الرسائل
               </Link>
             </div>
           </section>

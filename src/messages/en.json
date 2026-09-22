@@ -380,5 +380,31 @@
       "pay": "Get Your Work",
       "payDesc": "Track progress, receive final work and release payment when satisfied."
     }
+  },
+  "Portfolio": {
+    "title": "Portfolio",
+    "subtitle": "Showcase your best work to attract clients",
+    "addTitle": "Add work to your portfolio",
+    "addSubtitle": "Show your past projects — link and image are optional",
+    "formTitle": "Work Title",
+    "formTitlePlaceholder": "e.g. E-commerce store design",
+    "description": "Description",
+    "descriptionPlaceholder": "Briefly explain what you built and technologies used…",
+    "externalUrl": "External URL",
+    "imageUrl": "Image URL",
+    "addButton": "Add Work",
+    "adding": "Adding…",
+    "delete": "Delete",
+    "emptyTitle": "No works in your portfolio yet",
+    "emptyDesc": "Add your first work — it will appear here with link and image if any",
+    "view": "View",
+    "addedSuccess": "Work added to your portfolio",
+    "deletedSuccess": "Work deleted",
+    "errors": {
+      "titleMin": "Title at least 3 characters",
+      "titleMax": "Title too long",
+      "descMax": "Description too long",
+      "urlInvalid": "Invalid URL"
+    }
   }
 }

@@ -170,7 +170,8 @@ export async function requestWithdrawal(data: unknown): Promise<AuthActionState>
   const gate = await requireWalletUser();
   if (!gate.ok) return gate.state;
 
-  if (gate.role === 'freelancer' && !gate.isKycVerified) {
+  // Unified: السحب يتطلب KYC موثق لأي مستخدم
+  if (!gate.isKycVerified) {
     return {
       success: false,
       message: 'يجب توثيق هويتك أولاً للسحب — ارفع وثائقك من صفحة توثيق الهوية',

@@ -1,5 +1,5 @@
 /**
- * خدمات — قائمة العقود (/dashboard/contracts) — إعادة تصميم #2386c8
+ * خدمات — قائمة العقود (/dashboard/contracts) — نظام موحد #2386c8
  */
 
 import type { Metadata } from 'next';
@@ -33,7 +33,8 @@ const STATUS_BADGES: Record<string, string> = {
   disputed: 'bg-orange-50 text-orange-800 border-orange-200',
 };
 
-function ContractCard({ contract, isClient }: { contract: ContractListItem; isClient: boolean }) {
+function ContractCard({ contract, currentUserId }: { contract: ContractListItem; currentUserId: number }) {
+  const isOwner = contract.clientId === currentUserId;
   return (
     <Link
       href={`/dashboard/contracts/${contract.id}`}
@@ -44,8 +45,8 @@ function ContractCard({ contract, isClient }: { contract: ContractListItem; isCl
           <h3 className="truncate text-[14px] font-bold text-[#222] group-hover:text-[#2386c8]">{contract.projectTitle}</h3>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#666]">
             <span className="flex items-center gap-1">
-              <span className="h-5 w-5 rounded-full bg-[#f4f5f7] flex items-center justify-center text-[10px] font-bold text-[#666]">{isClient ? 'م' : 'ع'}</span>
-              {isClient ? contract.freelancerName : contract.clientName}
+              <span className="h-5 w-5 rounded-full bg-[#f4f5f7] flex items-center justify-center text-[10px] font-bold text-[#666]">{isOwner ? 'م' : 'ع'}</span>
+              {isOwner ? contract.freelancerName : contract.clientName}
             </span>
             <span className="h-3 w-px bg-gray-200" />
             <span>{formatDate(contract.createdAt)}</span>
@@ -83,7 +84,6 @@ export default async function ContractsPage() {
   }
 
   const contractsList = await getMyContracts();
-  const isClient = currentUser.role === 'client';
 
   const active = contractsList.filter((c) => c.status === 'active' || c.status === 'pending_delivery').length;
   const completed = contractsList.filter((c) => c.status === 'completed').length;
@@ -94,13 +94,11 @@ export default async function ContractsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-[22px] font-extrabold text-[#222]">العقود</h1>
-          <p className="mt-1 text-[13px] text-[#666]">
-            {isClient ? 'عقودك مع المستقلين — المبالغ محجوزة في ضمان خدمات حتى التحرير' : 'عقودك النشطة والمكتملة — تُحرر الدفعات عند التسليم'}
-          </p>
+          <p className="mt-1 text-[13px] text-[#666]">عقودك كمستقل وكصاحب عمل — المبالغ محجوزة في ضمان خدمات حتى التحرير</p>
         </div>
         <div className="flex gap-2">
-          <Link href={isClient ? '/dashboard/projects' : '/dashboard/proposals'} className="inline-flex h-9 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-4 text-[12px] font-bold text-[#444] hover:border-[#222] hover:text-[#222]">
-            {isClient ? 'مشاريعي' : 'عروضي'}
+          <Link href="/dashboard/projects" className="inline-flex h-9 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-4 text-[12px] font-bold text-[#444] hover:border-[#222] hover:text-[#222]">
+            مشاريعي
           </Link>
           <Link href="/dashboard/messages" className="inline-flex h-9 items-center justify-center rounded-[10px] bg-[#222] px-4 text-[12px] font-bold text-white hover:bg-black">
             الرسائل
@@ -135,17 +133,15 @@ export default async function ContractsPage() {
             </svg>
           </div>
           <p className="mt-4 text-[14px] font-bold text-[#444]">لا توجد عقود بعد</p>
-          <p className="mt-2 text-[12px] leading-6 text-[#888] max-w-[380px] mx-auto">
-            {isClient ? 'عند قبولك عرضاً من مستقل موثّق سيُنشأ عقد تلقائياً ويُحجز المبلغ في الضمان.' : 'عندما يقبل عميل عرضك سيظهر العقد هنا — تابع عروضك في صفحة العروض.'}
-          </p>
-          <Link href={isClient ? '/dashboard/proposals' : '/projects'} className="mt-6 inline-flex h-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-5 text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">
-            {isClient ? 'استعراض العروض' : 'تصفح المشاريع'}
+          <p className="mt-2 text-[12px] leading-6 text-[#888] max-w-[380px] mx-auto">عند قبولك عرضاً على أحد مشاريعك أو قبول عميل لعرضك سيُنشأ عقد تلقائياً ويُحجز المبلغ في الضمان.</p>
+          <Link href="/dashboard/proposals" className="mt-6 inline-flex h-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-5 text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">
+            استعراض العروض
           </Link>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {contractsList.map((c) => (
-            <ContractCard key={c.id} contract={c} isClient={isClient} />
+            <ContractCard key={c.id} contract={c} currentUserId={currentUser.id} />
           ))}
         </div>
       )}

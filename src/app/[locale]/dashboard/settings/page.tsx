@@ -297,8 +297,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       {/* ==================== تبويب الأمان ==================== */}
       {activeTab === 'security' && (
         <div className="space-y-6">
-          {/* حالة KYC — القاعدة الذهبية: للمستقلين فقط (العملاء لا يحتاجون KYC) */}
-          {account.role === 'freelancer' && (
+          {/* حالة KYC — للجميع في النظام الموحد */}
           <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
@@ -351,7 +350,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               </span>
             </div>
           </section>
-          )}
 
           {/* التحقق بخطوتين (2FA) — عرض الحالة في هذه المرحلة */}
           <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">

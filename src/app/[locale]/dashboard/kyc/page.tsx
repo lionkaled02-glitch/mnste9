@@ -45,9 +45,7 @@ export default async function KycPage() {
     );
   }
 
-  if (currentUser.role !== 'freelancer') {
-    redirect('/dashboard?notice=kyc-freelancers-only');
-  }
+  // Unified Role: KYC متاح للجميع (client/freelancer نفس الصلاحيات)
 
   const { isVerified, latestDocument } = await getKycStatus(currentUser.id);
 

@@ -9,6 +9,8 @@
  *    database/migrations/2026_09_21_000004_create_contracts.sql
  *    database/migrations/2026_09_22_000005_add_platform_tables.sql
  *      (notifications, conversations, messages, reviews, wishlist, platform_settings)
+ *    + portfolio_items (from main branch migration)
+ *    + pending_delivery in contracts status
  *
  *  ملاحظات معمارية:
  *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL (الذي يتضمن أيضاً Triggers
@@ -141,9 +143,10 @@ export const portfolioItems = pgTable(
 
 export type PortfolioItem = typeof portfolioItems.$inferSelect;
 export type NewPortfolioItem = typeof portfolioItems.$inferInsert;
+
 /* ---------------------------------------------------------------------------
  * wallets — المحافظ
- * ------------------------------------------------------------------------- */
+ * ------------------------------------------------------------------------- */-
 export const wallets = pgTable(
   'wallets',
   {
@@ -304,7 +307,7 @@ export const kycDocuments = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * contracts — العقود بين العميل والمستقل (المرحلة 9)
+ * contracts — العقود بين العميل والمستقل (المرحلة 9) — يشمل pending_delivery
  * ------------------------------------------------------------------------- */
 export const contracts = pgTable(
   'contracts',
@@ -338,7 +341,7 @@ export const contracts = pgTable(
     check('ck_contracts_net_amount_positive', sql`${t.netAmount} > 0`),
     check(
       'ck_contracts_status',
-      sql`${t.status} IN ('pending', 'active', 'completed', 'disputed', 'cancelled')`,
+      sql`${t.status} IN ('pending', 'active', 'pending_delivery', 'completed', 'disputed', 'cancelled')`,
     ),
     foreignKey({
       name: 'fk_contracts_project_id',
@@ -364,7 +367,7 @@ export const contracts = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * notifications — الإشعارات (المرحلة الجديدة 000005)
+ * notifications — الإشعارات
  * ------------------------------------------------------------------------- */
 export const notifications = pgTable(
   'notifications',
@@ -539,6 +542,10 @@ export const platformSettings = pgTable(
  * 3) العلاقات (Relations)
  * ========================================================================== */
 
+export const portfolioItemsRelations = relations(portfolioItems, ({ one }) => ({
+  user: one(users, { fields: [portfolioItems.userId], references: [users.id] }),
+}));
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   wallet: one(wallets, {
     fields: [users.id],
@@ -548,6 +555,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   projects: many(projects),
   proposals: many(proposals),
   kycDocuments: many(kycDocuments),
+  portfolioItems: many(portfolioItems),
   clientContracts: many(contracts, { relationName: 'clientContracts' }),
   freelancerContracts: many(contracts, { relationName: 'freelancerContracts' }),
   notifications: many(notifications),

@@ -1,16 +1,8 @@
 'use client';
 
 /**
- * ============================================================================
- *  mnste9 — نموذج الملف الشخصي (مكوّن عميل) — المرحلة 10 محسّن
- * ============================================================================
- *  التحسينات:
- *   - المهارات كـ Tags قابلة للحذف + إضافة.
- *   - مهارات مقترحة كأزرار سريعة.
- *   - Avatar كبير يُعرض في صفحة الأب، وهنا التركيز على التعديل.
- *
- *  يعمل عبر Server Action (updateProfileAction) مع useActionState.
- * ============================================================================
+ * خدمات — نموذج الملف الشخصي — نظام موحد + #2386c8
+ * - المعلومات المهنية متاحة للجميع (client/freelancer نفس الصلاحيات)
  */
 
 import { useActionState, useState, useMemo } from 'react';
@@ -60,13 +52,11 @@ interface ProfileFormProps {
     bio: string | null;
     hourlyRate: string | null;
   };
-  isFreelancer: boolean;
 }
 
-export function ProfileForm({ defaultValues, isFreelancer }: ProfileFormProps) {
+export function ProfileForm({ defaultValues }: ProfileFormProps) {
   const [state, formAction, isPending] = useActionState(updateProfileAction, INITIAL_STATE);
 
-  // حالة المهارات كـ tags
   const [skills, setSkills] = useState<string[]>(() => parseSkills(defaultValues.skills));
   const [newSkill, setNewSkill] = useState('');
 
@@ -102,23 +92,18 @@ export function ProfileForm({ defaultValues, isFreelancer }: ProfileFormProps) {
     `${INPUT_CLASSES} ${
       hasError
         ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-        : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-200'
+        : 'border-gray-300 focus:border-[#2386c8] focus:ring-[#2386c8]/20'
     }`;
 
   return (
     <form action={formAction} className="space-y-10" noValidate>
       {state.message && !state.success && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {state.message}
-        </p>
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.message}</p>
       )}
       {state.success && state.message && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {state.message}
-        </p>
+        <p className="rounded-lg border border-[#2386c8]/20 bg-[#2386c8]/10 px-4 py-3 text-sm text-[#2386c8]">{state.message}</p>
       )}
 
-      {/* 1) المعلومات الأساسية */}
       <fieldset className="space-y-5" disabled={isPending}>
         <legend className={SECTION_TITLE_CLASSES}>المعلومات الأساسية</legend>
 
@@ -152,9 +137,7 @@ export function ProfileForm({ defaultValues, isFreelancer }: ProfileFormProps) {
               value={defaultValues.email}
               className="w-full cursor-not-allowed rounded-lg border border-gray-200 bg-slate-50 px-4 py-2.5 text-left text-gray-500"
             />
-            <p className="mt-1.5 text-xs text-slate-400">
-              لا يمكن تغيير البريد الإلكتروني — إنه معرّف الدخول إلى حسابك.
-            </p>
+            <p className="mt-1.5 text-xs text-slate-400">لا يمكن تغيير البريد الإلكتروني — إنه معرّف الدخول إلى حسابك.</p>
           </div>
 
           <div>
@@ -174,15 +157,12 @@ export function ProfileForm({ defaultValues, isFreelancer }: ProfileFormProps) {
             {phoneError ? (
               <p className="mt-1.5 text-sm text-red-600">{phoneError}</p>
             ) : (
-              <p className="mt-1.5 text-xs text-slate-400">
-                بصيغة دولية — يستخدم لإشعارات الجوال وتواصل المنصة.
-              </p>
+              <p className="mt-1.5 text-xs text-slate-400">بصيغة دولية — يستخدم لإشعارات الجوال وتواصل المنصة.</p>
             )}
           </div>
         </div>
       </fieldset>
 
-      {/* 2) التفضيلات */}
       <fieldset className="space-y-5" disabled={isPending}>
         <legend className={SECTION_TITLE_CLASSES}>التفضيلات</legend>
 
@@ -207,9 +187,7 @@ export function ProfileForm({ defaultValues, isFreelancer }: ProfileFormProps) {
             {currencyError ? (
               <p className="mt-1.5 text-sm text-red-600">{currencyError}</p>
             ) : (
-              <p className="mt-1.5 text-xs text-slate-400">
-                بنك الكريمي يدعم الدولار الأمريكي والريال السعودي فقط — الريال اليمني غير مدعوم.
-              </p>
+              <p className="mt-1.5 text-xs text-slate-400">بنك الكريمي يدعم الدولار الأمريكي والريال السعودي فقط — الريال اليمني غير مدعوم.</p>
             )}
           </div>
 
@@ -231,157 +209,146 @@ export function ProfileForm({ defaultValues, isFreelancer }: ProfileFormProps) {
         </div>
       </fieldset>
 
-      {/* 3) المعلومات المهنية — للمستقلين فقط */}
-      {isFreelancer && (
-        <fieldset className="space-y-6" disabled={isPending}>
-          <legend className={SECTION_TITLE_CLASSES}>
-            المعلومات المهنية
-            <span className="ms-2 text-xs font-medium text-slate-400">
-              تظهر لأصحاب العمل عند تصفح المستقلين
-            </span>
-          </legend>
+      {/* المعلومات المهنية — للجميع في النظام الموحد */}
+      <fieldset className="space-y-6" disabled={isPending}>
+        <legend className={SECTION_TITLE_CLASSES}>
+          المعلومات المهنية
+          <span className="ms-2 text-xs font-medium text-slate-400">تظهر للآخرين عند تصفح ملفك</span>
+        </legend>
 
-          {/* المهارات كـ tags */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              المهارات <span className="text-slate-400">(اختياري)</span>
-            </label>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+            المهارات <span className="text-slate-400">(اختياري)</span>
+          </label>
 
-            {/* حقل مخفي يُرسل للسيرفر كـ comma-separated */}
-            <input type="hidden" name="skills" value={skillsString} />
+          <input type="hidden" name="skills" value={skillsString} />
 
-            {/* عرض الـ tags الحالية */}
-            {skills.length > 0 ? (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-800"
+          {skills.length > 0 ? (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#2386c8]/20 bg-[#2386c8]/10 px-3 py-1 text-sm font-medium text-[#2386c8]"
+                >
+                  {skill}
+                  <button
+                    type="button"
+                    onClick={() => removeSkill(skill)}
+                    className="rounded-full p-0.5 text-[#2386c8] transition hover:bg-[#2386c8]/20"
+                    aria-label={`حذف ${skill}`}
                   >
-                    {skill}
-                    <button
-                      type="button"
-                      onClick={() => removeSkill(skill)}
-                      className="rounded-full p-0.5 text-emerald-600 transition hover:bg-emerald-100 hover:text-emerald-800"
-                      aria-label={`حذف ${skill}`}
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="mb-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                لم تضف أي مهارات بعد — أضف مهاراتك لتظهر في نتائج البحث.
-              </p>
-            )}
-
-            {/* إدخال مهارة جديدة */}
-            <div className="flex gap-2">
-              <input
-                id="profile-skills-input"
-                type="text"
-                maxLength={50}
-                value={newSkill}
-                onChange={(e) => setNewSkill(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addSkill();
-                  }
-                }}
-                placeholder="أدخل مهارة واضغط Enter أو إضافة"
-                className={inputClasses(Boolean(skillsError))}
-              />
-              <button
-                type="button"
-                onClick={() => addSkill()}
-                className="shrink-0 rounded-lg border border-emerald-300 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
-              >
-                إضافة
-              </button>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
             </div>
-            {skillsError ? (
-              <p className="mt-1.5 text-sm text-red-600">{skillsError}</p>
-            ) : (
-              <p className="mt-1.5 text-xs text-slate-400">اضغط Enter أو زر إضافة. افصل كل مهارة على حدة.</p>
-            )}
+          ) : (
+            <p className="mb-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              لم تضف أي مهارات بعد — أضف مهاراتك لتظهر في ملفك الشخصي.
+            </p>
+          )}
 
-            {/* مهارات مقترحة كأزرار سريعة */}
-            <div className="mt-4">
-              <p className="mb-2 text-xs font-semibold text-slate-600">مهارات مقترحة:</p>
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTED_SKILLS.map((suggested) => {
-                  const alreadyAdded = skills.includes(suggested);
-                  return (
-                    <button
-                      key={suggested}
-                      type="button"
-                      disabled={alreadyAdded}
-                      onClick={() => addSkill(suggested)}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                        alreadyAdded
-                          ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700'
-                      }`}
-                    >
-                      {alreadyAdded ? `${suggested} ✓` : `+ ${suggested}`}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* النبذة */}
-          <div>
-            <label htmlFor="profile-bio" className="mb-2 block text-sm font-medium text-gray-700">
-              النبذة <span className="text-slate-400">(اختياري)</span>
-            </label>
-            <textarea
-              id="profile-bio"
-              name="bio"
-              rows={5}
-              maxLength={1000}
-              defaultValue={defaultValues.bio ?? ''}
-              placeholder="عرّف أصحاب العمل بخبرتك وأسلوب عملك وما تقدمه لهم…"
-              className={`${inputClasses(Boolean(bioError))} resize-y`}
-            />
-            {bioError && <p className="mt-1.5 text-sm text-red-600">{bioError}</p>}
-          </div>
-
-          {/* السعر بالساعة */}
-          <div>
-            <label htmlFor="profile-hourly-rate" className="mb-2 block text-sm font-medium text-gray-700">
-              السعر بالساعة <span className="text-slate-400">(اختياري)</span>
-            </label>
+          <div className="flex gap-2">
             <input
-              id="profile-hourly-rate"
-              name="hourlyRate"
-              type="number"
-              dir="ltr"
-              min={0}
-              step="0.01"
-              defaultValue={defaultValues.hourlyRate ?? ''}
-              placeholder="25.00"
-              className={`${inputClasses(Boolean(hourlyRateError))} text-left`}
+              id="profile-skills-input"
+              type="text"
+              maxLength={50}
+              value={newSkill}
+              onChange={(e) => setNewSkill(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addSkill();
+                }
+              }}
+              placeholder="أدخل مهارة واضغط Enter أو إضافة"
+              className={inputClasses(Boolean(skillsError))}
             />
-            {hourlyRateError ? (
-              <p className="mt-1.5 text-sm text-red-600">{hourlyRateError}</p>
-            ) : (
-              <p className="mt-1.5 text-xs text-slate-400">بالدولار الأمريكي (USD) — عملة التعاملات في المنصة.</p>
-            )}
+            <button
+              type="button"
+              onClick={() => addSkill()}
+              className="shrink-0 rounded-lg border border-[#2386c8]/30 bg-white px-4 py-2.5 text-sm font-semibold text-[#2386c8] transition hover:bg-[#2386c8]/10"
+            >
+              إضافة
+            </button>
           </div>
-        </fieldset>
-      )}
+          {skillsError ? (
+            <p className="mt-1.5 text-sm text-red-600">{skillsError}</p>
+          ) : (
+            <p className="mt-1.5 text-xs text-slate-400">اضغط Enter أو زر إضافة. افصل كل مهارة على حدة.</p>
+          )}
+
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold text-slate-600">مهارات مقترحة:</p>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTED_SKILLS.map((suggested) => {
+                const alreadyAdded = skills.includes(suggested);
+                return (
+                  <button
+                    key={suggested}
+                    type="button"
+                    disabled={alreadyAdded}
+                    onClick={() => addSkill(suggested)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                      alreadyAdded
+                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-[#2386c8]/30 hover:bg-[#2386c8]/10 hover:text-[#2386c8]'
+                    }`}
+                  >
+                    {alreadyAdded ? `${suggested} ✓` : `+ ${suggested}`}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="profile-bio" className="mb-2 block text-sm font-medium text-gray-700">
+            النبذة <span className="text-slate-400">(اختياري)</span>
+          </label>
+          <textarea
+            id="profile-bio"
+            name="bio"
+            rows={5}
+            maxLength={1000}
+            defaultValue={defaultValues.bio ?? ''}
+            placeholder="عرّف الآخرين بخبرتك وأسلوب عملك وما تقدمه…"
+            className={`${inputClasses(Boolean(bioError))} resize-y`}
+          />
+          {bioError && <p className="mt-1.5 text-sm text-red-600">{bioError}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="profile-hourly-rate" className="mb-2 block text-sm font-medium text-gray-700">
+            السعر بالساعة <span className="text-slate-400">(اختياري)</span>
+          </label>
+          <input
+            id="profile-hourly-rate"
+            name="hourlyRate"
+            type="number"
+            dir="ltr"
+            min={0}
+            step="0.01"
+            defaultValue={defaultValues.hourlyRate ?? ''}
+            placeholder="25.00"
+            className={`${inputClasses(Boolean(hourlyRateError))} text-left`}
+          />
+          {hourlyRateError ? (
+            <p className="mt-1.5 text-sm text-red-600">{hourlyRateError}</p>
+          ) : (
+            <p className="mt-1.5 text-xs text-slate-400">بالدولار الأمريكي (USD) — عملة التعاملات في المنصة.</p>
+          )}
+        </div>
+      </fieldset>
 
       <div className="border-t border-slate-100 pt-6">
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-lg bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-lg bg-[#2386c8] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#1a6da8] focus:outline-none focus:ring-2 focus:ring-[#2386c8] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPending ? 'جارٍ الحفظ…' : 'حفظ التغييرات'}
         </button>

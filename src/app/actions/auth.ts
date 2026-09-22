@@ -157,8 +157,8 @@ export async function registerUser(data: unknown): Promise<AuthActionState> {
 
     return {
       success: true,
-      message: 'تم إنشاء حسابك بنجاح — مرحباً بك في mnste9',
-      redirectTo: '/select-account-type',
+      message: 'تم إنشاء حسابك بنجاح — مرحباً بك في خدمات',
+      redirectTo: '/dashboard',
     };
   } catch (error) {
     /* سباق INSERT: قيد UNIQUE التقط التكرار بعد الفحص المسبق */
