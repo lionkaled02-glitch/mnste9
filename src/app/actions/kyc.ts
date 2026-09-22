@@ -129,7 +129,8 @@ export async function uploadKycDocuments(
     };
   }
 
-  // Unified Role: أي مستخدم مسجل يمكنه رفع KYC (client/freelancer نفس الصلاحيات)
+  // KYC متاح لأي مستخدم مسجل (client يمكنه الترقية لاحقاً إلى freelancer)
+  // القاعدة: KYC إلزامي للمستقل فقط قبل تقديم عرض/سحب، لكن رفعه متاح للجميع
 
   // 3) استخراج المدخلات — نوع الوثيقة + الملفات الثلاثة (FormData فقط)
   if (!(data instanceof FormData)) {

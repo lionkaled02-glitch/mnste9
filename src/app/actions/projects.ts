@@ -167,7 +167,13 @@ export async function createProject(data: unknown): Promise<AuthActionState> {
       redirectTo: '/login',
     };
   }
-  // Unified Role: أي مستخدم مسجل يمكنه نشر مشروع
+  if (currentUser.role !== 'client' && currentUser.role !== 'admin') {
+    return {
+      success: false,
+      message: 'نشر المشاريع متاح لأصحاب العمل. يمكنك الترقية من الإعدادات.',
+      redirectTo: '/dashboard/become-freelancer',
+    };
+  }
 
   // 2) التحقق من المدخلات
   const parsed = createProjectSchema.safeParse(normalizeInput(data));
@@ -225,7 +231,12 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
       redirectTo: '/login',
     };
   }
-  // Unified Role: أي مستخدم يمكنه تقديم عرض باستثناء صاحب المشروع نفسه
+  if (currentUser.role !== 'freelancer' && currentUser.role !== 'admin') {
+    return {
+      success: false,
+      message: 'تقديم العروض متاح للمستقلين فقط',
+    };
+  }
 
   // 2) التحقق من المدخلات
   const parsed = submitProposalSchema.safeParse(normalizeInput(data));
@@ -233,8 +244,22 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
     return { success: false, fieldErrors: zodFieldErrors(parsed.error) };
   }
 
-  // Unified: تقديم العرض لا يتطلب KYC — فقط السحب يتطلب KYC
-  // 3) فحص المشروع: الوجود + الحالة + الملكية
+  // 3) فحص KYC للمستقل
+  const [freelancerAccount] = await db
+    .select({ isKycVerified: users.isKycVerified })
+    .from(users)
+    .where(eq(users.id, currentUser.id))
+    .limit(1);
+
+  if (freelancerAccount && !freelancerAccount.isKycVerified) {
+    return {
+      success: false,
+      message: 'يجب توثيق هويتك لتقديم عرض',
+      redirectTo: '/dashboard/kyc',
+    };
+  }
+
+  // 4) فحص المشروع: الوجود + الحالة + الملكية
   const [project] = await db
     .select({
       id: projects.id,
