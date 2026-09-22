@@ -1,101 +1,70 @@
 /**
- * ============================================================================
- *  mnste9 — قائمة العقود (/dashboard/contracts) — المرحلة 9 (مواصفة دقيقة)
- * ============================================================================
- *  تعرض عقود المستخدم الحالي (عميل أو مستقل) مع:
- *   - عنوان المشروع + الطرف الآخر + المبلغ + العمولة + الصافي + الحالة.
- * ============================================================================
+ * خدمات — قائمة العقود (/dashboard/contracts) — إعادة تصميم #2386c8
  */
 
 import type { Metadata } from 'next';
 import { Link } from '@/i18n/navigation';
 
 import { getCurrentUser } from '@/lib/auth';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { getMyContracts, type ContractListItem } from '@/app/actions/contracts';
 
 export const metadata: Metadata = {
-  title: 'العقود',
+  title: 'العقود | خدمات',
 };
 
-const CONTRACT_STATUS_LABELS: Record<string, string> = {
+export const dynamic = 'force-dynamic';
+
+const STATUS_LABELS: Record<string, string> = {
   pending: 'قيد الانتظار',
   active: 'نشط',
+  pending_delivery: 'بانتظار المراجعة',
   completed: 'مكتمل',
   cancelled: 'ملغى',
   disputed: 'متنازع عليه',
 };
 
-const CONTRACT_STATUS_BADGES: Record<string, string> = {
-  pending: 'bg-amber-100 text-amber-800',
-  active: 'bg-emerald-100 text-emerald-800',
-  completed: 'bg-slate-800 text-white',
-  cancelled: 'bg-red-100 text-red-700',
-  disputed: 'bg-orange-100 text-orange-800',
+const STATUS_BADGES: Record<string, string> = {
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  active: 'bg-[#2386c8]/10 text-[#2386c8] border-[#2386c8]/20',
+  pending_delivery: 'bg-purple-50 text-purple-700 border-purple-200',
+  completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  cancelled: 'bg-red-50 text-red-700 border-red-200',
+  disputed: 'bg-orange-50 text-orange-800 border-orange-200',
 };
 
-function ContractRow({
-  contract,
-  isClient,
-}: {
-  contract: ContractListItem;
-  isClient: boolean;
-}) {
-  const commissionRate = Number.parseFloat(contract.commissionRate);
-
+function ContractCard({ contract, isClient }: { contract: ContractListItem; isClient: boolean }) {
   return (
-    <li>
-      <Link
-        href={`/dashboard/contracts/${contract.id}`}
-        className="group -mx-2 flex flex-col gap-3 rounded-lg px-3 py-4 transition hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate font-bold text-slate-800 transition group-hover:text-emerald-700">
-              {contract.projectTitle}
-            </p>
-            <span
-              className={cn(
-                'shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                CONTRACT_STATUS_BADGES[contract.status] ?? 'bg-slate-100 text-slate-600',
-              )}
-            >
-              {CONTRACT_STATUS_LABELS[contract.status] ?? contract.status}
+    <Link
+      href={`/dashboard/contracts/${contract.id}`}
+      className="group flex flex-col gap-3 rounded-[12px] border border-gray-200 bg-white p-5 shadow-sm transition hover:border-[#2386c8]/30 hover:shadow-[0_4px_12px_rgba(35,134,200,0.08)]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-[14px] font-bold text-[#222] group-hover:text-[#2386c8]">{contract.projectTitle}</h3>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#666]">
+            <span className="flex items-center gap-1">
+              <span className="h-5 w-5 rounded-full bg-[#f4f5f7] flex items-center justify-center text-[10px] font-bold text-[#666]">{isClient ? 'م' : 'ع'}</span>
+              {isClient ? contract.freelancerName : contract.clientName}
             </span>
-          </div>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-            <span>
-              {isClient ? 'المستقل:' : 'العميل:'}{' '}
-              <span className="font-semibold text-slate-700">
-                {isClient ? contract.freelancerName : contract.clientName}
-              </span>
-            </span>
-            <span aria-hidden="true">·</span>
+            <span className="h-3 w-px bg-gray-200" />
             <span>{formatDate(contract.createdAt)}</span>
-            <span aria-hidden="true">·</span>
-            <span dir="ltr" className="font-medium">
-              {formatCurrency(contract.amount, 'USD')} — عمولة {(commissionRate * 100).toFixed(0)}%
-            </span>
-          </p>
+            <span className="h-3 w-px bg-gray-200" />
+            <span dir="ltr">{formatCurrency(contract.amount, 'USD')}</span>
+          </div>
         </div>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${STATUS_BADGES[contract.status] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+          {STATUS_LABELS[contract.status] ?? contract.status}
+        </span>
+      </div>
 
-        <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-          <p dir="ltr" className="text-base font-bold text-slate-900">
-            {formatCurrency(contract.amount, 'USD')}
-          </p>
-          <p className="text-xs text-slate-400">
-            الصافي{' '}
-            <span dir="ltr" className="font-semibold">
-              {formatCurrency(contract.netAmount, 'USD')}
-            </span>{' '}
-            + عمولة{' '}
-            <span dir="ltr" className="font-semibold">
-              {formatCurrency(contract.commission, 'USD')}
-            </span>
-          </p>
+      <div className="flex items-center justify-between rounded-[10px] bg-[#fcfcfc] border border-gray-100 p-3">
+        <div className="text-[11px] text-[#666]">
+          الصافي <b dir="ltr" className="text-[#222]">{formatCurrency(contract.netAmount, 'USD')}</b> + عمولة <b dir="ltr">{formatCurrency(contract.commission, 'USD')}</b>
         </div>
-      </Link>
-    </li>
+        <span className="text-[11px] font-bold text-[#2386c8] group-hover:underline">التفاصيل ←</span>
+      </div>
+    </Link>
   );
 }
 
@@ -104,15 +73,9 @@ export default async function ContractsPage() {
 
   if (!currentUser) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-lg font-bold text-slate-800">انتهت جلستك</p>
-        <p className="mt-2 text-sm leading-7 text-slate-500">
-          سجّل دخولك من جديد للوصول إلى عقودك.
-        </p>
-        <Link
-          href="/login?from=/dashboard/contracts"
-          className="mt-6 inline-block rounded-lg bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-        >
+      <div className="rounded-[14px] border border-gray-200 bg-white p-10 text-center shadow-sm">
+        <p className="text-[15px] font-bold text-[#222]">انتهت جلستك</p>
+        <Link href="/login" className="mt-5 inline-flex h-10 items-center justify-center rounded-[10px] bg-[#2386c8] px-6 text-[13px] font-bold text-white hover:bg-[#1a6da8]">
           تسجيل الدخول
         </Link>
       </div>
@@ -122,84 +85,70 @@ export default async function ContractsPage() {
   const contractsList = await getMyContracts();
   const isClient = currentUser.role === 'client';
 
+  const active = contractsList.filter((c) => c.status === 'active' || c.status === 'pending_delivery').length;
+  const completed = contractsList.filter((c) => c.status === 'completed').length;
+  const disputed = contractsList.filter((c) => c.status === 'disputed').length;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">العقود</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {isClient
-              ? 'العقود التي أنشأتها مع المستقلين — المبالغ محجوزة في الضمان حتى التحرير'
-              : 'العقود النشطة والمكتملة — تُحرَّر الدفعات عند إنجاز المشروع'}
+          <h1 className="text-[22px] font-extrabold text-[#222]">العقود</h1>
+          <p className="mt-1 text-[13px] text-[#666]">
+            {isClient ? 'عقودك مع المستقلين — المبالغ محجوزة في ضمان خدمات حتى التحرير' : 'عقودك النشطة والمكتملة — تُحرر الدفعات عند التسليم'}
           </p>
         </div>
-        <Link
-          href={isClient ? '/dashboard/projects' : '/dashboard/proposals'}
-          className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700"
-        >
-          {isClient ? 'مشاريعي' : 'عروضي'}
-        </Link>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">إجمالي العقود</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{contractsList.length}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">النشطة</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-700">
-            {contractsList.filter((c) => c.status === 'active').length}
-          </p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">المكتملة</p>
-          <p className="mt-1 text-2xl font-bold text-slate-700">
-            {contractsList.filter((c) => c.status === 'completed').length}
-          </p>
+        <div className="flex gap-2">
+          <Link href={isClient ? '/dashboard/projects' : '/dashboard/proposals'} className="inline-flex h-9 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-4 text-[12px] font-bold text-[#444] hover:border-[#222] hover:text-[#222]">
+            {isClient ? 'مشاريعي' : 'عروضي'}
+          </Link>
+          <Link href="/dashboard/messages" className="inline-flex h-9 items-center justify-center rounded-[10px] bg-[#222] px-4 text-[12px] font-bold text-white hover:bg-black">
+            الرسائل
+          </Link>
         </div>
       </div>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        {contractsList.length === 0 ? (
-          <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-300 px-6 py-16 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0v12.75m0-12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                />
-              </svg>
-            </div>
-            <p className="mt-4 text-lg font-medium text-slate-600">لا توجد عقود بعد</p>
-            <p className="mt-2 max-w-sm text-sm leading-7 text-slate-400">
-              {isClient
-                ? 'عند قبولك عرضاً من مستقل موثّق سيُنشأ عقد تلقائياً ويُحجز المبلغ في الضمان.'
-                : 'عندما يقبل عميل عرضك سيظهر العقد هنا — تابع عروضك في صفحة العروض.'}
-            </p>
-            <Link
-              href={isClient ? '/dashboard/proposals' : '/projects'}
-              className="mt-6 rounded-lg border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-600 hover:text-emerald-700"
-            >
-              {isClient ? 'استعراض العروض المستلمة' : 'تصفح المشاريع'}
-            </Link>
+      <div className="grid gap-4 sm:grid-cols-4">
+        <div className="rounded-[12px] border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-[11px] font-medium text-[#888]">إجمالي العقود</p>
+          <p className="mt-2 text-[22px] font-extrabold text-[#222]">{contractsList.length}</p>
+        </div>
+        <div className="rounded-[12px] border border-[#2386c8]/20 bg-[#2386c8]/[0.04] p-5 shadow-sm">
+          <p className="text-[11px] font-medium text-[#2386c8]">النشطة</p>
+          <p className="mt-2 text-[22px] font-extrabold text-[#2386c8]">{active}</p>
+        </div>
+        <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <p className="text-[11px] font-medium text-emerald-700">المكتملة</p>
+          <p className="mt-2 text-[22px] font-extrabold text-emerald-700">{completed}</p>
+        </div>
+        <div className="rounded-[12px] border border-orange-200 bg-orange-50 p-5 shadow-sm">
+          <p className="text-[11px] font-medium text-orange-700">المتنازع عليها</p>
+          <p className="mt-2 text-[22px] font-extrabold text-orange-700">{disputed}</p>
+        </div>
+      </div>
+
+      {contractsList.length === 0 ? (
+        <div className="rounded-[14px] border border-dashed border-gray-300 bg-white p-10 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f4f5f7] text-gray-400">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0v12.75m0-12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            </svg>
           </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {contractsList.map((contract) => (
-              <ContractRow key={contract.id} contract={contract} isClient={isClient} />
-            ))}
-          </ul>
-        )}
-      </section>
+          <p className="mt-4 text-[14px] font-bold text-[#444]">لا توجد عقود بعد</p>
+          <p className="mt-2 text-[12px] leading-6 text-[#888] max-w-[380px] mx-auto">
+            {isClient ? 'عند قبولك عرضاً من مستقل موثّق سيُنشأ عقد تلقائياً ويُحجز المبلغ في الضمان.' : 'عندما يقبل عميل عرضك سيظهر العقد هنا — تابع عروضك في صفحة العروض.'}
+          </p>
+          <Link href={isClient ? '/dashboard/proposals' : '/projects'} className="mt-6 inline-flex h-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-5 text-[12px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]">
+            {isClient ? 'استعراض العروض' : 'تصفح المشاريع'}
+          </Link>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {contractsList.map((c) => (
+            <ContractCard key={c.id} contract={c} isClient={isClient} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

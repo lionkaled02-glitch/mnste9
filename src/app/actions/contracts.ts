@@ -519,3 +519,166 @@ export async function releasePaymentAction(
   const contractId = typeof raw === 'string' ? Number(raw) : Number.NaN;
   return releasePayment(contractId);
 }
+
+export async function submitDeliveryAction(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
+
+  const contractId = parseId(formData.get('contractId'));
+  const notes = (formData.get('notes') as string)?.trim() ?? '';
+  const links = (formData.get('links') as string)?.trim() ?? '';
+
+  if (!contractId) return { success: false, message: 'معرّف العقد غير صالح' };
+  if (!notes || notes.length < 10) return { success: false, message: 'أدخل ملاحظات التسليم (10 أحرف على الأقل)' };
+
+  const [contract] = await db.select().from(contracts).where(eq(contracts.id, contractId)).limit(1);
+  if (!contract) return { success: false, message: 'العقد غير موجود' };
+  if (contract.freelancerId !== currentUser.id) return { success: false, message: 'التسليم متاح للمستقل فقط' };
+  if (contract.status !== 'active') return { success: false, message: `لا يمكن التسليم — حالة العقد: ${contract.status}` };
+
+  try {
+    try {
+      await db.update(contracts).set({ status: 'pending_delivery' as any, updatedAt: new Date() }).where(eq(contracts.id, contractId));
+    } catch {
+      // fallback keep active
+    }
+
+    const { getOrCreateConversation } = await import('@/lib/services/messages');
+    const convId = await getOrCreateConversation({
+      currentUserId: currentUser.id,
+      otherUserId: contract.clientId,
+      projectId: contract.projectId,
+    });
+
+    const { messages } = await import('@/db/schema');
+    await db.insert(messages).values({
+      conversationId: convId,
+      senderId: currentUser.id,
+      content: `📦 تسليم مشروع: ${notes}${links ? `\n🔗 الروابط: ${links}` : ''}`,
+      isRead: false,
+    });
+
+    const { conversations } = await import('@/db/schema');
+    await db.update(conversations).set({ lastMessageAt: new Date(), updatedAt: new Date() }).where(eq(conversations.id, convId));
+
+    revalidatePath(`/dashboard/contracts/${contractId}`);
+    revalidatePath('/dashboard/messages');
+
+    return { success: true, message: 'تم تسليم المشروع بنجاح — بانتظار مراجعة العميل', redirectTo: `/dashboard/contracts/${contractId}` };
+  } catch (e) {
+    console.error('submitDelivery failed', e);
+    return { success: false, message: e instanceof Error ? e.message : 'فشل التسليم' };
+  }
+}
+
+export async function requestRevisionAction(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
+
+  const contractId = parseId(formData.get('contractId'));
+  const reason = (formData.get('reason') as string)?.trim() ?? '';
+
+  if (!contractId) return { success: false, message: 'معرّف العقد غير صالح' };
+  if (!reason || reason.length < 10) return { success: false, message: 'أدخل سبب طلب التعديلات (10 أحرف على الأقل)' };
+
+  const [contract] = await db.select().from(contracts).where(eq(contracts.id, contractId)).limit(1);
+  if (!contract) return { success: false, message: 'العقد غير موجود' };
+  if (contract.clientId !== currentUser.id) return { success: false, message: 'طلب التعديلات متاح للعميل فقط' };
+  if (contract.status !== 'active' && (contract.status as string) !== 'pending_delivery') {
+    return { success: false, message: `لا يمكن طلب تعديلات — حالة العقد: ${contract.status}` };
+  }
+
+  try {
+    if ((contract.status as string) === 'pending_delivery') {
+      await db.update(contracts).set({ status: 'active', updatedAt: new Date() }).where(eq(contracts.id, contractId));
+    }
+
+    const { getOrCreateConversation } = await import('@/lib/services/messages');
+    const convId = await getOrCreateConversation({
+      currentUserId: currentUser.id,
+      otherUserId: contract.freelancerId,
+      projectId: contract.projectId,
+    });
+
+    const { messages } = await import('@/db/schema');
+    await db.insert(messages).values({
+      conversationId: convId,
+      senderId: currentUser.id,
+      content: `🔄 طلب تعديلات: ${reason}`,
+      isRead: false,
+    });
+
+    const { conversations } = await import('@/db/schema');
+    await db.update(conversations).set({ lastMessageAt: new Date(), updatedAt: new Date() }).where(eq(conversations.id, convId));
+
+    revalidatePath(`/dashboard/contracts/${contractId}`);
+    revalidatePath('/dashboard/messages');
+
+    return { success: true, message: 'تم إرسال طلب التعديلات للمستقل', redirectTo: `/dashboard/contracts/${contractId}` };
+  } catch (e) {
+    console.error('requestRevision failed', e);
+    return { success: false, message: e instanceof Error ? e.message : 'فشل طلب التعديلات' };
+  }
+}
+
+export async function raiseDisputeAction(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
+
+  const contractId = parseId(formData.get('contractId'));
+  const reason = (formData.get('reason') as string)?.trim() ?? '';
+
+  if (!contractId) return { success: false, message: 'معرّف العقد غير صالح' };
+  if (!reason || reason.length < 10) return { success: false, message: 'أدخل سبب النزاع (10 أحرف على الأقل)' };
+
+  const [contract] = await db.select().from(contracts).where(eq(contracts.id, contractId)).limit(1);
+  if (!contract) return { success: false, message: 'العقد غير موجود' };
+  if (contract.clientId !== currentUser.id && contract.freelancerId !== currentUser.id) {
+    return { success: false, message: 'غير مصرح' };
+  }
+  if (contract.status === 'completed' || contract.status === 'cancelled') {
+    return { success: false, message: `لا يمكن فتح نزاع — العقد ${contract.status}` };
+  }
+
+  try {
+    await db.update(contracts).set({ status: 'disputed', updatedAt: new Date() }).where(eq(contracts.id, contractId));
+
+    const otherId = currentUser.id === contract.clientId ? contract.freelancerId : contract.clientId;
+
+    const { getOrCreateConversation } = await import('@/lib/services/messages');
+    const convId = await getOrCreateConversation({
+      currentUserId: currentUser.id,
+      otherUserId: otherId,
+      projectId: contract.projectId,
+    });
+
+    const { messages } = await import('@/db/schema');
+    await db.insert(messages).values({
+      conversationId: convId,
+      senderId: currentUser.id,
+      content: `⚠️ فتح نزاع: ${reason} — سيتدخل فريق الدعم قريباً`,
+      isRead: false,
+    });
+
+    const { conversations } = await import('@/db/schema');
+    await db.update(conversations).set({ lastMessageAt: new Date(), updatedAt: new Date() }).where(eq(conversations.id, convId));
+
+    revalidatePath(`/dashboard/contracts/${contractId}`);
+    revalidatePath('/dashboard/contracts');
+
+    return { success: true, message: 'تم فتح النزاع — سيتواصل الدعم مع الطرفين', redirectTo: `/dashboard/contracts/${contractId}` };
+  } catch (e) {
+    console.error('raiseDispute failed', e);
+    return { success: false, message: e instanceof Error ? e.message : 'فشل فتح النزاع' };
+  }
+}
+
