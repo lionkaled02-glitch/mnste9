@@ -1,9 +1,10 @@
 /**
  * ============================================================================
- *  mnste9 — صفحة تصفح المستقلين (/freelancers) — المرحلة 10 محسّنة
+ *  mnste9 — صفحة تصفح المستقلين (/freelancers) — المرحلة 10 نهائي
  * ============================================================================
  *  - يستخدم SiteHeader/Footer
- *  - نفس البحث والشبكة السابقة مع تحسينات طفيفة
+ *  - زر مفضلة (قلب) في كل بطاقة مستقل
+ *  - عرض الملف يذهب إلى /freelancers/[id] (تم إنشاؤه)
  * ============================================================================
  */
 
@@ -12,6 +13,8 @@ import Link from 'next/link';
 
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
+import { FavoriteButton } from '@/components/favorite-button';
+import { getCurrentUser } from '@/lib/auth';
 import { listFreelancers } from '@/lib/services/freelancers';
 import { formatDate } from '@/lib/utils';
 
@@ -45,17 +48,23 @@ function FreelancerCard({
   specialty,
   isKycVerified,
   createdAt,
+  isLoggedIn,
 }: {
   id: number;
   name: string;
   specialty: string;
   isKycVerified: boolean;
   createdAt: Date;
+  isLoggedIn: boolean;
 }) {
   const initial = name.trim().charAt(0) || 'م';
 
   return (
-    <article className="flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm transition hover:shadow">
+    <article className="relative flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm transition hover:shadow">
+      <div className="absolute left-4 top-4">
+        <FavoriteButton type="freelancer" id={id} isLoggedIn={isLoggedIn} />
+      </div>
+
       <div className="relative">
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 text-xl font-bold text-emerald-800">
           {initial}
@@ -71,9 +80,7 @@ function FreelancerCard({
 
       <h2 className="mt-4 flex items-center gap-1.5 font-bold text-slate-900">
         {name}
-        {isKycVerified && (
-          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">موثّق</span>
-        )}
+        {isKycVerified && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">موثّق</span>}
       </h2>
       <p className="mt-1 text-sm text-slate-500">{specialty}</p>
 
@@ -106,7 +113,9 @@ export default async function FreelancersPage({ searchParams }: FreelancersPageP
   const rawSearch = firstParam(resolvedSearchParams, 'q')?.trim();
   const search = rawSearch || undefined;
 
-  const freelancers = await listFreelancers({ search });
+  const [freelancers, currentUser] = await Promise.all([listFreelancers({ search }), getCurrentUser()]);
+
+  const isLoggedIn = Boolean(currentUser);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -168,6 +177,7 @@ export default async function FreelancersPage({ searchParams }: FreelancersPageP
                   specialty={freelancer.specialty}
                   isKycVerified={freelancer.isKycVerified}
                   createdAt={freelancer.createdAt}
+                  isLoggedIn={isLoggedIn}
                 />
               ))}
             </div>

@@ -1,9 +1,10 @@
 /**
  * ============================================================================
- *  mnste9 — صفحة المشاريع (/projects) — المرحلة 10 محسّنة
+ *  mnste9 — صفحة المشاريع (/projects) — المرحلة 10 نهائي
  * ============================================================================
  *  - يستخدم SiteHeader/Footer
- *  - نفس الفلاتر والشبكة السابقة
+ *  - زر مفضلة (قلب) في كل بطاقة مشروع
+ *  - إذا غير مسجل → /login، إذا مسجل → wishlist محلية (localStorage)
  * ============================================================================
  */
 
@@ -12,6 +13,8 @@ import Link from 'next/link';
 
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
+import { FavoriteButton } from '@/components/favorite-button';
+import { getCurrentUser } from '@/lib/auth';
 import {
   formatBudgetRange,
   formatDurationDays,
@@ -51,8 +54,9 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     sort: parseSortParam(firstParam(resolvedSearchParams, 'sort')),
   };
 
-  const projects = await listProjects(filters);
+  const [projects, currentUser] = await Promise.all([listProjects(filters), getCurrentUser()]);
   const hasActiveFilters = Boolean(filters.category || filters.budget);
+  const isLoggedIn = Boolean(currentUser);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -110,9 +114,13 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
                 {projects.map((project) => (
                   <article
                     key={project.id}
-                    className="flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow"
+                    className="relative flex flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="absolute left-4 top-4">
+                      <FavoriteButton type="project" id={project.id} isLoggedIn={isLoggedIn} />
+                    </div>
+
+                    <div className="flex items-start justify-between gap-3 pl-10">
                       <h2 className="text-lg font-bold text-slate-900">{project.title}</h2>
                       <span
                         className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${PROJECT_STATUS_BADGE_CLASSES[project.status]}`}

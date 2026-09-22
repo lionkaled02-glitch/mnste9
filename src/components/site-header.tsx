@@ -1,18 +1,11 @@
 /**
  * ============================================================================
- *  mnste9 — الشريط العلوي (Site Header) — المرحلة 10
+ *  mnste9 — الشريط العلوي (Site Header) — المرحلة 10 نهائي
  * ============================================================================
- *  🔴 المشكلة المهمة التي يحلها:
- *   بعد تسجيل الدخول، كان زر "تسجيل الدخول" و"إنشاء حساب" يظلان ظاهرين.
- *
- *  الحل:
- *   - مكوّن خادم (Server Component) يستخدم getCurrentUser() من طبقة المصادقة.
- *   - إذا كان المستخدم مسجلاً: يُخفي أزرار الدخول/التسجيل ويعرض Avatar +
- *     قائمة منسدلة (الملف الشخصي، أعمالي، الإعدادات، تسجيل الخروج).
- *   - إذا لم يكن مسجلاً: يعرض "تسجيل الدخول" + "إنشاء حساب".
- *   - يعيد التحميل عند تسجيل الدخول/الخروج عبر router.refresh().
- *
- *  الاستخدام: يُستورد في الصفحة الرئيسية وكل الصفحات العامة.
+ *  - بعد تسجيل الدخول: يخفي login/register ويعرض Avatar + dropdown
+ *  - Dropdown: الملف الشخصي، أعمالي، الإعدادات، تسجيل الخروج
+ *  - نشر مشروع يظهر في القائمة العلوية بعد تسجيل الدخول — معيار نجاح
+ *  - force-dynamic لمنع cache
  * ============================================================================
  */
 
@@ -38,7 +31,6 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-        {/* الشعار + روابط عامة */}
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600">
@@ -67,10 +59,17 @@ export async function SiteHeader() {
                 {link.label}
               </Link>
             ))}
+            {currentUser && (
+              <Link
+                href="/projects/new"
+                className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+              >
+                نشر مشروع
+              </Link>
+            )}
           </nav>
         </div>
 
-        {/* جهة اليسار — حسب حالة المصادقة */}
         <div className="flex items-center gap-3">
           {currentUser ? (
             <>
@@ -80,11 +79,7 @@ export async function SiteHeader() {
               >
                 لوحة التحكم
               </Link>
-              <SiteHeaderDropdown
-                name={currentUser.name}
-                email={currentUser.email}
-                initial={initial}
-              />
+              <SiteHeaderDropdown name={currentUser.name} email={currentUser.email} initial={initial} />
             </>
           ) : (
             <>
@@ -105,7 +100,6 @@ export async function SiteHeader() {
         </div>
       </div>
 
-      {/* روابط الجوال — شريط ثانٍ بسيط */}
       <div className="border-t border-slate-100 bg-white md:hidden">
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-2 py-1.5">
           {PUBLIC_LINKS.map((link) => (
@@ -117,6 +111,14 @@ export async function SiteHeader() {
               {link.label}
             </Link>
           ))}
+          {currentUser && (
+            <Link
+              href="/projects/new"
+              className="whitespace-nowrap rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+            >
+              نشر مشروع
+            </Link>
+          )}
         </nav>
       </div>
     </header>
