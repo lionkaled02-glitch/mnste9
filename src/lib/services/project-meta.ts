@@ -1,58 +1,68 @@
 /**
  * ============================================================================
- *  mnste9 — ثوابت وأدوات عرض المشاريع (طبقة نقية بلا قاعدة بيانات)
+ *  خدمات — ثوابت وأدوات عرض المشاريع (طبقة نقية بلا قاعدة بيانات)
  * ============================================================================
- *  هذا الملف آمن للاستيراد من مكوّنات العميل (Client Components) — لا يستورد
- *  drizzle أو pg إطلاقاً. استعلامات قاعدة البيانات في src/lib/services/projects.ts.
+ *  طبقة آمنة للعميل — لا تستورد drizzle أو pg
+ *  استعلامات قاعدة البيانات في src/lib/services/projects.ts
  *
- *  قرار معماري موثّق — التصنيف بلا عمود في قاعدة البيانات:
- *   جدول projects (المخطط المجمَّد بموجب قواعد المرحلة) لا يوجد فيه عمود
- *   category. الحل المعتمد:
- *    1) عند نشر مشروع، يُلحق سطر منظم بآخر الوصف:  "التصنيف: برمجة".
- *    2) فلترة التصنيف تعمل بمطابقة جذوع كلمات عربية (ILIKE) على العنوان
- *       والوصف — فتشمل المشاريع المنشورة عبر النموذج (سطر التصنيف) وأي
- *       مشاريع تذكر التصنيف صراحةً في نصها.
- *    3) عند العرض يُخفى سطر التصنيف من الوصف ويُعرض مكانه شارة تصنيف.
- *   التخزين قابل للترحيل لاحقاً إلى عمود حقيقي بمجرد السماح بتعديل المخطط.
- *
- *  ملاحظة التقييم في بطاقة العميل:
- *   لا يوجد جدول تقييمات في المخطط الحالي، لذا يُعرض "لا تقييمات بعد"
- *   حتى تُبنى منظومة التقييمات في مرحلة قادمة.
+ *  التصنيف بلا عمود في قاعدة البيانات — يُخزن كسطر "التصنيف: X"
+ *  في آخر الوصف، والفلترة بمطابقة جذوع كلمات (ILIKE)
  * ============================================================================
  */
 
 /* ============================================================================
- * التصنيفات — الترتيب مطابق لمواصفة المرحلة
- * stems: جذوع كلمات عربية للمطابقة (برمج تطابق: برمجة، مبرمج، برمجيات…)
+ * التصنيفات — موسعة لأسلوب مستقل / Upwork (8 أقسام رئيسية)
  * ========================================================================== */
 
 export interface ProjectCategory {
   slug: string;
   label: string;
   stems: readonly string[];
+  icon?: string;
 }
 
 export const PROJECT_CATEGORIES: readonly ProjectCategory[] = [
   {
     slug: 'programming',
-    label: 'برمجة',
-    stems: ['برمج', 'تطوير', 'موقع', 'ويب', 'تطبيق'],
+    label: 'برمجة وتطوير',
+    stems: ['برمج', 'تطوير', 'موقع', 'ويب', 'تطبيق', 'برمجة', 'كود', 'API', 'React', 'Node'],
   },
   {
     slug: 'design',
-    label: 'تصميم',
-    stems: ['تصميم', 'مصمم', 'جرافيك', 'هوية'],
-  },
-  {
-    slug: 'writing',
-    label: 'كتابة',
-    stems: ['كتابة', 'كاتب', 'مقال', 'محتوى'],
+    label: 'تصميم وإبداع',
+    stems: ['تصميم', 'مصمم', 'جرافيك', 'هوية', 'UI', 'UX', 'فوتوشوب', 'إبداع'],
   },
   {
     slug: 'marketing',
-    label: 'تسويق',
-    stems: ['تسويق', 'إعلان', 'حملة'],
+    label: 'تسويق رقمي',
+    stems: ['تسويق', 'إعلان', 'حملة', 'SEO', 'سوشيال', 'تسويق رقمي'],
   },
+  {
+    slug: 'writing',
+    label: 'كتابة وترجمة',
+    stems: ['كتابة', 'كاتب', 'مقال', 'محتوى', 'ترجم', 'كتابة'],
+  },
+  {
+    slug: 'admin',
+    label: 'دعم إداري',
+    stems: ['إداري', 'إدخال', 'بيانات', 'سكرتارية', 'دعم إداري', 'مساعد'],
+  },
+  {
+    slug: 'video',
+    label: 'فيديو وأنيميشن',
+    stems: ['فيديو', 'مونتاج', 'أنيميشن', 'موشن', 'تعليق صوتي', 'تصوير'],
+  },
+  {
+    slug: 'business',
+    label: 'أعمال واستشارات',
+    stems: ['أعمال', 'استشارة', 'دراسة جدوى', 'خطة عمل', 'استشارات'],
+  },
+  {
+    slug: 'engineering',
+    label: 'هندسة وعمارة',
+    stems: ['هندسة', 'معماري', 'خرائط', 'أوتوكاد', 'عمارة'],
+  },
+  // توافق قديم
   {
     slug: 'translation',
     label: 'ترجمة',
@@ -65,7 +75,6 @@ export const PROJECT_CATEGORIES: readonly ProjectCategory[] = [
   },
 ];
 
-/** قيم slugs كـ tuple — للاستخدام مع z.enum في طبقة الإجراءات */
 export const CATEGORY_SLUGS = [
   'programming',
   'design',
@@ -73,13 +82,16 @@ export const CATEGORY_SLUGS = [
   'marketing',
   'translation',
   'accounting',
+  'admin',
+  'video',
+  'business',
+  'engineering',
 ] as const;
 
 export type ProjectCategorySlug = (typeof CATEGORY_SLUGS)[number];
 
 /* ============================================================================
- * فلاتر الميزانية — الدلالة: تقاطع نطاق ميزانية المشروع [min, max]
- * مع النطاق المختار (أي مشروع يمكن أن يقع ضمن النطاق يظهر)
+ * فلاتر الميزانية — قديم (للتوافق) + جديد min/max
  * ========================================================================== */
 
 export interface BudgetFilterOption {
@@ -104,19 +116,24 @@ export const BUDGET_FILTER_VALUES = [
 export type BudgetFilterValue = (typeof BUDGET_FILTER_VALUES)[number];
 
 /* ============================================================================
- * خيارات الترتيب
+ * خيارات الترتيب — موسعة حسب المواصفات
  * ========================================================================== */
 
 export const SORT_OPTIONS = [
   { value: 'newest', label: 'الأحدث' },
+  { value: 'oldest', label: 'الأقدم' },
+  { value: 'budget_high', label: 'الأعلى ميزانية' },
+  { value: 'budget_low', label: 'الأقل ميزانية' },
+  { value: 'proposals_least', label: 'الأقل عروضاً' },
+  { value: 'proposals_most', label: 'الأكثر عروضاً' },
+  // توافق قديم
   { value: 'budget', label: 'الأعلى ميزانية' },
 ] as const;
 
 export type ProjectSortValue = (typeof SORT_OPTIONS)[number]['value'];
 
 /* ============================================================================
- * حالات المشروع — متزامنة مع project_status_enum في المخطط
- * (لا يمكن استيراد المخطط هنا لأن هذا الملف يُستورد من العميل)
+ * حالات المشروع
  * ========================================================================== */
 
 export type ProjectStatusKey = 'open' | 'in_progress' | 'completed' | 'cancelled';
@@ -128,43 +145,78 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatusKey, string> = {
   cancelled: 'ملغي',
 };
 
-/** ألوان شارات الحالة — هادئة ومتمايزة */
 export const PROJECT_STATUS_BADGE_CLASSES: Record<ProjectStatusKey, string> = {
-  open: 'bg-emerald-100 text-emerald-800',
-  in_progress: 'bg-amber-100 text-amber-800',
-  completed: 'bg-sky-100 text-sky-800',
-  cancelled: 'bg-slate-100 text-slate-600',
+  open: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  in_progress: 'bg-amber-50 text-amber-700 border border-amber-200',
+  completed: 'bg-[#2386c8]/10 text-[#2386c8] border border-[#2386c8]/20',
+  cancelled: 'bg-gray-100 text-gray-600 border border-gray-200',
 };
 
+export const STATUS_FILTERS: readonly { value: ProjectStatusKey; label: string }[] = [
+  { value: 'open', label: 'مفتوح' },
+  { value: 'in_progress', label: 'قيد التنفيذ' },
+  { value: 'completed', label: 'مكتمل' },
+  { value: 'cancelled', label: 'ملغي' },
+];
+
 /* ============================================================================
- * تحليل معاملات URL (searchParams) — قيم غير صالحة تُهمل بصمت
+ * تحليل معاملات URL
  * ========================================================================== */
 
 export function parseCategoryParam(raw: unknown): ProjectCategorySlug | undefined {
-  return typeof raw === 'string' &&
-    CATEGORY_SLUGS.includes(raw as ProjectCategorySlug)
+  return typeof raw === 'string' && CATEGORY_SLUGS.includes(raw as ProjectCategorySlug)
     ? (raw as ProjectCategorySlug)
     : undefined;
 }
 
 export function parseBudgetParam(raw: unknown): BudgetFilterValue | undefined {
-  return typeof raw === 'string' &&
-    BUDGET_FILTER_VALUES.includes(raw as BudgetFilterValue)
+  return typeof raw === 'string' && BUDGET_FILTER_VALUES.includes(raw as BudgetFilterValue)
     ? (raw as BudgetFilterValue)
     : undefined;
 }
 
 export function parseSortParam(raw: unknown): ProjectSortValue {
-  return raw === 'budget' ? 'budget' : 'newest';
+  const valid = SORT_OPTIONS.map((o) => o.value);
+  if (typeof raw === 'string' && valid.includes(raw as ProjectSortValue)) {
+    return raw as ProjectSortValue;
+  }
+  return 'newest';
+}
+
+export function parseStatusParam(raw: unknown): ProjectStatusKey | undefined {
+  const valid: ProjectStatusKey[] = ['open', 'in_progress', 'completed', 'cancelled'];
+  return typeof raw === 'string' && valid.includes(raw as ProjectStatusKey)
+    ? (raw as ProjectStatusKey)
+    : undefined;
+}
+
+export function parseQParam(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    return raw.trim().slice(0, 100);
+  }
+  return undefined;
+}
+
+export function parseNumberParam(raw: unknown): number | undefined {
+  if (typeof raw === 'string') {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  return undefined;
+}
+
+export function parsePageParam(raw: unknown): number {
+  const n = parseNumberParam(raw);
+  if (n && Number.isInteger(n) && n >= 1 && n <= 1000) return n;
+  return 1;
 }
 
 /* ============================================================================
- * سطر التصنيف داخل الوصف (تخزين منظم — راجع الترويسة)
+ * سطر التصنيف داخل الوصف
  * ========================================================================== */
 
 export const CATEGORY_TAG_PREFIX = 'التصنيف:';
 
-/** إلحاق سطر التصنيف بآخر الوصف عند الإنشاء */
 export function appendCategoryTag(description: string, label: string): string {
   return `${description}\n\n${CATEGORY_TAG_PREFIX} ${label}`;
 }
@@ -176,12 +228,10 @@ const CATEGORY_TAG_REGEX = new RegExp(
   'u',
 );
 
-/** إزالة سطر التصنيف عند العرض (يُعرض مكانه شارة تصنيف) */
 export function stripCategoryTag(description: string): string {
   return description.replace(CATEGORY_TAG_REGEX, '');
 }
 
-/** استنتاج التصنيف من نص المشروع (أول تطابق بترتيب التصنيفات) */
 export function deriveCategoryLabel(text: string): string | undefined {
   for (const category of PROJECT_CATEGORIES) {
     if (category.stems.some((stem) => text.includes(stem))) {
@@ -191,27 +241,83 @@ export function deriveCategoryLabel(text: string): string | undefined {
   return undefined;
 }
 
+export function deriveCategorySlug(text: string): ProjectCategorySlug | undefined {
+  for (const category of PROJECT_CATEGORIES) {
+    if (category.stems.some((stem) => text.includes(stem))) {
+      return category.slug as ProjectCategorySlug;
+    }
+  }
+  return undefined;
+}
+
 /* ============================================================================
- * تنسيقات عرض — أرقام غربية للمبالغ والمدد (المتعارف عليه مع $)،
- * والتواريخ عبر formatDate (ar-YE) في طبقة العرض
+ * المهارات — استخراج badges من النص (تقريب بسيط)
  * ========================================================================== */
 
-/** "150.00" → "150" | "99.50" → "99.50" */
+const COMMON_SKILLS = [
+  'React',
+  'Next.js',
+  'Vue',
+  'Angular',
+  'Node.js',
+  'PHP',
+  'Laravel',
+  'WordPress',
+  'Flutter',
+  'تصميم',
+  'UI/UX',
+  'فوتوشوب',
+  'SEO',
+  'تسويق',
+  'كتابة',
+  'ترجمة',
+  'مونتاج',
+  'موشن',
+  'هوية بصرية',
+  'تطبيق جوال',
+  'موقع إلكتروني',
+  'API',
+  'قاعدة بيانات',
+  'إدخال بيانات',
+];
+
+export function extractSkills(text: string, limit = 4): string[] {
+  const found: string[] = [];
+  const lower = text.toLowerCase();
+  for (const skill of COMMON_SKILLS) {
+    if (lower.includes(skill.toLowerCase()) || text.includes(skill)) {
+      found.push(skill);
+      if (found.length >= limit) break;
+    }
+  }
+  // إذا لم نجد مهارات، استخدم التصنيف كمهارة
+  if (found.length === 0) {
+    const cat = deriveCategoryLabel(text);
+    if (cat) found.push(cat);
+  }
+  return found;
+}
+
+/* ============================================================================
+ * تنسيقات عرض
+ * ========================================================================== */
+
 function formatAmount(value: string): string {
   const parsed = Number(value);
+  if (Number.isNaN(parsed)) return value;
   return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(2);
 }
 
-/** نطاق الميزانية: "150$ – 300$" أو قيمة واحدة "150$" */
 export function formatBudgetRange(min: string, max: string): string {
   const formattedMin = formatAmount(min);
   const formattedMax = formatAmount(max);
-  return formattedMin === formattedMax
-    ? `${formattedMin}$`
-    : `${formattedMin}$ – ${formattedMax}$`;
+  return formattedMin === formattedMax ? `${formattedMin}$` : `${formattedMin}$ – ${formattedMax}$`;
 }
 
-/** المدة بالأيام بصيغة عربية سليمة */
+export function formatBudgetShort(min: string, max: string): string {
+  return formatBudgetRange(min, max);
+}
+
 export function formatDurationDays(days: number): string {
   if (days === 1) return 'يوم واحد';
   if (days === 2) return 'يومان';
@@ -219,7 +325,6 @@ export function formatDurationDays(days: number): string {
   return `${days} يوماً`;
 }
 
-/** عدد المشاريع بصيغة عربية سليمة */
 export function formatProjectCount(count: number): string {
   if (count === 0) return 'لا مشاريع';
   if (count === 1) return 'مشروع واحد';
@@ -228,11 +333,28 @@ export function formatProjectCount(count: number): string {
   return `${count} مشروعاً`;
 }
 
-/** عدد العروض بصيغة عربية سليمة */
 export function formatProposalCount(count: number): string {
   if (count === 0) return 'لا عروض بعد';
   if (count === 1) return 'عرض واحد';
   if (count === 2) return 'عرضان';
   if (count >= 3 && count <= 10) return `${count} عروض`;
   return `${count} عرضاً`;
+}
+
+export function timeAgo(date: Date): string {
+  try {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'الآن';
+    if (mins < 60) return `منذ ${mins} دقيقة`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `منذ ${hours} ساعة`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'منذ يوم';
+    if (days < 7) return `منذ ${days} أيام`;
+    if (days < 30) return `منذ ${Math.floor(days / 7)} أسابيع`;
+    return new Date(date).toLocaleDateString('ar-YE');
+  } catch {
+    return '';
+  }
 }
