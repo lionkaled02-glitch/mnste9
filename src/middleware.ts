@@ -1,12 +1,13 @@
 /**
  * ============================================================================
- *  mnste9 — Middleware موحد (i18n + حماية المسارات) — المرحلة 1
+ *  خدمات — Middleware موحد (i18n + حماية المسارات) — إصلاح التدويل
  * ============================================================================
- *  - i18n: يستخدم next-intl لتحديد اللغة من كوكي NEXT_LOCALE أو Accept-Language
- *    العربية افتراضية (ar)، الإنجليزية خيار ثانٍ (en)، بدون prefix في URL
- *  - حماية: يحمي /dashboard/* و /wallet/* و /contracts/* بإعادة توجيه
- *    غير المسجلين إلى /login مع ?from=
- *  - سياسة fail-closed: أي رمز مفقود/غير صالح = غير موثّق → redirect
+ *  - i18n: localePrefix: always — كل المسارات تحمل /ar أو /en
+ *    - إذا كان المسار بدون بادئة لغة، يتم Auto-Redirect إلى /ar/{path}
+ *    - مثال: /projects -> /ar/projects, /login -> /ar/login
+ *  - حماية: يحمي /dashboard/* و /wallet/* و /contracts/*
+ *    مع دعم البادئة اللغوية (/ar/dashboard, /en/dashboard)
+ *  - next-intl middleware يتولى ضبط اللغة والكوكي
  * ============================================================================
  */
 
@@ -19,13 +20,62 @@ import { routing } from '@/i18n/routing';
 const intlMiddleware = createMiddleware(routing);
 
 const PROTECTED_PREFIXES = ['/dashboard', '/wallet', '/contracts'];
+const LOCALES = routing.locales as unknown as string[];
+const DEFAULT_LOCALE = routing.defaultLocale;
+
+function getPathWithoutLocale(pathname: string): string {
+  for (const locale of LOCALES) {
+    if (pathname === `/${locale}`) return '/';
+    if (pathname.startsWith(`/${locale}/`)) {
+      return pathname.slice(`/${locale}`.length) || '/';
+    }
+  }
+  return pathname;
+}
+
+function hasLocalePrefix(pathname: string): boolean {
+  return LOCALES.some((locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`));
+}
 
 export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  // حماية المسارات الخاصة
+  // تجاهل api و _next والملفات الثابتة (يتم عبر matcher لكن احتياط)
+  if (
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/_vercel') ||
+    pathname.includes('.')
+  ) {
+    return intlMiddleware(request);
+  }
+
+  // 1) Auto-Redirect: إذا كان المسار بدون بادئة لغة، أضف /ar تلقائياً
+  if (!hasLocalePrefix(pathname)) {
+    // لا تعيد توجيه الصفحة الرئيسية / إلى /ar/ مباشرة عبر intlMiddleware سيتولى ذلك
+    // لكننا نضمن إضافة /ar لأي مسار بدون لغة
+    const newUrl = new URL(`/${DEFAULT_LOCALE}${pathname === '/' ? '' : pathname}`, request.url);
+    newUrl.search = request.nextUrl.search;
+    // حماية المسارات قبل إعادة التوجيه؟ نتحقق من الأصل أيضاً
+    const isProtectedOriginal = PROTECTED_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    );
+    if (isProtectedOriginal) {
+      const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const session = await verifySession(token);
+      if (!session) {
+        const loginUrl = new URL(`/${DEFAULT_LOCALE}/login`, request.url);
+        loginUrl.searchParams.set('from', `/${DEFAULT_LOCALE}${pathname}`);
+        return NextResponse.redirect(loginUrl);
+      }
+    }
+    return NextResponse.redirect(newUrl);
+  }
+
+  // 2) حماية المسارات مع بادئة اللغة
+  const pathWithoutLocale = getPathWithoutLocale(pathname);
   const isProtected = PROTECTED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    (prefix) => pathWithoutLocale === prefix || pathWithoutLocale.startsWith(`${prefix}/`),
   );
 
   if (isProtected) {
@@ -33,13 +83,15 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     const session = await verifySession(token);
 
     if (!session) {
-      const loginUrl = new URL('/login', request.url);
+      // إعادة توجيه إلى صفحة تسجيل الدخول مع الحفاظ على اللغة
+      const locale = pathname.split('/')[1] || DEFAULT_LOCALE;
+      const loginUrl = new URL(`/${locale}/login`, request.url);
       loginUrl.searchParams.set('from', pathname);
       return NextResponse.redirect(loginUrl);
     }
   }
 
-  // توجيه اللغة (next-intl)
+  // 3) توجيه اللغة (next-intl)
   return intlMiddleware(request);
 }
 

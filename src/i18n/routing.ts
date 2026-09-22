@@ -1,12 +1,12 @@
 /**
  * ============================================================================
- *  mnste9 — إعدادات توجيه اللغات (next-intl)
+ *  خدمات — إعدادات توجيه اللغات (next-intl)
  * ============================================================================
  *  - العربية افتراضية (ar)
  *  - الإنجليزية خيار ثانٍ (en)
- *  - بدون prefix في الـ URL (localePrefix: never) — يحافظ على المسارات الحالية
- *    مثل /projects و /dashboard بدون تغيير
- *  - اللغة تُحفظ في كوكي NEXT_LOCALE
+ *  - localePrefix: always — كل المسارات تحمل بادئة اللغة /ar /en
+ *    يحل مشكلة 404 عند الضغط على أزرار الهيدر بدون بادئة
+ *  - Auto-Redirect يتم في middleware.ts لإضافة /ar تلقائياً
  * ============================================================================
  */
 
@@ -15,5 +15,5 @@ import { defineRouting } from 'next-intl/routing';
 export const routing = defineRouting({
   locales: ['ar', 'en'],
   defaultLocale: 'ar',
-  localePrefix: 'never',
+  localePrefix: 'always',
 });

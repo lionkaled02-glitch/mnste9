@@ -1,29 +1,14 @@
 'use client';
 
 /**
- * خدمات — فلاتر جانبية للمشاريع (Client)
- * - تصنيف، ميزانية min/max، حالة
- * - تحديث URL عبر router.push
+ * خدمات — فلاتر جانبية للمشاريع — إصلاح التدويل
+ * يستخدم navigation من next-intl مع بادئة اللغة
  */
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from '@/i18n/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { PROJECT_CATEGORIES, STATUS_FILTERS } from '@/lib/services/project-meta';
-
-function updateQuery(
-  current: URLSearchParams,
-  updates: Record<string, string | undefined>,
-): string {
-  const params = new URLSearchParams(current.toString());
-  Object.entries(updates).forEach(([k, v]) => {
-    if (!v) params.delete(k);
-    else params.set(k, v);
-  });
-  // إعادة تعيين الصفحة عند تغيير الفلتر
-  if (!updates.page) params.delete('page');
-  const qs = params.toString();
-  return qs ? `/projects?${qs}` : '/projects';
-}
 
 export function ProjectFiltersSidebar({
   initialCategory,
@@ -37,15 +22,27 @@ export function ProjectFiltersSidebar({
   initialStatus?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
   const [budgetMin, setBudgetMin] = useState(initialBudgetMin || '');
   const [budgetMax, setBudgetMax] = useState(initialBudgetMax || '');
 
+  const updateQuery = (updates: Record<string, string | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([k, v]) => {
+      if (!v) params.delete(k);
+      else params.set(k, v);
+    });
+    if (!updates.page) params.delete('page');
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  };
+
   const navigate = (updates: Record<string, string | undefined>) => {
     startTransition(() => {
-      router.push(updateQuery(searchParams, updates));
+      router.push(updateQuery(updates));
     });
   };
 

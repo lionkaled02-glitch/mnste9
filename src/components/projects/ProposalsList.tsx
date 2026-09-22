@@ -3,7 +3,7 @@
  * - صاحب المشروع يراها كاملة، الزائر يرى ملخص عام
  */
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import type { ProjectProposalItem } from '@/lib/services/projects';
 
 function formatAmount(amount: string) {

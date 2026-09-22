@@ -1,23 +1,21 @@
 /**
  * ============================================================================
- *  خدمات — الشريط العلوي بأسلوب مستقل 100% — المرحلة النهائية
+ *  خدمات — الشريط العلوي بأسلوب مستقل 100% — إصلاح التدويل
  * ============================================================================
- *  - هوية: خدمات (Khadamat) رسمياً في جميع النصوص
- *  - خلفية بيضاء ناصعة bg-white + حد سفلي ناعم border-b border-gray-200
- *  - sticky top-0 z-50 + RTL
- *  - يمين: شعار بطاقي أنيق + روابط: تصفح المشاريع | المستقلين | إضافة مشروع
- *  - يسار: بحث سريع + إشعارات + رسائل + Avatar dropdown + زر + أضف مشروع
- *  - يحافظ على i18n و force-dynamic
+ *  - يستخدم Link من @/i18n/navigation بدلاً من next/link
+ *    ليضيف بادئة اللغة /ar تلقائياً ويحل مشكلة 404
+ *  - المسارات: /projects -> /ar/projects, /projects/new, /login, /register
+ *  - يحافظ على force-dynamic و unread counts
  * ============================================================================
  */
 
-import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
-import { and, eq, ne, or, count } from 'drizzle-orm';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { and, eq, ne, count } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { conversations, messages, notifications } from '@/db/schema';
+import { messages, notifications } from '@/db/schema';
 import { getCurrentUser } from '@/lib/auth';
+import { Link } from '@/i18n/navigation';
 
 import { SiteHeaderDropdown } from './site-header-dropdown';
 import { LanguageSwitcher } from './language-switcher';
@@ -48,21 +46,23 @@ async function getUnreadCounts(userId: number) {
 
 export async function SiteHeader() {
   const currentUser = await getCurrentUser();
+  const locale = await getLocale();
   const initial = currentUser?.name?.trim().charAt(0) || 'خ';
   const t = await getTranslations('Header');
 
+  // المسارات الصحيحة مع دعم التدويل التلقائي عبر Link من next-intl
   const navLinks = [
-    { href: '/projects', label: 'تصفح المشاريع' },
-    { href: '/freelancers', label: 'المستقلين' },
-    { href: '/projects/new', label: 'إضافة مشروع' },
+    { href: '/projects' as const, label: 'تصفح المشاريع' },
+    { href: '/freelancers' as const, label: 'المستقلين' },
+    { href: '/projects/new' as const, label: 'إضافة مشروع' },
   ];
 
   const mobileLinks = [
-    { href: '/projects', label: 'تصفح المشاريع' },
-    { href: '/freelancers', label: 'المستقلين' },
-    { href: '/projects/new', label: 'إضافة مشروع' },
-    { href: '/help', label: 'مركز المساعدة' },
-    { href: '/about', label: 'عن منصة خدمات' },
+    { href: '/projects' as const, label: 'تصفح المشاريع' },
+    { href: '/freelancers' as const, label: 'المستقلين' },
+    { href: '/projects/new' as const, label: 'إضافة مشروع' },
+    { href: '/help' as const, label: 'مركز المساعدة' },
+    { href: '/about' as const, label: 'عن منصة خدمات' },
   ];
 
   let unreadNotifications = 0;
@@ -101,8 +101,8 @@ export async function SiteHeader() {
 
         {/* يسار — بحث + إشعارات + رسائل + مستخدم */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* بحث سريع */}
-          <form action="/projects" method="get" className="hidden lg:block">
+          {/* بحث سريع - مع بادئة اللغة */}
+          <form action={`/${locale}/projects`} method="get" className="hidden lg:block">
             <div className="relative">
               <input
                 type="search"

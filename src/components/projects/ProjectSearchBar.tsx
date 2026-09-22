@@ -1,10 +1,12 @@
 'use client';
 
 /**
- * خدمات — شريط بحث وفرز علوي للمشاريع
+ * خدمات — شريط بحث وفرز علوي للمشاريع — إصلاح التدويل
+ * يستخدم Link و router من next-intl ليضيف بادئة اللغة تلقائياً
  */
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from '@/i18n/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { SORT_OPTIONS } from '@/lib/services/project-meta';
 
@@ -16,6 +18,7 @@ export function ProjectSearchBar({
   initialSort?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [q, setQ] = useState(initialQ || '');
@@ -28,7 +31,8 @@ export function ProjectSearchBar({
     });
     if (!updates.page) params.delete('page');
     const qs = params.toString();
-    return qs ? `/projects?${qs}` : '/projects';
+    // pathname already includes locale prefix via usePathname from next-intl
+    return qs ? `${pathname}?${qs}` : pathname;
   };
 
   const onSearch = (e: React.FormEvent) => {

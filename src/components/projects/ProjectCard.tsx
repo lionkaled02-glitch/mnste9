@@ -4,7 +4,7 @@
  * - Tailwind + RTL + responsive
  */
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import type { ProjectListItem } from '@/lib/services/projects';
 import {
   formatBudgetRange,

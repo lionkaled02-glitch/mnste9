@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
-
-// Tajawal من next/font/google مع fallback للبيئات غير المتصلة
-// نستخدم eval لتجاوز التحليل الثابت لـ Next.js في بيئة البناء غير المتصلة
+// Tajawal مع fallback للبيئات غير المتصلة
 let tajawal: { className: string; variable?: string } = { className: "" };
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -26,7 +20,6 @@ try {
     display: "swap",
   });
 } catch {
-  // Fallback للبيئة غير المتصلة — نظام خطوط
   tajawal = { className: "font-sans", variable: "--font-tajawal" };
 }
 
@@ -39,24 +32,17 @@ export const metadata: Metadata = {
     "منصة خدمات العربية — تجمع أصحاب الأعمال والمستقلين في بيئة آمنة بضمان مالي وتوثيق هوية.",
 };
 
+// Root layout minimal — لا يحتوي Header/Footer
+// Header/Footer يأتيان من [locale]/layout.tsx لحل مشكلة التدويل /ar prefix
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const locale = await getLocale();
-  const messages = await getMessages();
-  const dir = locale === "ar" ? "rtl" : "ltr";
-  const lang = locale || "ar";
-
   return (
-    <html lang={lang} dir={dir} className={`${tajawal.className} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className={`${tajawal.className} h-full antialiased`}>
       <body className={`min-h-full flex flex-col bg-[#f4f5f7] ${tajawal.variable || ""}`}>
-        <NextIntlClientProvider messages={messages} locale={locale}>
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-        </NextIntlClientProvider>
+        {children}
       </body>
     </html>
   );
