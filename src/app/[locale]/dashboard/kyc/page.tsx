@@ -1,25 +1,11 @@
 /**
  * ============================================================================
- *  mnste9 — توثيق الهوية KYC (/dashboard/kyc) — المرحلة 8
+ *  خدمات — توثيق الهوية KYC (/dashboard/kyc) — إعادة تصميم 100% مستقل
  * ============================================================================
- *  القاعدة الذهبية (موثّقة):
- *   KYC إلزامي للمستقلين فقط (قبل أي عمل: عرض/دفعة/سحب) — أصحاب العمل
- *   والأدوار الأخرى لا يحتاجونه إطلاقاً، لذا توجَّههم الصفحة فوراً إلى
- *   /dashboard مع رسالة «KYC للمستقلين فقط» (عبر معامل ?notice=).
- *
- *  المحتوى (للمستقل):
- *   - بطاقة الحالة: غير موثق | قيد المراجعة (pending) | موثّق | مرفوض
- *     (مع سبب الرفض من reviewed_reason — هجرة 00003).
- *   - نموذج رفع 3 ملفات (أمامي/خلفي/سيلفي) — يعمل بلا JavaScript، وكل
- *     ملف يُشفَّر AES-256-GCM ويُخزَّن خارج قاعدة البيانات.
- *   - إذا كانت معتمدة: معلومات الوثيقة (النوع، تاريخ الرفع، تاريخ
- *     المراجعة) دون نموذج رفع جديد.
- *
- *  قرار موثّق — طلب واحد نشط: يُخفى النموذج عند وجود طلب قيد المراجعة
- *  أو حساب معتمد، ويعود متاحاً بعد الرفض لإعادة التقديم.
- *
- *  الحماية: middleware + فحص إضافي عبر getCurrentUser + بوابة الدور هنا
- *  (الإجراء نفسه يفحص الدور أيضاً — دفاع متعدد الطبقات).
+ *  - حالة التوثيق: Not Verified / Pending Review / Verified ✅
+ *  - نموذج رفع: الوجه الأمامي + سيلفي مع رسائل أمان
+ *  - للمستقلين فقط — غيرهم يوجّه إلى /dashboard
+ *  - Tailwind RTL + #2386c8
  * ============================================================================
  */
 
@@ -34,222 +20,184 @@ import {
   KYC_STATUS_LABELS,
 } from '@/lib/services/kyc-meta';
 import { getKycStatus } from '@/lib/services/kyc';
-import { cn, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 import { KycUploadForm } from './kyc-form';
 
 export const metadata: Metadata = {
-  title: 'توثيق الهوية',
+  title: 'توثيق الهوية | خدمات',
 };
 
-/** نص شارة «لم تُرفع وثائق بعد» في بطاقة الحالة */
-const NO_DOCUMENT_LABEL = 'لم تُرفع وثائق';
+export const dynamic = 'force-dynamic';
 
 export default async function KycPage() {
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-lg font-bold text-slate-800">انتهت جلستك</p>
-        <p className="mt-2 text-sm leading-7 text-slate-500">
-          سجّل دخولك من جديد للوصول إلى صفحة التوثيق.
-        </p>
-        <Link
-          href="/login?from=/dashboard/kyc"
-          className="mt-6 inline-block rounded-lg bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-        >
+      <div className="rounded-[14px] border border-gray-200 bg-white p-10 text-center shadow-sm">
+        <p className="text-[15px] font-bold text-[#222]">انتهت جلستك</p>
+        <p className="mt-2 text-[13px] text-[#666]">سجّل دخولك للوصول إلى توثيق الهوية</p>
+        <Link href="/login" className="mt-5 inline-flex h-10 items-center justify-center rounded-[10px] bg-[#2386c8] px-6 text-[13px] font-bold text-white hover:bg-[#1a6da8]">
           تسجيل الدخول
         </Link>
       </div>
     );
   }
 
-  // القاعدة الذهبية: التوثيق للمستقلين فقط — غيرهم يوجَّه إلى لوحة التحكم
-  // مع رسالة «KYC للمستقلين فقط» (تعرضها صفحة نظرة عامة من ?notice=)
   if (currentUser.role !== 'freelancer') {
     redirect('/dashboard?notice=kyc-freelancers-only');
   }
 
   const { isVerified, latestDocument } = await getKycStatus(currentUser.id);
 
-  /** هل نموذج الرفع متاح؟ (لا طلب نشط والحساب غير موثّق) */
-  const canUpload =
-    !isVerified && (!latestDocument || latestDocument.status !== 'pending');
+  const canUpload = !isVerified && (!latestDocument || latestDocument.status !== 'pending');
 
-  /** نص وشكل بطاقة الحالة الرئيسية */
-  const statusCard = isVerified
-    ? {
-        title: 'هوية موثّقة (KYC) ✓',
-        description:
-          'حسابك موثّق — يمكنك تقديم العروض واستلام الدفعات والسحب.',
-        badge: 'معتمدة',
-        badgeClasses: 'bg-emerald-100 text-emerald-800',
-        iconClasses: 'bg-emerald-50 text-emerald-600',
-      }
-    : latestDocument?.status === 'pending'
-      ? {
-          title: 'طلبك قيد المراجعة',
-          description:
-            'استلمنا وثائقك الثلاث ويراجعها فريق التوثيق — ستظهر النتيجة هنا وعبر إشعاراتك.',
-          badge: KYC_STATUS_LABELS.pending,
-          badgeClasses: KYC_STATUS_BADGE_CLASSES.pending,
-          iconClasses: 'bg-amber-50 text-amber-600',
-        }
-      : latestDocument?.status === 'rejected'
-        ? {
-            title: 'وثائقك السابقة مرفوضة',
-            description: latestDocument.rejectionReason
-              ? `سبب الرفض: ${latestDocument.rejectionReason} — ارفع وثائق أصح وأوضح.`
-              : 'لم تُعتمد الوثائق السابقة (وضوح غير كافٍ أو بيانات غير مطابقة مثلاً) — ارفع وثائق أصح.',
-            badge: KYC_STATUS_LABELS.rejected,
-            badgeClasses: KYC_STATUS_BADGE_CLASSES.rejected,
-            iconClasses: 'bg-red-50 text-red-600',
-          }
-        : {
-            title: 'الهوية غير موثّقة بعد',
-            description:
-              'توثيق الهوية مطلوب قبل تقديم أي عرض أو استلام دفعة أو سحب — وهو يعزز ثقة أصحاب العمل بك.',
-            badge: NO_DOCUMENT_LABEL,
-            badgeClasses: 'bg-slate-100 text-slate-600',
-            iconClasses: 'bg-slate-100 text-slate-400',
-          };
+  const statusKey = isVerified ? 'verified' : latestDocument?.status || 'not_verified';
+
+  const statusConfig: Record<string, { label: string; title: string; desc: string; color: string; icon: string; badge: string }> = {
+    verified: {
+      label: 'Verified ✅',
+      title: 'هوية موثقة',
+      desc: 'حسابك موثّق — يمكنك تقديم العروض واستلام الدفعات وسحب الأرباح بثقة أعلى.',
+      color: 'border-emerald-200 bg-emerald-50',
+      icon: 'bg-emerald-600 text-white',
+      badge: 'bg-emerald-600 text-white',
+    },
+    pending: {
+      label: 'Pending Review',
+      title: 'قيد المراجعة',
+      desc: 'استلمنا وثائقك ويراجعها فريق التوثيق خلال 24-48 ساعة. ستصلك النتيجة هنا وعبر الإشعارات.',
+      color: 'border-amber-200 bg-amber-50',
+      icon: 'bg-amber-500 text-white',
+      badge: 'bg-amber-500 text-white',
+    },
+    rejected: {
+      label: 'Rejected',
+      title: 'مرفوضة — إعادة مطلوبة',
+      desc: latestDocument?.rejectionReason ? `سبب الرفض: ${latestDocument.rejectionReason} — ارفع صوراً أوضح ومطابقة.` : 'لم تُعتمد الوثائق (وضوح غير كافٍ أو بيانات غير مطابقة). ارفع وثائق أصح.',
+      color: 'border-red-200 bg-red-50',
+      icon: 'bg-red-500 text-white',
+      badge: 'bg-red-500 text-white',
+    },
+    not_verified: {
+      label: 'Not Verified',
+      title: 'غير موثق',
+      desc: 'توثيق الهوية مطلوب للمستقلين قبل تقديم أي عرض أو استلام دفعة أو سحب — يزيد ثقة العملاء بك.',
+      color: 'border-gray-200 bg-white',
+      icon: 'bg-[#f4f5f7] text-[#999] border border-gray-200',
+      badge: 'bg-gray-200 text-[#666]',
+    },
+  };
+
+  const current = statusConfig[statusKey] || statusConfig.not_verified;
 
   return (
-    <div className="space-y-6">
-      {/* الترويسة */}
+    <div className="space-y-6 max-w-[900px]">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          توثيق الهوية
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          ارفع صور وثيقتك — الوجه الأمامي والخلفي وسيلفي معها — وتُراجَع من
-          فريق التوثيق خلال أيام العمل
-        </p>
+        <h1 className="text-[22px] font-extrabold text-[#222]">توثيق الهوية</h1>
+        <p className="mt-1 text-[13px] text-[#666]">أمان حسابك وثقة العملاء — صورة الهوية + سيلفي فقط</p>
       </div>
 
-      {/* بطاقة الحالة الحالية */}
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      {/* Status card */}
+      <section className={`rounded-[14px] border p-6 shadow-sm ${current.color}`}>
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <span
-              className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-                statusCard.iconClasses,
-              )}
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"
-                />
-              </svg>
+          <div className="flex gap-4">
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] text-[18px] font-bold ${current.icon}`}>
+              {statusKey === 'verified' ? '✓' : statusKey === 'pending' ? '◷' : statusKey === 'rejected' ? '✕' : '◌'}
             </span>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                {statusCard.title}
-              </h2>
-              <p className="mt-1.5 text-sm leading-7 text-slate-500">
-                {statusCard.description}
-              </p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[16px] font-extrabold text-[#222]">{current.title}</h2>
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${current.badge}`}>{current.label}</span>
+              </div>
+              <p className="mt-2 text-[12.5px] leading-6 text-[#444] max-w-[520px]">{current.desc}</p>
+
+              {latestDocument && (
+                <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
+                  <span className="rounded-full bg-white border border-gray-200 px-3 py-1 font-medium text-[#666]">النوع: {KYC_DOCUMENT_TYPE_LABELS[latestDocument.documentType] || latestDocument.documentType}</span>
+                  <span className="rounded-full bg-white border border-gray-200 px-3 py-1 font-medium text-[#666]">الرفع: {formatDate(latestDocument.createdAt)}</span>
+                  {latestDocument.reviewedAt && <span className="rounded-full bg-white border border-gray-200 px-3 py-1 font-medium text-[#666]">المراجعة: {formatDate(latestDocument.reviewedAt)}</span>}
+                  {latestDocument.status && <span className={`rounded-full border px-3 py-1 font-bold ${KYC_STATUS_BADGE_CLASSES[latestDocument.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>{KYC_STATUS_LABELS[latestDocument.status]}</span>}
+                </div>
+              )}
             </div>
           </div>
-          <span
-            className={cn(
-              'shrink-0 rounded-full px-3 py-1 text-xs font-semibold',
-              statusCard.badgeClasses,
-            )}
-          >
-            {statusCard.badge}
-          </span>
         </div>
+
+        {isVerified && (
+          <div className="mt-6 rounded-[10px] bg-white border border-emerald-200 p-4">
+            <div className="flex gap-2.5">
+              <span className="text-emerald-600 mt-0.5">🔒</span>
+              <p className="text-[11px] leading-6 text-[#555]">وثائقك محفوظة مشفرة AES-256-GCM خارج قاعدة البيانات — لا يراها أحد سوى فريق التوثيق، ولا تُشارك مع العملاء أو أي طرف ثالث.</p>
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* معلومات الوثيقة — عند الاعتماد (مواصفة المرحلة) */}
-      {isVerified && latestDocument && (
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">معلومات الوثيقة</h2>
-          <dl className="mt-2 divide-y divide-slate-100">
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-slate-500">نوع الوثيقة</dt>
-              <dd className="text-sm font-semibold text-slate-800">
-                {KYC_DOCUMENT_TYPE_LABELS[latestDocument.documentType] ??
-                  latestDocument.documentType}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-slate-500">تاريخ الرفع</dt>
-              <dd className="text-sm font-semibold text-slate-800">
-                {formatDate(latestDocument.createdAt)}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-3">
-              <dt className="text-sm text-slate-500">تاريخ المراجعة</dt>
-              <dd className="text-sm font-semibold text-slate-800">
-                {latestDocument.reviewedAt
-                  ? formatDate(latestDocument.reviewedAt)
-                  : formatDate(latestDocument.updatedAt)}
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-4 text-xs leading-6 text-slate-400">
-            تُحفظ ملفات الوثائق الثلاثة مشفّرة (AES-256-GCM) خارج قاعدة
-            البيانات ولا تُعرض لأي طرف — حتى صاحب المشروع أو المستقل لا يرى
-            وثائقك.
-          </p>
-        </section>
+      {/* Info cards */}
+      {!isVerified && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-[12px] border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#2386c8]/10 text-[#2386c8] text-[14px] font-bold">1</div>
+            <h3 className="mt-3 text-[12px] font-bold text-[#222]">الوجه الأمامي</h3>
+            <p className="mt-1 text-[11px] leading-5 text-[#888]">بطاقة أو جواز واضح — جميع الزوايا ظاهرة</p>
+          </div>
+          <div className="rounded-[12px] border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#2386c8]/10 text-[#2386c8] text-[14px] font-bold">2</div>
+            <h3 className="mt-3 text-[12px] font-bold text-[#222]">سيلفي مع الوثيقة</h3>
+            <p className="mt-1 text-[11px] leading-5 text-[#888]">صورة وجهك وأنت تحمل الهوية — إثبات الحيوية</p>
+          </div>
+          <div className="rounded-[12px] border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-emerald-50 text-emerald-600 text-[14px]">🔒</div>
+            <h3 className="mt-3 text-[12px] font-bold text-[#222]">أمان وثقة</h3>
+            <p className="mt-1 text-[11px] leading-5 text-[#888]">تشفير كامل • مراجعة يدوية • حذف تلقائي بعد التحقق</p>
+          </div>
+        </div>
       )}
 
-      {/* نموذج الرفع — متاح فقط دون طلب نشط وبتوثيق غير معتمد */}
+      {/* Upload */}
       {canUpload ? (
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-lg font-bold text-slate-900">رفع وثائق الهوية</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            بطاقة الهوية أو جواز السفر أو رخصة القيادة — ثلاث صور واضحة:
-            الوجه الأمامي، الوجه الخلفي، وسيلفي وأنت تحمل الوثيقة.
-          </p>
-          <div className="mt-6 max-w-xl">
+        <section className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+          <h2 className="text-[15px] font-bold text-[#222]">رفع مستندات الهوية</h2>
+          <p className="mt-1 text-[12px] leading-6 text-[#666]">اختر نوع الوثيقة وارفع صورتين واضحتين. الصيغ المدعومة JPG/PNG/WEBP حتى 8MB — تأكد أن الإضاءة جيدة والنص مقروء.</p>
+
+          <div className="mt-3 rounded-[10px] bg-[#2386c8]/[0.06] border border-[#2386c8]/15 p-3 flex gap-2">
+            <span className="text-[#2386c8] mt-0.5 text-[13px]">🛡️</span>
+            <p className="text-[11px] leading-5 text-[#444]"><b className="text-[#222]">رسائل الأمان:</b> لا نشارك وثائقك مع أي طرف. تُستخدم للتحقق فقط، وتُخزن مشفرة خارج DB، وتُحذف نسخ المعاينة بعد الاعتماد. يمنع انتحال الهوية ويحمي مجتمع خدمات.</p>
+          </div>
+
+          <div className="mt-6 max-w-[560px]">
             <KycUploadForm />
           </div>
+
+          <div className="mt-6 grid gap-2 text-[11px] leading-5 text-[#888]">
+            <p>• يجب أن تطابق بيانات الوثيقة اسمك في الملف الشخصي.</p>
+            <p>• السيلفي: وجه واضح، الوثيقة بجانب الوجه، بدون نظارة شمسية أو فلتر.</p>
+            <p>• المراجعة خلال 24-48 ساعة — في حال الرفض يمكنك إعادة الرفع فوراً.</p>
+          </div>
         </section>
-      ) : (
-        !isVerified &&
-        latestDocument?.status === 'pending' && (
-          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-bold text-slate-900">
-              تفاصيل الطلب الحالي
-            </h2>
-            <dl className="mt-2 divide-y divide-slate-100">
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="text-sm text-slate-500">نوع الوثيقة</dt>
-                <dd className="text-sm font-semibold text-slate-800">
-                  {KYC_DOCUMENT_TYPE_LABELS[latestDocument.documentType] ??
-                    latestDocument.documentType}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="text-sm text-slate-500">تاريخ الرفع</dt>
-                <dd className="text-sm font-semibold text-slate-800">
-                  {formatDate(latestDocument.createdAt)}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 py-3">
-                <dt className="text-sm text-slate-500">الوثائق المرفقة</dt>
-                <dd className="text-sm font-semibold text-slate-800">
-                  الوجه الأمامي · الوجه الخلفي · السيلفي
-                </dd>
-              </div>
-            </dl>
-          </section>
-        )
+      ) : !isVerified && latestDocument?.status === 'pending' ? (
+        <section className="rounded-[14px] border border-amber-200 bg-white p-6 shadow-sm">
+          <h2 className="text-[14px] font-bold text-[#222]">تفاصيل الطلب الحالي</h2>
+          <div className="mt-4 divide-y divide-gray-100 rounded-[10px] border border-gray-100">
+            <div className="flex justify-between p-3 text-[12px]"><span className="text-[#888]">نوع الوثيقة</span><span className="font-bold text-[#222]">{KYC_DOCUMENT_TYPE_LABELS[latestDocument.documentType] || latestDocument.documentType}</span></div>
+            <div className="flex justify-between p-3 text-[12px]"><span className="text-[#888]">تاريخ الرفع</span><span className="font-bold text-[#222]">{formatDate(latestDocument.createdAt)}</span></div>
+            <div className="flex justify-between p-3 text-[12px]"><span className="text-[#888]">المرفقات</span><span className="font-bold text-[#222]">أمامي + خلفي + سيلفي</span></div>
+          </div>
+          <p className="mt-4 text-[11px] leading-6 text-[#888]">لا يمكنك رفع طلب جديد أثناء المراجعة. ستصلك النتيجة قريباً — إذا تأخر أكثر من 48 ساعة تواصل مع الدعم.</p>
+        </section>
+      ) : null}
+
+      {isVerified && latestDocument && (
+        <section className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-[14px] font-bold text-[#222]">معلومات التوثيق</h2>
+          <div className="mt-4 divide-y divide-gray-100 rounded-[10px] border border-gray-100">
+            <div className="flex justify-between p-3 text-[12px]"><span className="text-[#888]">نوع الوثيقة</span><span className="font-bold text-[#222]">{KYC_DOCUMENT_TYPE_LABELS[latestDocument.documentType] || latestDocument.documentType}</span></div>
+            <div className="flex justify-between p-3 text-[12px]"><span className="text-[#888]">تاريخ الرفع</span><span className="font-bold text-[#222]">{formatDate(latestDocument.createdAt)}</span></div>
+            <div className="flex justify-between p-3 text-[12px]"><span className="text-[#888]">تاريخ الاعتماد</span><span className="font-bold text-[#222]">{latestDocument.reviewedAt ? formatDate(latestDocument.reviewedAt) : formatDate(latestDocument.updatedAt)}</span></div>
+          </div>
+        </section>
       )}
     </div>
   );

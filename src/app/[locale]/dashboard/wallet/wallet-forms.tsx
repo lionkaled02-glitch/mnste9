@@ -1,17 +1,7 @@
 'use client';
 
 /**
- * ============================================================================
- *  mnste9 — نماذج الإيداع والسحب (مكوّن عميل — تبويب الرصيد) — المرحلة 10 نهائي
- * ============================================================================
- *  التحسينات المطلوبة:
- *   - الإيداع (للعميل): مبلغ + طريقة (كريمي/PayPal) + رقم الحوالة (reference_id)
- *   - السحب (للمستقل): مبلغ + طريقة + حقول شرطية:
- *       كريمي: رقم الحساب + اسم صاحب الحساب
- *       PayPal: بريد PayPal
- *   - الحالة pending ولا تضاف للرصيد حتى يعتمدها المشرف.
- *   - يعمل عبر useActionState مع رسائل عربية.
- * ============================================================================
+ * خدمات — نماذج الإيداع والسحب — إعادة تصميم #2386c8
  */
 
 import { Link } from '@/i18n/navigation';
@@ -23,20 +13,30 @@ import type { AuthActionState } from '@/lib/auth';
 const INITIAL_STATE: AuthActionState = { success: false };
 
 const INPUT_CLASSES =
-  'w-full rounded-lg border px-4 py-2.5 text-gray-900 placeholder-gray-400 outline-none transition focus:ring-2';
+  'w-full rounded-[10px] border px-4 py-2.5 text-[13px] text-gray-900 placeholder-gray-400 outline-none transition focus:ring-2';
 
 function inputClasses(hasError: boolean): string {
   return `${INPUT_CLASSES} ${
-    hasError ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-200'
+    hasError
+      ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+      : 'border-gray-300 focus:border-[#2386c8] focus:ring-[#2386c8]/20'
   }`;
 }
 
 function FormMessage({ state }: { state: AuthActionState }) {
   if (state.message && !state.success) {
-    return <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.message}</p>;
+    return (
+      <p className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-[12px] text-red-700">
+        {state.message}
+      </p>
+    );
   }
   if (state.success && state.message) {
-    return <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{state.message}</p>;
+    return (
+      <p className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] text-emerald-700">
+        {state.message}
+      </p>
+    );
   }
   return null;
 }
@@ -47,14 +47,25 @@ function SubmitButton({ isPending, label }: { isPending: boolean; label: string 
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-lg bg-emerald-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-[10px] bg-[#2386c8] px-8 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#1a6da8] focus:outline-none focus:ring-2 focus:ring-[#2386c8]/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isPending ? 'جارٍ التسجيل…' : label}
       </button>
-      <Link href="/dashboard/wallet" className="text-sm font-semibold text-slate-500 transition hover:text-slate-700">
+      <Link
+        href="/dashboard/wallet"
+        className="text-[13px] font-bold text-[#666] transition hover:text-[#222]"
+      >
         إلغاء
       </Link>
     </div>
+  );
+}
+
+function Label({ htmlFor, children, optional }: { htmlFor: string; children: React.ReactNode; optional?: boolean }) {
+  return (
+    <label htmlFor={htmlFor} className="mb-2 block text-[12px] font-bold text-[#444]">
+      {children} {optional && <span className="font-medium text-[#999]">(اختياري)</span>}
+    </label>
   );
 }
 
@@ -73,9 +84,7 @@ export function DepositForm() {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="deposit-amount" className="mb-2 block text-sm font-medium text-gray-700">
-            المبلغ (بالدولار الأمريكي)
-          </label>
+          <Label htmlFor="deposit-amount">المبلغ (USD)</Label>
           <input
             id="deposit-amount"
             name="amount"
@@ -89,16 +98,14 @@ export function DepositForm() {
             className={`${inputClasses(Boolean(amountError))} text-left`}
           />
           {amountError ? (
-            <p className="mt-1.5 text-sm text-red-600">{amountError}</p>
+            <p className="mt-1.5 text-[11px] text-red-600">{amountError}</p>
           ) : (
-            <p className="mt-1.5 text-xs text-slate-400">سيُقيَّد بعد اعتماد الإدارة — الحالة pending.</p>
+            <p className="mt-1.5 text-[11px] text-[#999]">سيُقيَّد بعد اعتماد الإدارة — الحالة pending</p>
           )}
         </div>
 
         <div>
-          <label htmlFor="deposit-method" className="mb-2 block text-sm font-medium text-gray-700">
-            طريقة الإيداع
-          </label>
+          <Label htmlFor="deposit-method">طريقة الإيداع</Label>
           <select
             id="deposit-method"
             name="paymentMethod"
@@ -107,18 +114,16 @@ export function DepositForm() {
             disabled={isPending}
             className={`${inputClasses(Boolean(methodError))} bg-white`}
           >
-            <option value="kuraimi">بنك الكريمي</option>
-            <option value="paypal">PayPal</option>
+            <option value="kuraimi">بنك الكريمي — محلي</option>
+            <option value="paypal">PayPal — دولي</option>
           </select>
-          {methodError && <p className="mt-1.5 text-sm text-red-600">{methodError}</p>}
+          {methodError && <p className="mt-1.5 text-[11px] text-red-600">{methodError}</p>}
         </div>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="deposit-reference" className="mb-2 block text-sm font-medium text-gray-700">
-            رقم الحوالة / المرجع
-          </label>
+          <Label htmlFor="deposit-reference">رقم الحوالة / المرجع</Label>
           <input
             id="deposit-reference"
             name="referenceNumber"
@@ -131,18 +136,16 @@ export function DepositForm() {
             className={`${inputClasses(Boolean(referenceError))} text-left`}
           />
           {referenceError ? (
-            <p className="mt-1.5 text-sm text-red-600">{referenceError}</p>
+            <p className="mt-1.5 text-[11px] text-red-600">{referenceError}</p>
           ) : (
-            <p className="mt-1.5 text-xs text-slate-400">
+            <p className="mt-1.5 text-[11px] text-[#999]">
               {method === 'kuraimi' ? 'تجده في إشعار الحوالة SMS' : 'رقم العملية في PayPal'}
             </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="deposit-sender" className="mb-2 block text-sm font-medium text-gray-700">
-            اسم المُحوِّل <span className="text-slate-400">(اختياري)</span>
-          </label>
+          <Label htmlFor="deposit-sender" optional>اسم المُحوِّل</Label>
           <input
             id="deposit-sender"
             name="senderName"
@@ -152,7 +155,7 @@ export function DepositForm() {
             placeholder="الاسم كما في الحوالة"
             className={inputClasses(Boolean(senderNameError))}
           />
-          {senderNameError && <p className="mt-1.5 text-sm text-red-600">{senderNameError}</p>}
+          {senderNameError && <p className="mt-1.5 text-[11px] text-red-600">{senderNameError}</p>}
         </div>
       </div>
 
@@ -163,7 +166,7 @@ export function DepositForm() {
 
 export function WithdrawForm() {
   const [state, formAction, isPending] = useActionState(requestWithdrawalAction, INITIAL_STATE);
-  const [method, setMethod] = useState<'kuraimi' | 'paypal'>('kuraimi');
+  const [method, setMethod] = useState<'kuraimi' | 'paypal' | 'bank_transfer'>('kuraimi');
 
   const amountError = state.fieldErrors?.amount?.[0];
   const methodError = state.fieldErrors?.paymentMethod?.[0];
@@ -177,9 +180,7 @@ export function WithdrawForm() {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="withdraw-amount" className="mb-2 block text-sm font-medium text-gray-700">
-            المبلغ (بالدولار الأمريكي)
-          </label>
+          <Label htmlFor="withdraw-amount">المبلغ (USD)</Label>
           <input
             id="withdraw-amount"
             name="amount"
@@ -193,16 +194,14 @@ export function WithdrawForm() {
             className={`${inputClasses(Boolean(amountError))} text-left`}
           />
           {amountError ? (
-            <p className="mt-1.5 text-sm text-red-600">{amountError}</p>
+            <p className="mt-1.5 text-[11px] text-red-600">{amountError}</p>
           ) : (
-            <p className="mt-1.5 text-xs text-slate-400">الحالة pending حتى يعتمدها المشرف.</p>
+            <p className="mt-1.5 text-[11px] text-[#999]">الحالة pending حتى يعتمدها المشرف — 24-48 ساعة</p>
           )}
         </div>
 
         <div>
-          <label htmlFor="withdraw-method" className="mb-2 block text-sm font-medium text-gray-700">
-            طريقة السحب
-          </label>
+          <Label htmlFor="withdraw-method">وسيلة السحب</Label>
           <select
             id="withdraw-method"
             name="paymentMethod"
@@ -211,19 +210,18 @@ export function WithdrawForm() {
             disabled={isPending}
             className={`${inputClasses(Boolean(methodError))} bg-white`}
           >
-            <option value="kuraimi">بنك الكريمي</option>
-            <option value="paypal">PayPal</option>
+            <option value="kuraimi">بنك الكريمي — محلي</option>
+            <option value="paypal">PayPal — دولي</option>
+            <option value="bank_transfer">تحويل بنكي</option>
           </select>
-          {methodError && <p className="mt-1.5 text-sm text-red-600">{methodError}</p>}
+          {methodError && <p className="mt-1.5 text-[11px] text-red-600">{methodError}</p>}
         </div>
       </div>
 
-      {method === 'kuraimi' ? (
+      {method === 'kuraimi' || method === 'bank_transfer' ? (
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label htmlFor="withdraw-account-number" className="mb-2 block text-sm font-medium text-gray-700">
-              رقم الحساب البنكي
-            </label>
+            <Label htmlFor="withdraw-account-number">رقم الحساب</Label>
             <input
               id="withdraw-account-number"
               name="accountNumber"
@@ -235,13 +233,11 @@ export function WithdrawForm() {
               placeholder="123456789"
               className={`${inputClasses(Boolean(accountNumberError))} text-left`}
             />
-            {accountNumberError && <p className="mt-1.5 text-sm text-red-600">{accountNumberError}</p>}
+            {accountNumberError && <p className="mt-1.5 text-[11px] text-red-600">{accountNumberError}</p>}
           </div>
 
           <div>
-            <label htmlFor="withdraw-holder" className="mb-2 block text-sm font-medium text-gray-700">
-              اسم صاحب الحساب
-            </label>
+            <Label htmlFor="withdraw-holder">اسم صاحب الحساب</Label>
             <input
               id="withdraw-holder"
               name="accountHolderName"
@@ -252,14 +248,12 @@ export function WithdrawForm() {
               placeholder="الاسم كما في البنك"
               className={inputClasses(Boolean(accountHolderError))}
             />
-            {accountHolderError && <p className="mt-1.5 text-sm text-red-600">{accountHolderError}</p>}
+            {accountHolderError && <p className="mt-1.5 text-[11px] text-red-600">{accountHolderError}</p>}
           </div>
         </div>
       ) : (
         <div>
-          <label htmlFor="withdraw-paypal" className="mb-2 block text-sm font-medium text-gray-700">
-            البريد الإلكتروني المسجل في PayPal
-          </label>
+          <Label htmlFor="withdraw-paypal">بريد PayPal</Label>
           <input
             id="withdraw-paypal"
             name="paypalEmail"
@@ -271,11 +265,15 @@ export function WithdrawForm() {
             placeholder="you@paypal.com"
             className={`${inputClasses(Boolean(paypalEmailError))} text-left`}
           />
-          {paypalEmailError && <p className="mt-1.5 text-sm text-red-600">{paypalEmailError}</p>}
+          {paypalEmailError && <p className="mt-1.5 text-[11px] text-red-600">{paypalEmailError}</p>}
         </div>
       )}
 
-      <SubmitButton isPending={isPending} label="تسجيل طلب السحب" />
+      <div className="rounded-[10px] bg-[#f4f5f7] border border-gray-200 p-3 text-[11px] leading-5 text-[#666]">
+        💡 اختر الكريمي للسحب المحلي بدون عمولة • PayPal عمولة 2% • بنكي حسب البنك المستقبل
+      </div>
+
+      <SubmitButton isPending={isPending} label="طلب سحب الأرباح" />
     </form>
   );
 }
