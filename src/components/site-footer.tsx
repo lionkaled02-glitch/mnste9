@@ -1,11 +1,12 @@
 /**
  * ============================================================================
- *  خدمات — التذييل (Footer) — المرحلة أ
+ *  خدمات — التذييل بأسلوب مستقل 100% — المرحلة النهائية
  * ============================================================================
- *  - 4 أعمدة: عن المنصة | روابط سريعة | للمستقلين | تواصل معنا
- *  - وسائل الدفع: PayPal، بنك الكريمي
- *  - سطر الحقوق في الأسفل
- *  - تصميم بسيط وهادئ مستوحى من مستقل — Tailwind فقط — RTL
+ *  - هوية: خدمات رسمياً
+ *  - تصميم بطاقي هادئ يحتوي روابط مستقل: عن منصة خدمات، الأسئلة الشائعة،
+ *    ضمان الحقوق، شروط الاستخدام، الدعم الفني، وروابط التواصل
+ *  - 4 أعمدة + وسائل دفع + حقوق
+ *  - Tailwind فقط — RTL — مستوحى من مستقل
  * ============================================================================
  */
 
@@ -17,73 +18,111 @@ export async function SiteFooter() {
 
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-14">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {/* عن المنصة */}
+      <div className="mx-auto max-w-7xl px-4 py-12">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+          {/* عن منصة خدمات */}
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-[18px] font-extrabold text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#2386c8] text-[16px] font-extrabold text-white">
                 خ
               </span>
-              <span className="text-xl font-extrabold text-gray-900">خدمات</span>
+              <span className="text-[20px] font-extrabold text-[#222]">خدمات</span>
             </div>
-            <p className="mt-4 text-sm leading-7 text-gray-500">{t('aboutText')}</p>
-            <div className="mt-5 flex gap-2">
-              <span className="rounded-full bg-[#f4f5f7] px-3 py-1 text-xs font-medium text-gray-600">
-                {t('madeInYemen')}
-              </span>
+            <p className="mt-4 text-[13px] leading-6 text-[#666]">{t('aboutText')}</p>
+
+            <div className="mt-6">
+              <h4 className="text-[12px] font-bold text-[#222]">{t('social')}</h4>
+              <div className="mt-3 flex gap-2">
+                <a
+                  href="#"
+                  aria-label="Facebook"
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-[#f4f5f7] text-[#666] transition hover:bg-[#1877f2] hover:text-white"
+                >
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M22 12a10 10 0 1 0-11.5 9.9v-7h-2v-2.9h2v-2.2c0-2 1.2-3.1 3-3.1.9 0 1.8.1 2 .2v2.2h-1.1c-.9 0-1.2.5-1.2 1.2v1.7h2.4l-.4 2.9h-2V22A10 10 0 0 0 22 12Z" />
+                  </svg>
+                </a>
+                <a
+                  href="#"
+                  aria-label="Twitter"
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-[#f4f5f7] text-[#666] transition hover:bg-[#1da1f2] hover:text-white"
+                >
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M22 5.8a8.4 8.4 0 0 1-2.4.7A4.2 4.2 0 0 0 21.5 4a8.4 8.4 0 0 1-2.7 1A4.2 4.2 0 0 0 12 8.8a12 12 0 0 1-8.7-4.4A4.2 4.2 0 0 0 5 8.1a4.2 4.2 0 0 1-1.9-.5v.1a4.2 4.2 0 0 0 3.4 4.1 4.2 4.2 0 0 1-1.9.1 4.2 4.2 0 0 0 3.9 2.9A8.5 8.5 0 0 1 2 16.3a12 12 0 0 0 6.5 1.9A12 12 0 0 0 21 6.5v-.5A8.6 8.6 0 0 0 22 5.8Z" />
+                  </svg>
+                </a>
+                <a
+                  href="#"
+                  aria-label="LinkedIn"
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-[#f4f5f7] text-[#666] transition hover:bg-[#0a66c2] hover:text-white"
+                >
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.5 2h-17A1.5 1.5 0 0 0 2 3.5v17A1.5 1.5 0 0 0 3.5 22h17a1.5 1.5 0 0 0 1.5-1.5v-17A1.5 1.5 0 0 0 20.5 2ZM8 19H5v-9h3v9ZM6.5 8.5A1.75 1.75 0 1 1 8.3 6.7a1.75 1.75 0 0 1-1.8 1.8ZM19 19h-3v-4.5c0-1.1-.4-1.8-1.3-1.8a1.4 1.4 0 0 0-1.3.9 1.7 1.7 0 0 0-.1.6V19h-3s0-8.2 0-9h3v1.3a3 3 0 0 1 2.7-1.5c2 0 3.5 1.3 3.5 4V19Z" />
+                  </svg>
+                </a>
+              </div>
             </div>
           </div>
 
           {/* روابط سريعة */}
           <div>
-            <h3 className="text-sm font-bold text-gray-900">{t('quickLinks')}</h3>
-            <ul className="mt-5 space-y-3 text-sm text-gray-500">
+            <h3 className="text-[13px] font-bold text-[#222]">{t('quickLinks')}</h3>
+            <ul className="mt-4 space-y-2.5">
               <li>
-                <Link href="/projects" className="transition hover:text-emerald-600">
+                <Link href="/projects" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
                   تصفح المشاريع
                 </Link>
               </li>
               <li>
-                <Link href="/freelancers" className="transition hover:text-emerald-600">
-                  المستقلين
+                <Link href="/freelancers" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  تصفح المستقلين
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="transition hover:text-emerald-600">
-                  من نحن
+                <Link href="/projects/new" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  أضف مشروع
                 </Link>
               </li>
               <li>
-                <Link href="/help" className="transition hover:text-emerald-600">
-                  مركز المساعدة
+                <Link href="/about" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  عن منصة خدمات
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* للمستقلين */}
+          {/* الدعم والضمان */}
           <div>
-            <h3 className="text-sm font-bold text-gray-900">{t('forFreelancers')}</h3>
-            <ul className="mt-5 space-y-3 text-sm text-gray-500">
+            <h3 className="text-[13px] font-bold text-[#222]">المساعدة والدعم</h3>
+            <ul className="mt-4 space-y-2.5">
               <li>
-                <Link href="/register" className="transition hover:text-emerald-600">
-                  إنشاء حساب
+                <Link href="/help" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  الأسئلة الشائعة
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/kyc" className="transition hover:text-emerald-600">
-                  توثيق الهوية
+                <Link href="/help#guarantee" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  ضمان حقوقك
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/wallet" className="transition hover:text-emerald-600">
-                  المحفظة
+                <Link href="/help#terms" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  شروط الاستخدام
                 </Link>
               </li>
               <li>
-                <Link href="/help#freelancers" className="transition hover:text-emerald-600">
-                  نصائح للمستقلين
+                <Link href="/help#privacy" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  سياسة الخصوصية
+                </Link>
+              </li>
+              <li>
+                <Link href="/help#support" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  الدعم الفني
+                </Link>
+              </li>
+              <li>
+                <Link href="/dashboard/wallet" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  المحفظة والمدفوعات
                 </Link>
               </li>
             </ul>
@@ -91,61 +130,43 @@ export async function SiteFooter() {
 
           {/* تواصل معنا */}
           <div>
-            <h3 className="text-sm font-bold text-gray-900">{t('contact')}</h3>
-            <ul className="mt-5 space-y-3 text-sm text-gray-500">
-              <li className="flex items-center gap-2">
-                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                </svg>
-                support@khadamat.com
-              </li>
-              <li className="flex items-center gap-2">
-                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.977-.852-1.102l-3.107-1.036a1.5 1.5 0 0 0-1.5.221l-1.732 1.155a24.058 24.058 0 0 1-3.882-2.117 24.058 24.058 0 0 1-2.117-3.882l1.155-1.732a1.5 1.5 0 0 0 .221-1.5L6.475 4.902A1.125 1.125 0 0 0 5.373 4.05H4a2.25 2.25 0 0 0-2.25 2.25V9" />
-                </svg>
+            <h3 className="text-[13px] font-bold text-[#222]">{t('contact')}</h3>
+            <ul className="mt-4 space-y-2.5 text-[13px] text-[#666]">
+              <li>support@khadamat.com</li>
+              <li dir="ltr" className="text-right">
                 +967 77X XXX XXX
               </li>
-              <li className="flex items-center gap-2">
-                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                </svg>
-                عدن، اليمن
-              </li>
+              <li>عدن، اليمن — Aden, Yemen</li>
             </ul>
 
-            <div className="mt-8">
-              <h4 className="text-xs font-bold text-gray-900">{t('paymentMethods')}</h4>
+            <div className="mt-6">
+              <h4 className="text-[11px] font-bold text-[#222]">{t('paymentMethods')}</h4>
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-[#f4f5f7] px-3 py-1.5 text-xs font-semibold text-gray-700">
-                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-[#f4f5f7] px-2.5 py-1 text-[11px] font-semibold text-[#444]">
+                  <span className="h-2 w-2 rounded-full bg-[#003087]" />
                   PayPal
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-[#f4f5f7] px-3 py-1.5 text-xs font-semibold text-gray-700">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-[#f4f5f7] px-2.5 py-1 text-[11px] font-semibold text-[#444]">
+                  <span className="h-2 w-2 rounded-full bg-[#00a651]" />
                   بنك الكريمي
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-[#f4f5f7] px-3 py-1.5 text-xs font-semibold text-gray-400">
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-[#f4f5f7] px-2.5 py-1 text-[11px] font-semibold text-[#999]">
                   Visa
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-[#f4f5f7] px-3 py-1.5 text-xs font-semibold text-gray-400">
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-[#f4f5f7] px-2.5 py-1 text-[11px] font-semibold text-[#999]">
                   Mastercard
                 </span>
               </div>
-              <p className="mt-2 text-[11px] text-gray-400">بنك الكريمي يدعم USD و SAR فقط.</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-gray-200 pt-6 sm:flex-row">
-          <p className="text-xs text-gray-400">{t('rights')}</p>
-          <div className="flex items-center gap-4 text-xs text-gray-400">
-            <Link href="/help" className="hover:text-gray-600">
-              {t('privacy')}
-            </Link>
-            <Link href="/help" className="hover:text-gray-600">
-              {t('terms')}
-            </Link>
+        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-gray-200 pt-6 md:flex-row">
+          <p className="text-[12px] text-[#888]">{t('rights')}</p>
+          <div className="flex items-center gap-3 text-[11px] text-[#999]">
+            <span>{t('madeInYemen')}</span>
+            <span className="h-3 w-px bg-gray-200" />
+            <span>خدمات © 2026</span>
           </div>
         </div>
       </div>
