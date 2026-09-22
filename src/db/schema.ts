@@ -1,6 +1,6 @@
-/**
+﻿/**
  * ============================================================================
- *  mnste9 — مخطط قاعدة البيانات (Drizzle ORM / PostgreSQL)
+ *  خدمات — مخطط قاعدة البيانات (Drizzle ORM / PostgreSQL)
  * ============================================================================
  *  هذه الترجمة البرمجية المطابقة 1:1 لملفات الهجرة:
  *    database/migrations/2026_09_19_000001_create_platform_tables.sql
@@ -9,19 +9,14 @@
  *    database/migrations/2026_09_21_000004_create_contracts.sql
  *    database/migrations/2026_09_22_000005_add_platform_tables.sql
  *      (notifications, conversations, messages, reviews, wishlist, platform_settings)
- *    + portfolio_items (from main branch migration)
- *    + pending_delivery in contracts status
+ *    + portfolio_items (من فرع main)
+ *    + pending_delivery في حالات العقود
  *
  *  ملاحظات معمارية:
- *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL (الذي يتضمن أيضاً Triggers
- *     تحديث updated_at، وهي ميزة لا يستطيع Drizzle التعبير عنها في المخطط).
- *   - هذا الملف هو طبقة الأنواع والاستعلام الآمن (Type-safe) للتطبيق، وقد
- *     تم التحقق من تطابقه البنيوي مع ملف الهجرة (نفس الجداول/الأعمدة/
- *     القيود/الفهارس/أسمائها حرفياً).
- *   - عمود updated_at يحمل ‎$onUpdate‎ ليُحدَّث تلقائياً في تحديثات Drizzle
- *     (يكمّل عمل Trigger القاعدة إن أُنشئت القاعدة عبر drizzle-kit push).
- *   - الأعمدة المالية NUMERIC تُمثَّل كنص (string) في TypeScript عمداً
- *     لتجنّب أخطاء الفاصلة العائمة في حسابات المال.
+ *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL.
+ *   - هذا الملف هو طبقة الأنواع والاستعلام الآمن (Type-safe) للتطبيق.
+ *   - عمود updated_at يحمل $onUpdate ليُحدَّث تلقائياً.
+ *   - الأعمدة المالية NUMERIC تُمثَّل كنص (string) في TypeScript.
  * ============================================================================
  */
 
@@ -44,7 +39,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /* ============================================================================
- * 1) أنواع ENUM المخصصة — بقيم مطابقة حرفياً لملف الهجرة
+ * 1) أنواع ENUM المخصصة
  * ========================================================================== */
 
 export const paymentMethodEnum = pgEnum('payment_method_enum', ['kuraimi', 'paypal']);
@@ -74,10 +69,11 @@ export const projectStatusEnum = pgEnum('project_status_enum', [
 export const currencyEnum = pgEnum('currency_enum', ['USD', 'SAR']);
 
 /* ============================================================================
- * 2) الجداول والقيود (CHECK / UNIQUE / FK) والفهارس
+ * 2) الجداول
  * ========================================================================== */
 
-const identityId = (name: string) => bigint(name, { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey();
+const identityId = (name: string) =>
+  bigint(name, { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey();
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -88,7 +84,7 @@ const timestamps = {
 };
 
 /* ---------------------------------------------------------------------------
- * users — المستخدمون (عميل / مستقل / مشرف)
+ * users — المستخدمون
  * ------------------------------------------------------------------------- */
 export const users = pgTable(
   'users',
@@ -108,6 +104,7 @@ export const users = pgTable(
     hourlyRate: numeric('hourly_rate', { precision: 15, scale: 2 }),
     notifyEmail: boolean('notify_email').notNull().default(true),
     notifySms: boolean('notify_sms').notNull().default(true),
+    avatarUrl: varchar('avatar_url', { length: 500 }),
   },
   (t) => [
     unique('uq_users_email').on(t.email),
@@ -120,7 +117,7 @@ export const users = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * portfolio_items — معرض أعمال المستخدم (Portfolio)
+ * portfolio_items — معرض الأعمال
  * ------------------------------------------------------------------------- */
 export const portfolioItems = pgTable(
   'portfolio_items',
@@ -146,14 +143,16 @@ export type NewPortfolioItem = typeof portfolioItems.$inferInsert;
 
 /* ---------------------------------------------------------------------------
  * wallets — المحافظ
- * ------------------------------------------------------------------------- */-
+ * ------------------------------------------------------------------------- */
 export const wallets = pgTable(
   'wallets',
   {
     id: identityId('id'),
     userId: bigint('user_id', { mode: 'number' }).notNull(),
     balance: numeric('balance', { precision: 15, scale: 2 }).notNull().default('0.00'),
-    pendingBalance: numeric('pending_balance', { precision: 15, scale: 2 }).notNull().default('0.00'),
+    pendingBalance: numeric('pending_balance', { precision: 15, scale: 2 })
+      .notNull()
+      .default('0.00'),
     ...timestamps,
   },
   (t) => [
@@ -307,7 +306,7 @@ export const kycDocuments = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * contracts — العقود بين العميل والمستقل (المرحلة 9) — يشمل pending_delivery
+ * contracts — العقود (يشمل pending_delivery)
  * ------------------------------------------------------------------------- */
 export const contracts = pgTable(
   'contracts',
@@ -412,7 +411,10 @@ export const conversations = pgTable(
   (t) => [
     index('idx_conversations_p1').on(t.participant1Id),
     index('idx_conversations_p2').on(t.participant2Id),
-    check('ck_conversations_participants', sql`${t.participant1Id} != ${t.participant2Id}`),
+    check(
+      'ck_conversations_participants',
+      sql`${t.participant1Id} != ${t.participant2Id}`,
+    ),
     foreignKey({
       name: 'fk_conversations_p1',
       columns: [t.participant1Id],
@@ -542,10 +544,6 @@ export const platformSettings = pgTable(
  * 3) العلاقات (Relations)
  * ========================================================================== */
 
-export const portfolioItemsRelations = relations(portfolioItems, ({ one }) => ({
-  user: one(users, { fields: [portfolioItems.userId], references: [users.id] }),
-}));
-
 export const usersRelations = relations(users, ({ one, many }) => ({
   wallet: one(wallets, {
     fields: [users.id],
@@ -565,6 +563,13 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   reviewsGiven: many(reviews, { relationName: 'reviewer' }),
   reviewsReceived: many(reviews, { relationName: 'reviewed' }),
   wishlistItems: many(wishlist),
+}));
+
+export const portfolioItemsRelations = relations(portfolioItems, ({ one }) => ({
+  user: one(users, {
+    fields: [portfolioItems.userId],
+    references: [users.id],
+  }),
 }));
 
 export const walletsRelations = relations(wallets, ({ one }) => ({

@@ -1,6 +1,0 @@
-import { redirect } from 'next/navigation';
-export const dynamic = 'force-dynamic';
-export default async function RedirectPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  redirect(`/ar/dashboard/contracts/${id}`);
-}
