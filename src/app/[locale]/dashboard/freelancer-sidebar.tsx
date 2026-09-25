@@ -13,6 +13,8 @@ const BASE_FREELANCER_NAV_ITEMS = [
   { href: '/dashboard/wallet', label: 'المحفظة' },
   { href: '/dashboard/messages', label: 'الرسائل' },
   { href: '/dashboard/profile', label: 'الملف الشخصي' },
+  { href: '/dashboard/wishlist', label: 'المفضلة' },
+  { href: '/dashboard/reviews', label: 'التقييمات' },
   { href: '/dashboard/kyc', label: 'توثيق الهوية' },
   { href: '/dashboard/settings', label: 'الإعدادات' },
 ] as const;
@@ -25,13 +27,14 @@ function SimpleIcon() {
   );
 }
 
-export function FreelancerSidebar({ setupComplete = true }: { setupComplete?: boolean }) {
+export function FreelancerSidebar({ setupComplete = true, isKycVerified = false }: { setupComplete?: boolean; isKycVerified?: boolean }) {
   const pathname = usePathname();
+  const filteredItems = BASE_FREELANCER_NAV_ITEMS.filter((item) => !(isKycVerified && item.href === '/dashboard/kyc'));
   const navItems = setupComplete
-    ? BASE_FREELANCER_NAV_ITEMS
+    ? filteredItems
     : ([
         { href: '/dashboard/setup', label: 'إعداد الحساب' },
-        ...BASE_FREELANCER_NAV_ITEMS,
+        ...filteredItems,
       ] as const);
 
   const isActive = (href: string): boolean =>

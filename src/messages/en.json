@@ -428,7 +428,13 @@
         "issueDate": "Issue date",
         "expiryDate": "Expiry date"
       }
-    }
+    },
+    "cameraCapture": "Capture with camera",
+    "cameraCaptureHint": "Take a photo now",
+    "gallery": "Choose from gallery",
+    "galleryHint": "Use an existing image",
+    "changeImage": "Change image",
+    "removeImage": "Remove image"
   },
   "portfolio": {
     "minWorks": "Minimum 3 works",
@@ -456,5 +462,39 @@
     "notice": "You cannot submit proposals until your account is approved.",
     "browseProjects": "Browse projects",
     "contactSupport": "Contact support"
+  },
+  "portfolioPage": {
+    "title": "My Portfolio",
+    "addWork": "Add work",
+    "empty": "No portfolio items yet",
+    "details": "Details",
+    "delete": "Delete",
+    "images": "images",
+    "attachment": "Attachment"
+  },
+  "wishlistPage": {
+    "title": "Wishlist",
+    "freelancers": "Freelancers",
+    "projects": "Projects",
+    "remove": "Remove",
+    "emptyFreelancers": "No saved freelancers",
+    "emptyProjects": "No saved projects"
+  },
+  "reviewsPage": {
+    "title": "Reviews",
+    "received": "Received",
+    "given": "Given",
+    "average": "Average rating",
+    "count": "Reviews count",
+    "empty": "No reviews yet"
+  },
+  "kycPending": {
+    "title": "KYC request pending review",
+    "description": "We received your documents and the verification team is reviewing them. You can keep using the dashboard.",
+    "backToDashboard": "Back to dashboard"
+  },
+  "userMenu": {
+    "wishlist": "Wishlist",
+    "reviews": "Reviews"
   }
 }

@@ -13,10 +13,7 @@ import { getRoleLabel, KYC_LABELS } from '@/lib/services/user-meta';
 import { formatDate } from '@/lib/utils';
 
 import { FreelancerProfileForm } from './profile-form-freelancer';
-import { PortfolioForm } from './portfolio-form';
-import { PortfolioList } from './portfolio-list';
-import { WishlistSection } from './wishlist-section';
-import { ReviewsGivenSection, ReviewsReceivedSection } from './reviews-section';
+
 
 interface FreelancerProfileProps {
   user: { id: number; name: string; email: string; role: string };
@@ -127,18 +124,17 @@ export async function FreelancerProfile({ user }: FreelancerProfileProps) {
         />
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-[18px] font-bold text-[#222]">معرض الأعمال</h2>
-          <p className="mt-1 text-[12px] text-[#666]">اعرض أفضل أعمالك — سيظهر للعملاء عند زيارة ملفك</p>
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-[18px] font-bold text-[#222]">معرض الأعمال</h2>
+            <p className="mt-1 text-[12px] text-[#666]">لديك {portfolio.length} عمل في معرضك المستقل.</p>
+          </div>
+          <Link href="/dashboard/profile/portfolio" className="inline-flex items-center justify-center rounded-xl bg-[#2386c8] px-5 py-3 text-sm font-bold text-white hover:bg-[#1a6da8]">
+            إدارة معرض الأعمال
+          </Link>
         </div>
-        <PortfolioForm />
-        <PortfolioList items={portfolio} />
       </section>
-
-      <ReviewsReceivedSection />
-      <WishlistSection />
-      <ReviewsGivenSection />
     </div>
   );
 }

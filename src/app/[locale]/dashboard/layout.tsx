@@ -42,7 +42,7 @@ export default async function DashboardLayout({
     <div className="flex-1 bg-slate-50">
       <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr]">
         {/* القائمة الجانبية — يمين الشاشة على الحواسيب، وأعلى الصفحة على الجوال */}
-        <DashboardSidebar role={currentUser?.role ?? null} setupComplete={setupComplete} />
+        <DashboardSidebar role={currentUser?.role ?? null} setupComplete={setupComplete} isKycVerified={Boolean(currentUser?.isKycVerified)} />
 
         {/* المحتوى — يسار القائمة على الحواسيب */}
         <main className="min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>

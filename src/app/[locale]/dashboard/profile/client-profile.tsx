@@ -6,8 +6,7 @@ import { users } from '@/db/schema';
 import { formatDate } from '@/lib/utils';
 
 import { ClientProfileForm } from './profile-form-client';
-import { WishlistSection } from './wishlist-section';
-import { ReviewsGivenSection } from './reviews-section';
+
 
 interface ClientProfileProps {
   user: { id: number; name: string; email: string };
@@ -84,8 +83,6 @@ export async function ClientProfile({ user }: ClientProfileProps) {
         />
       </section>
 
-      <WishlistSection />
-      <ReviewsGivenSection />
     </div>
   );
 }

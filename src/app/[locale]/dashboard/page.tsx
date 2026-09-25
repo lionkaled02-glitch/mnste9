@@ -53,9 +53,10 @@ export default async function DashboardPage() {
 
     if (!profile?.phone && !profile?.bio) redirect('/dashboard/setup');
     if (!kycDoc) redirect('/dashboard/setup');
-    if (kycDoc.status === 'pending' && !profile.isKycVerified) redirect('/dashboard/pending-review');
     if (kycDoc.status === 'rejected') redirect('/dashboard/kyc?rejected=1');
     if (!isFreelancerSetupComplete(setupState)) redirect('/dashboard/setup');
+
+    return <FreelancerDashboard kycPending={kycDoc.status === 'pending' && !profile.isKycVerified} />;
   }
 
   return <FreelancerDashboard />;

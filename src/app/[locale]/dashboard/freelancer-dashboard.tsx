@@ -60,7 +60,7 @@ function StatCard({
   );
 }
 
-export async function FreelancerDashboard() {
+export async function FreelancerDashboard({ kycPending = false }: { kycPending?: boolean } = {}) {
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
@@ -144,6 +144,12 @@ export async function FreelancerDashboard() {
           </Link>
         </div>
       </div>
+
+      {kycPending && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-7 text-amber-800">
+          <b>توثيق الهوية قيد المراجعة.</b> يمكنك تصفح لوحة التحكم الآن، وسنحدث حالة الحساب فور انتهاء المراجعة.
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

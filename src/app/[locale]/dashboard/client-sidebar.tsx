@@ -13,6 +13,8 @@ const CLIENT_NAV_ITEMS = [
   { href: '/dashboard/wallet', label: 'المحفظة' },
   { href: '/dashboard/messages', label: 'الرسائل' },
   { href: '/dashboard/profile', label: 'الملف الشخصي' },
+  { href: '/dashboard/wishlist', label: 'المفضلة' },
+  { href: '/dashboard/reviews', label: 'التقييمات' },
   { href: '/dashboard/settings', label: 'الإعدادات' },
 ] as const;
 

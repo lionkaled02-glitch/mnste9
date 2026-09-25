@@ -428,7 +428,13 @@
         "issueDate": "تاريخ الإصدار",
         "expiryDate": "تاريخ الانتهاء"
       }
-    }
+    },
+    "cameraCapture": "التقاط بالكاميرا",
+    "cameraCaptureHint": "التقط صورة الآن",
+    "gallery": "اختيار من المعرض",
+    "galleryHint": "صورة موجودة",
+    "changeImage": "تغيير الصورة",
+    "removeImage": "حذف الصورة"
   },
   "portfolio": {
     "minWorks": "الحد الأدنى 3 أعمال",
@@ -456,5 +462,39 @@
     "notice": "لا يمكنك تقديم عروض حتى الموافقة على حسابك.",
     "browseProjects": "تصفح المشاريع",
     "contactSupport": "تواصل مع الدعم"
+  },
+  "portfolioPage": {
+    "title": "معرض أعمالي",
+    "addWork": "إضافة عمل",
+    "empty": "لا توجد أعمال بعد",
+    "details": "التفاصيل",
+    "delete": "حذف",
+    "images": "صور",
+    "attachment": "مرفق"
+  },
+  "wishlistPage": {
+    "title": "المفضلة",
+    "freelancers": "المستقلون",
+    "projects": "المشاريع",
+    "remove": "إزالة",
+    "emptyFreelancers": "لا يوجد مستقلون في المفضلة",
+    "emptyProjects": "لا توجد مشاريع في المفضلة"
+  },
+  "reviewsPage": {
+    "title": "التقييمات",
+    "received": "المستلمة",
+    "given": "المرسلة",
+    "average": "متوسط التقييم",
+    "count": "عدد التقييمات",
+    "empty": "لا توجد تقييمات هنا"
+  },
+  "kycPending": {
+    "title": "طلب التوثيق قيد المراجعة",
+    "description": "استلمنا وثائقك ويراجعها فريق التوثيق. يمكنك متابعة استخدام لوحة التحكم.",
+    "backToDashboard": "العودة للوحة التحكم"
+  },
+  "userMenu": {
+    "wishlist": "المفضلة",
+    "reviews": "التقييمات"
   }
 }

@@ -14,6 +14,12 @@ interface FormErrors {
   [key: string]: string[] | undefined;
 }
 
+interface PreviewImage {
+  id: string;
+  file: File;
+  url: string;
+}
+
 async function uploadImages(files: File[]): Promise<string[]> {
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file));
@@ -35,34 +41,52 @@ async function uploadAttachment(file: File | null): Promise<{ url: string; name:
 
 export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
   const formRef = useRef<HTMLFormElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isPending, startTransition] = useTransition();
   const [errors, setErrors] = useState<FormErrors>({});
   const [message, setMessage] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<PreviewImage[]>([]);
+
+  const chooseImages = (files: FileList | null) => {
+    const selected = Array.from(files ?? []).filter((file) => file.size > 0);
+    const next = selected.slice(0, 10).map((file) => ({ id: `${file.name}-${file.size}-${crypto.randomUUID()}`, file, url: URL.createObjectURL(file) }));
+    setPreviews(next);
+    setErrors((prev) => ({ ...prev, images: undefined, imageUrls: undefined }));
+  };
+
+  const removeImage = (id: string) => {
+    setPreviews((prev) => prev.filter((item) => item.id !== id));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const submit = (formData: FormData) => {
     setErrors({});
     setMessage(null);
 
+    // مهم: قراءة الملفات فوراً خارج startTransition حتى لا تضيع FormData في React 19.
+    const imageFiles = previews.map((item) => item.file);
+    const attachmentFile = formData.get('attachment');
+    const attachment = attachmentFile instanceof File && attachmentFile.size > 0 ? attachmentFile : null;
+    const title = String(formData.get('title') ?? '');
+    const description = String(formData.get('description') ?? '');
+    const externalUrl = String(formData.get('externalUrl') ?? '');
+
+    if (imageFiles.length < 3) {
+      setErrors({ images: ['الحد الأدنى 3 صور لكل عمل'] });
+      return;
+    }
+    if (imageFiles.length > 10) {
+      setErrors({ images: ['الحد الأقصى 10 صور لكل عمل'] });
+      return;
+    }
+
     startTransition(async () => {
       try {
-        const imageFiles = formData.getAll('images').filter((file): file is File => file instanceof File && file.size > 0);
-        const attachmentFile = formData.get('attachment');
-        const attachment = attachmentFile instanceof File && attachmentFile.size > 0 ? attachmentFile : null;
-
-        if (imageFiles.length < 3) {
-          setErrors({ images: ['الحد الأدنى 3 صور لكل عمل'] });
-          return;
-        }
-        if (imageFiles.length > 10) {
-          setErrors({ images: ['الحد الأقصى 10 صور لكل عمل'] });
-          return;
-        }
-
         const [imageUrls, attachmentUrl] = await Promise.all([uploadImages(imageFiles), uploadAttachment(attachment)]);
         const actionData = new FormData();
-        actionData.set('title', String(formData.get('title') ?? ''));
-        actionData.set('description', String(formData.get('description') ?? ''));
-        actionData.set('externalUrl', String(formData.get('externalUrl') ?? ''));
+        actionData.set('title', title);
+        actionData.set('description', description);
+        actionData.set('externalUrl', externalUrl);
         actionData.set('imageUrls', JSON.stringify(imageUrls));
         actionData.set('attachmentUrl', attachmentUrl.url);
         actionData.set('attachmentName', attachmentUrl.name);
@@ -74,18 +98,9 @@ export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
           return;
         }
 
-        onCreated(
-          {
-            id: `${Date.now()}`,
-            title: String(formData.get('title') ?? ''),
-            description: String(formData.get('description') ?? ''),
-            coverUrl: result.coverUrl ?? imageUrls[0],
-            imagesCount: imageUrls.length,
-            attachmentUrl: attachmentUrl.url || undefined,
-          },
-          result.portfolioCount ?? 0,
-        );
+        onCreated({ id: `${Date.now()}`, title, description, coverUrl: result.coverUrl ?? imageUrls[0], imagesCount: imageUrls.length, attachmentUrl: attachmentUrl.url || undefined }, result.portfolioCount ?? 0);
         formRef.current?.reset();
+        setPreviews([]);
         setMessage(result.message ?? 'تمت إضافة العمل');
       } catch (error) {
         setMessage(error instanceof Error ? error.message : 'حدث خطأ غير متوقع');
@@ -117,7 +132,7 @@ export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="work-images" className="mb-1.5 block text-xs font-bold text-slate-700">صور العمل (3 على الأقل، حتى 10)</label>
-          <input id="work-images" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple required className="w-full rounded-xl border border-dashed border-slate-300 p-3 text-xs file:me-3 file:rounded-lg file:border-0 file:bg-[#2386c8]/10 file:px-3 file:py-2 file:font-bold file:text-[#2386c8]" />
+          <input ref={fileInputRef} id="work-images" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple required onChange={(event) => chooseImages(event.target.files)} className="w-full rounded-xl border border-dashed border-slate-300 p-3 text-xs file:me-3 file:rounded-lg file:border-0 file:bg-[#2386c8]/10 file:px-3 file:py-2 file:font-bold file:text-[#2386c8]" />
           {errors.images?.[0] && <p className="mt-1 text-xs text-red-600">{errors.images[0]}</p>}
           {errors.imageUrls?.[0] && <p className="mt-1 text-xs text-red-600">{errors.imageUrls[0]}</p>}
         </div>
@@ -127,6 +142,19 @@ export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
           {errors.attachmentUrl?.[0] && <p className="mt-1 text-xs text-red-600">{errors.attachmentUrl[0]}</p>}
         </div>
       </div>
+
+      {previews.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {previews.map((item, index) => (
+            <div key={item.id} className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.url} alt={item.file.name} className="h-28 w-full object-cover" />
+              {index === 0 && <span className="absolute right-2 top-2 rounded-full bg-[#2386c8] px-2 py-0.5 text-[10px] font-bold text-white">الغلاف</span>}
+              <button type="button" onClick={() => removeImage(item.id)} className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-red-600">حذف</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {message && <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700">{message}</p>}
 
