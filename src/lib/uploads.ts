@@ -151,7 +151,7 @@ export async function saveUploadedImage(
   }
 
   const extension = EXTENSION_BY_MIME[detected];
-  const filename = `${userId}-${Date.now()}.${extension}`;
+  const filename = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
   const directory = path.join(UPLOADS_ROOT, kind);
 
   try {

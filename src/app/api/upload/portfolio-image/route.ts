@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 
   const files = formData.getAll('files').filter((file): file is File => file instanceof File && file.size > 0);
-  if (files.length < 1) return NextResponse.json({ error: 'اختر صورة واحدة على الأقل' }, { status: 400 });
+  if (files.length < 3) return NextResponse.json({ error: 'الحد الأدنى 3 صور لكل عمل' }, { status: 400 });
   if (files.length > MAX_IMAGES) return NextResponse.json({ error: `الحد الأقصى ${MAX_IMAGES} صور` }, { status: 400 });
 
   const urls: string[] = [];

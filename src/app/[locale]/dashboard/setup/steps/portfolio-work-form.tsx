@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition, type FormEvent } from 'react';
 
 import { createSetupPortfolioWorkAction } from '@/app/actions/setup';
 
@@ -42,29 +42,50 @@ async function uploadAttachment(file: File | null): Promise<{ url: string; name:
 export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedImagesRef = useRef<File[]>([]);
+  const previewUrlsRef = useRef<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const [errors, setErrors] = useState<FormErrors>({});
   const [message, setMessage] = useState<string | null>(null);
   const [previews, setPreviews] = useState<PreviewImage[]>([]);
 
-  const chooseImages = (files: FileList | null) => {
-    const selected = Array.from(files ?? []).filter((file) => file.size > 0);
-    const next = selected.slice(0, 10).map((file) => ({ id: `${file.name}-${file.size}-${crypto.randomUUID()}`, file, url: URL.createObjectURL(file) }));
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current = [];
+    };
+  }, []);
+
+  const replacePreviews = (next: PreviewImage[]) => {
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewUrlsRef.current = next.map((item) => item.url);
     setPreviews(next);
+  };
+
+  const chooseImages = (files: FileList | null) => {
+    const selected = Array.from(files ?? []).filter((file) => file.size > 0).slice(0, 10);
+    selectedImagesRef.current = selected;
+    const next = selected.map((file) => ({ id: `${file.name}-${file.size}-${crypto.randomUUID()}`, file, url: URL.createObjectURL(file) }));
+    replacePreviews(next);
     setErrors((prev) => ({ ...prev, images: undefined, imageUrls: undefined }));
   };
 
   const removeImage = (id: string) => {
-    setPreviews((prev) => prev.filter((item) => item.id !== id));
+    const next = previews.filter((item) => item.id !== id);
+    selectedImagesRef.current = next.map((item) => item.file);
+    replacePreviews(next);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const submit = (formData: FormData) => {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setErrors({});
     setMessage(null);
 
-    // مهم: قراءة الملفات فوراً خارج startTransition حتى لا تضيع FormData في React 19.
-    const imageFiles = previews.map((item) => item.file);
+    // React 19 قد يفرّغ/يفقد ملفات FormData عند استخدام <form action> مع startTransition.
+    // لذلك نستخدم onSubmit ونقرأ الملفات المحفوظة فوراً من ref قبل بدء transition.
+    const formData = new FormData(event.currentTarget);
+    const imageFiles = selectedImagesRef.current.filter((file) => file.size > 0);
     const attachmentFile = formData.get('attachment');
     const attachment = attachmentFile instanceof File && attachmentFile.size > 0 ? attachmentFile : null;
     const title = String(formData.get('title') ?? '');
@@ -83,6 +104,12 @@ export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
     startTransition(async () => {
       try {
         const [imageUrls, attachmentUrl] = await Promise.all([uploadImages(imageFiles), uploadAttachment(attachment)]);
+
+        if (imageUrls.length < 3) {
+          setErrors({ imageUrls: ['لم يتم رفع كل الصور — أعد اختيار 3 صور على الأقل'] });
+          return;
+        }
+
         const actionData = new FormData();
         actionData.set('title', title);
         actionData.set('description', description);
@@ -100,7 +127,8 @@ export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
 
         onCreated({ id: `${Date.now()}`, title, description, coverUrl: result.coverUrl ?? imageUrls[0], imagesCount: imageUrls.length, attachmentUrl: attachmentUrl.url || undefined }, result.portfolioCount ?? 0);
         formRef.current?.reset();
-        setPreviews([]);
+        selectedImagesRef.current = [];
+        replacePreviews([]);
         setMessage(result.message ?? 'تمت إضافة العمل');
       } catch (error) {
         setMessage(error instanceof Error ? error.message : 'حدث خطأ غير متوقع');
@@ -109,7 +137,7 @@ export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
   };
 
   return (
-    <form ref={formRef} action={submit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" noValidate>
+    <form ref={formRef} onSubmit={submit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="work-title" className="mb-1.5 block text-xs font-bold text-slate-700">عنوان العمل</label>

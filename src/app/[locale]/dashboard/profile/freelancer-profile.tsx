@@ -6,7 +6,6 @@
 import { Link } from '@/i18n/navigation';
 import { eq } from 'drizzle-orm';
 
-import { getMyPortfolio } from '@/app/actions/portfolio';
 import { db } from '@/db';
 import { users } from '@/db/schema';
 import { getRoleLabel, KYC_LABELS } from '@/lib/services/user-meta';
@@ -20,28 +19,25 @@ interface FreelancerProfileProps {
 }
 
 export async function FreelancerProfile({ user }: FreelancerProfileProps) {
-  const [profile, portfolio] = await Promise.all([
-    db
-      .select({
-        name: users.name,
-        email: users.email,
-        role: users.role,
-        isKycVerified: users.isKycVerified,
-        createdAt: users.createdAt,
-        phone: users.phone,
-        city: users.city,
-        preferredCurrency: users.preferredCurrency,
-        skills: users.skills,
-        bio: users.bio,
-        hourlyRate: users.hourlyRate,
-        avatarUrl: users.avatarUrl,
-      })
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1)
-      .then((r) => r[0]),
-    getMyPortfolio(),
-  ]);
+  const profile = await db
+    .select({
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      isKycVerified: users.isKycVerified,
+      createdAt: users.createdAt,
+      phone: users.phone,
+      city: users.city,
+      preferredCurrency: users.preferredCurrency,
+      skills: users.skills,
+      bio: users.bio,
+      hourlyRate: users.hourlyRate,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1)
+    .then((r) => r[0]);
 
   if (!profile) return null;
 
@@ -124,17 +120,6 @@ export async function FreelancerProfile({ user }: FreelancerProfileProps) {
         />
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-[18px] font-bold text-[#222]">معرض الأعمال</h2>
-            <p className="mt-1 text-[12px] text-[#666]">لديك {portfolio.length} عمل في معرضك المستقل.</p>
-          </div>
-          <Link href="/dashboard/profile/portfolio" className="inline-flex items-center justify-center rounded-xl bg-[#2386c8] px-5 py-3 text-sm font-bold text-white hover:bg-[#1a6da8]">
-            إدارة معرض الأعمال
-          </Link>
-        </div>
-      </section>
     </div>
   );
 }

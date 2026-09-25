@@ -60,7 +60,12 @@ export function PortfolioGrid({ initialItems }: PortfolioGridProps) {
             return (
               <article key={item.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
                 <div className="relative h-48 bg-slate-100">
-                  {cover ? <img src={cover} alt={item.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-slate-400">بدون صورة</div>}
+                  {cover ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={cover} alt={item.title} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-slate-400">بدون صورة</div>
+                  )}
                   <div className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-bold text-slate-700 shadow">{count} صور</div>
                   {item.attachmentUrl && <div className="absolute left-3 top-3 rounded-full bg-[#2386c8] px-3 py-1 text-xs font-bold text-white shadow">مرفق</div>}
                 </div>
