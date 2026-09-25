@@ -43,11 +43,28 @@ export function PortfolioList({ items }: { items: PortfolioItemDTO[] }) {
       {items.map((item) => (
         <div key={item.id} className="group rounded-[12px] border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-[#2386c8]/20">
           {item.imageUrl ? (
-            <div className="mb-3 overflow-hidden rounded-[10px] bg-[#f4f5f7]">
+            <a
+              href={item.imageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="فتح الصورة بالحجم الكامل"
+              className="mb-3 block aspect-video overflow-hidden rounded-[10px] bg-[#f4f5f7]"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.imageUrl} alt={item.title} className="h-36 w-full object-cover" />
+              <img
+                src={item.imageUrl}
+                alt={item.title}
+                loading="lazy"
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+              />
+            </a>
+          ) : (
+            <div className="mb-3 flex aspect-video items-center justify-center rounded-[10px] border border-dashed border-gray-200 bg-[#fcfcfc] text-[#c4c4c4]">
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth={1.3} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+              </svg>
             </div>
-          ) : null}
+          )}
 
           <h4 className="text-[13px] font-bold text-[#222] line-clamp-1">{item.title}</h4>
           {item.description ? <p className="mt-1.5 text-[11px] leading-5 text-[#666] line-clamp-3">{item.description}</p> : null}

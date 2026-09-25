@@ -34,6 +34,15 @@
  *  قرار موثّق — المعلومات المهنية:
  *   حقول المهارات/النبذة/السعر بالساعة تُحفَظ للمستقلين فقط، حتى لو
  *   أرسلها دور آخر (بوابة الدور داخل الإجراء — دفاع متعدد الطبقات).
+ *
+ *  قرار موثّق — الصورة الشخصية (رفع من الجهاز):
+ *   - المسار الطبيعي: العميل يرفع الصورة إلى /api/upload/avatar ويصل هنا
+ *     المسار المحلي /uploads/avatars/<userId>-<timestamp>.<ext> في avatarUrl.
+ *   - مسار بديل (بلا JavaScript): يصل الملف نفسه في الحقل avatarFile ويُحفظ
+ *     هنا عبر lib/uploads (نفس التحقق: 5MB — JPG/PNG/WEBP).
+ *   - عند استبدال الصورة أو حذفها (avatarUrl فارغ → NULL) يُحذف الملف
+ *     المحلي القديم من القرص (best-effort) كي لا تتراكم ملفات يتيمة.
+ *   - لا تزال الروابط الخارجية http(s) مقبولة (بيانات قديمة / API).
  * ============================================================================
  */
 
@@ -50,6 +59,7 @@ import {
   verifyPassword,
   type AuthActionState,
 } from '@/lib/auth';
+import { deleteLocalUpload, isLocalUploadUrl, isOwnedUploadUrl, saveUploadedImage } from '@/lib/uploads';
 import { toNumeric } from '@/lib/utils';
 
 /* ============================================================================
@@ -101,6 +111,27 @@ function normalizeProfileInput(data: unknown): Record<string, unknown> {
     return { ...(data as Record<string, unknown>) };
   }
   return {};
+}
+
+/**
+ * استخراج ملف الصورة الشخصية من FormData (المسار البديل بلا JavaScript).
+ * يعيد null إن لم يُرسَل ملف فعلي (حقل ملف فارغ = File بحجم 0).
+ */
+function extractAvatarFile(data: unknown): File | null {
+  if (!(data instanceof FormData)) return null;
+  const file = data.get('avatarFile');
+  return file instanceof File && file.size > 0 ? file : null;
+}
+
+/** رابط صورة مقبول: رابط http(s) خارجي أو مسار رفع محلي للصور الشخصية */
+function isAcceptableAvatarUrl(value: string): boolean {
+  if (isLocalUploadUrl(value, 'avatars')) return true;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 /** تطبيع عام لكلمات المرور: FormData أو كائن → سجل بسيط */
@@ -210,8 +241,8 @@ const updateProfileSchema = z.object({
   avatarUrl: clearableText(
     z
       .string({ error: 'رابط الصورة غير صالح' })
-      .url('رابط الصورة يجب أن يكون رابطاً صحيحاً')
-      .max(500, 'رابط الصورة طويل جداً (الحد 500 حرف)'),
+      .max(500, 'رابط الصورة طويل جداً (الحد 500 حرف)')
+      .refine(isAcceptableAvatarUrl, 'الصورة غير صالحة — ارفع صورة من جهازك (JPG/PNG/WEBP حتى 5MB)'),
   ).optional(),
   notifyEmail: booleanField,
   notifySms: booleanField,
@@ -258,6 +289,29 @@ export async function updateProfile(data: unknown): Promise<AuthActionState> {
 
   const input = parsed.data;
 
+  // 2-ب) صورة مرفوعة مباشرة مع النموذج (المسار البديل بلا JavaScript):
+  //      تُحفظ على القرص هنا ويحلّ مسارها محل أي قيمة نصية في avatarUrl.
+  const avatarFile = extractAvatarFile(data);
+  if (avatarFile) {
+    const saved = await saveUploadedImage(avatarFile, 'avatars', currentUser.id);
+    if (!saved.ok) {
+      return { success: false, fieldErrors: { avatarUrl: [saved.error] } };
+    }
+    input.avatarUrl = saved.url;
+  }
+
+  // 2-ج) مسار محلي يجب أن يكون ملفاً رفعه هذا المستخدم (لا انتحال صور الآخرين)
+  if (
+    input.avatarUrl &&
+    isLocalUploadUrl(input.avatarUrl, 'avatars') &&
+    !isOwnedUploadUrl(input.avatarUrl, 'avatars', currentUser.id)
+  ) {
+    return {
+      success: false,
+      fieldErrors: { avatarUrl: ['الصورة غير صالحة — ارفع صورة من جهازك'] },
+    };
+  }
+
   // 3) بناء التحديث الجزئي — المفتاح الغائب لا يُمسّ أبداً
   const updates: Partial<typeof users.$inferInsert> = {};
   if (input.name !== undefined) updates.name = input.name;
@@ -283,6 +337,17 @@ export async function updateProfile(data: unknown): Promise<AuthActionState> {
 
   // 4) التنفيذ — القيود في قاعدة البيانات خط الدفاع الأخير
   try {
+    // الصورة السابقة — لحذف ملفها المحلي إن استُبدلت أو أُزيلت
+    let previousAvatarUrl: string | null = null;
+    if (updates.avatarUrl !== undefined) {
+      const [current] = await db
+        .select({ avatarUrl: users.avatarUrl })
+        .from(users)
+        .where(eq(users.id, currentUser.id))
+        .limit(1);
+      previousAvatarUrl = current?.avatarUrl ?? null;
+    }
+
     const [updated] = await db
       .update(users)
       .set(updates)
@@ -294,6 +359,15 @@ export async function updateProfile(data: unknown): Promise<AuthActionState> {
         success: false,
         message: 'تعذّر العثور على حسابك — سجّل دخولك من جديد',
       };
+    }
+
+    // تنظيف القرص بعد نجاح التحديث فقط (best-effort)
+    if (
+      previousAvatarUrl &&
+      previousAvatarUrl !== updates.avatarUrl &&
+      isLocalUploadUrl(previousAvatarUrl, 'avatars')
+    ) {
+      await deleteLocalUpload(previousAvatarUrl);
     }
 
     revalidatePath('/dashboard/profile');

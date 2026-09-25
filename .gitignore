@@ -74,6 +74,7 @@ Thumbs.db
 
 # ملفات KYC المشفّرة (تخزين محلي للتطوير — وجّه KYC_STORAGE_DIR في الإنتاج)
 storage/
+<<<<<<< HEAD
 # Temporary analysis files
 *.txt
 *.patch
@@ -81,3 +82,9 @@ storage/
 !en.json
 !package.json
 !tsconfig.json
+=======
+
+# صور المستخدمين المرفوعة (الصورة الشخصية / معرض الأعمال) — تُنشأ وقت التشغيل
+public/uploads/*
+!public/uploads/.gitkeep
+>>>>>>> origin/arena/01a0c5b7-mnste9

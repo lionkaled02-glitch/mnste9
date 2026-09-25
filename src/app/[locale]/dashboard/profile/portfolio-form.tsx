@@ -1,13 +1,32 @@
 'use client';
 
-import { useActionState } from 'react';
+/**
+ * خدمات — نموذج إضافة عمل إلى معرض الأعمال — رفع صورة من الجهاز + #2386c8
+ * - صورة العمل تُرفع (PortfolioImageUpload) بدل إدخال رابط: المسار المرفوع
+ *   يصل في الحقل المخفي imageUrl ويُحفظ مع «إضافة العمل».
+ * - بعد إضافة ناجحة يُصفَّر النموذج والمعاينة (resetKey).
+ */
+
+import { useActionState, useState } from 'react';
+
 import { createPortfolioItemAction } from '@/app/actions/portfolio';
 import type { AuthActionState } from '@/lib/auth';
+
+import { PortfolioImageUpload } from './portfolio-image-upload';
 
 const INITIAL: AuthActionState = { success: false };
 
 export function PortfolioForm() {
   const [state, formAction, isPending] = useActionState(createPortfolioItemAction, INITIAL);
+
+  // مفتاح تصفير المعاينة — يزداد مع كل إضافة ناجحة
+  // (تعديل الحالة أثناء الرندر عند تغيّر نتيجة الإجراء — بلا effect)
+  const [resetKey, setResetKey] = useState(0);
+  const [seenState, setSeenState] = useState(state);
+  if (seenState !== state) {
+    setSeenState(state);
+    if (state.success) setResetKey((key) => key + 1);
+  }
 
   const titleErr = state.fieldErrors?.title?.[0];
   const descErr = state.fieldErrors?.description?.[0];
@@ -27,8 +46,9 @@ export function PortfolioForm() {
 
       <form action={formAction} className="mt-5 space-y-4" noValidate>
         <div>
-          <label className="mb-1.5 block text-[12px] font-bold text-[#444]">عنوان العمل *</label>
+          <label htmlFor="portfolio-title" className="mb-1.5 block text-[12px] font-bold text-[#444]">عنوان العمل *</label>
           <input
+            id="portfolio-title"
             name="title"
             required
             minLength={3}
@@ -40,8 +60,9 @@ export function PortfolioForm() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-[12px] font-bold text-[#444]">الوصف</label>
+          <label htmlFor="portfolio-description" className="mb-1.5 block text-[12px] font-bold text-[#444]">الوصف</label>
           <textarea
+            id="portfolio-description"
             name="description"
             rows={3}
             maxLength={1000}
@@ -53,8 +74,9 @@ export function PortfolioForm() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-[12px] font-bold text-[#444]">رابط خارجي</label>
+            <label htmlFor="portfolio-external-url" className="mb-1.5 block text-[12px] font-bold text-[#444]">رابط خارجي</label>
             <input
+              id="portfolio-external-url"
               name="externalUrl"
               type="url"
               dir="ltr"
@@ -62,20 +84,14 @@ export function PortfolioForm() {
               placeholder="https://example.com"
               className={`w-full rounded-[10px] border px-3.5 py-2.5 text-left text-[13px] outline-none focus:ring-2 ${extErr ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-gray-200 focus:border-[#2386c8] focus:ring-[#2386c8]/20'}`}
             />
-            {extErr && <p className="mt-1 text-[11px] text-red-600">{extErr}</p>}
+            {extErr ? (
+              <p className="mt-1 text-[11px] text-red-600">{extErr}</p>
+            ) : (
+              <p className="mt-1 text-[10.5px] text-[#999]">رابط المشروع المباشر أو صفحته إن وجد.</p>
+            )}
           </div>
-          <div>
-            <label className="mb-1.5 block text-[12px] font-bold text-[#444]">رابط صورة</label>
-            <input
-              name="imageUrl"
-              type="url"
-              dir="ltr"
-              maxLength={500}
-              placeholder="https://example.com/image.jpg"
-              className={`w-full rounded-[10px] border px-3.5 py-2.5 text-left text-[13px] outline-none focus:ring-2 ${imgErr ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-gray-200 focus:border-[#2386c8] focus:ring-[#2386c8]/20'}`}
-            />
-            {imgErr && <p className="mt-1 text-[11px] text-red-600">{imgErr}</p>}
-          </div>
+
+          <PortfolioImageUpload resetKey={resetKey} serverError={imgErr} disabled={isPending} />
         </div>
 
         <button
