@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 
-const FREELANCER_NAV_ITEMS = [
+const BASE_FREELANCER_NAV_ITEMS = [
   { href: '/dashboard', label: 'نظرة عامة' },
   { href: '/dashboard/projects', label: 'المشاريع' },
   { href: '/dashboard/proposals', label: 'العروض' },
@@ -25,8 +25,15 @@ function SimpleIcon() {
   );
 }
 
-export function FreelancerSidebar() {
+export function FreelancerSidebar({ setupComplete = true }: { setupComplete?: boolean }) {
   const pathname = usePathname();
+  const navItems = setupComplete
+    ? BASE_FREELANCER_NAV_ITEMS
+    : ([
+        { href: '/dashboard/setup', label: 'إعداد الحساب' },
+        ...BASE_FREELANCER_NAV_ITEMS,
+      ] as const);
+
   const isActive = (href: string): boolean =>
     href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
@@ -41,7 +48,7 @@ export function FreelancerSidebar() {
       </div>
 
       <nav className="flex gap-1 overflow-x-auto p-3 lg:flex-col lg:overflow-x-visible" aria-label="تنقل لوحة المستقل">
-        {FREELANCER_NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}

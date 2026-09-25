@@ -1,6 +1,5 @@
 'use client';
 
-import { Link } from '@/i18n/navigation';
 import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { selectAccountTypeAction } from '@/app/actions/auth';
@@ -85,6 +84,7 @@ export default function SelectAccountTypePage() {
             <ul className="mt-4 space-y-2 text-xs text-[#666]">
               <li>✓ تصفح المشاريع</li>
               <li>✓ تقديم عروض غير محدودة</li>
+              <li>✓ إعداد حساب خطوة بخطوة</li>
               <li>⚠️ يتطلب توثيق الهوية (KYC)</li>
             </ul>
           </button>

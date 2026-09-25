@@ -286,8 +286,8 @@ export async function selectAccountType(data: unknown): Promise<AuthActionState>
     if (parsed.data.accountType === 'freelancer') {
       return {
         success: true,
-        message: 'تم تفعيل حسابك كمستقل — وثّق هويتك للمتابعة',
-        redirectTo: '/dashboard/kyc',
+        message: 'تم تفعيل حسابك كمستقل — أكمل إعداد حسابك للمتابعة',
+        redirectTo: '/dashboard/setup',
       };
     }
     return {
