@@ -35,6 +35,17 @@ import { deleteLocalUpload, isLocalUploadUrl, isOwnedUploadUrl, saveUploadedImag
  * ========================================================================== */
 
 const HTTP_URL_PATTERN = /^https?:\/\/.+/;
+const LOCAL_PORTFOLIO_URL_PATTERN = /^\/uploads\/portfolio\/[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/;
+
+function parseJsonStringArray(value: string): string[] {
+  if (!value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
 
 const portfolioSchema = z.object({
   title: z.string().min(3, 'العنوان 3 أحرف على الأقل').max(200, 'العنوان طويل جداً (200 حرف كحد أقصى)'),
@@ -52,6 +63,18 @@ const portfolioSchema = z.object({
       (v) => !v || HTTP_URL_PATTERN.test(v) || isLocalUploadUrl(v, 'portfolio'),
       'الصورة غير صالحة — ارفع صورة من جهازك (JPG/PNG/WEBP حتى 5MB)',
     ),
+  imageUrls: z.string().optional(),
+  coverImageUrl: z
+    .string()
+    .max(500, 'رابط الغلاف طويل جداً')
+    .optional()
+    .refine((v) => !v || LOCAL_PORTFOLIO_URL_PATTERN.test(v) || HTTP_URL_PATTERN.test(v), 'صورة الغلاف غير صالحة'),
+  attachmentUrl: z
+    .string()
+    .max(500, 'رابط الملف طويل جداً')
+    .optional()
+    .refine((v) => !v || LOCAL_PORTFOLIO_URL_PATTERN.test(v) || HTTP_URL_PATTERN.test(v), 'الملف المرفق غير صالح'),
+  attachmentName: z.string().max(255, 'اسم الملف طويل جداً').optional(),
 });
 
 /* ============================================================================
@@ -65,6 +88,10 @@ export interface PortfolioItemDTO {
   description: string | null;
   externalUrl: string | null;
   imageUrl: string | null;
+  images: string[] | null;
+  coverImageUrl: string | null;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
   createdAt: Date;
 }
 
@@ -82,6 +109,10 @@ function toDTO(r: typeof portfolioItems.$inferSelect): PortfolioItemDTO {
     description: r.description,
     externalUrl: r.externalUrl,
     imageUrl: r.imageUrl,
+    images: r.images,
+    coverImageUrl: r.coverImageUrl,
+    attachmentUrl: r.attachmentUrl,
+    attachmentName: r.attachmentName,
     createdAt: r.createdAt,
   };
 }
@@ -128,6 +159,10 @@ export async function createPortfolioItemAction(_prev: AuthActionState, formData
     description: String(formData.get('description') ?? '').trim(),
     externalUrl: String(formData.get('externalUrl') ?? '').trim(),
     imageUrl: String(formData.get('imageUrl') ?? '').trim(),
+    imageUrls: String(formData.get('imageUrls') ?? '').trim(),
+    coverImageUrl: String(formData.get('coverImageUrl') ?? '').trim(),
+    attachmentUrl: String(formData.get('attachmentUrl') ?? '').trim(),
+    attachmentName: String(formData.get('attachmentName') ?? '').trim(),
   };
 
   const parsed = portfolioSchema.safeParse(raw);
@@ -141,8 +176,11 @@ export async function createPortfolioItemAction(_prev: AuthActionState, formData
     return { success: false, message: 'تحقق من الحقول', fieldErrors };
   }
 
-  const { title, description, externalUrl } = parsed.data;
-  let imageUrl = parsed.data.imageUrl || null;
+  const { title, description, externalUrl, attachmentUrl, attachmentName } = parsed.data;
+  const parsedImages = parseJsonStringArray(parsed.data.imageUrls ?? '');
+  let imageUrl = parsed.data.imageUrl || parsedImages[0] || null;
+  let images = parsedImages.length > 0 ? parsedImages : imageUrl ? [imageUrl] : [];
+  let coverImageUrl = parsed.data.coverImageUrl || imageUrl;
 
   // صورة مرفوعة مباشرة مع النموذج (بلا JavaScript) — تحلّ محل أي قيمة نصية
   let savedHere: string | null = null;
@@ -153,6 +191,8 @@ export async function createPortfolioItemAction(_prev: AuthActionState, formData
       return { success: false, message: 'تحقق من الحقول', fieldErrors: { imageUrl: [saved.error] } };
     }
     imageUrl = saved.url;
+    images = [saved.url];
+    coverImageUrl = saved.url;
     savedHere = saved.url;
   }
 
@@ -164,6 +204,11 @@ export async function createPortfolioItemAction(_prev: AuthActionState, formData
       fieldErrors: { imageUrl: ['الصورة غير صالحة — ارفع صورة من جهازك'] },
     };
   }
+  for (const url of [...images, coverImageUrl, attachmentUrl].filter(Boolean) as string[]) {
+    if (isLocalUploadUrl(url, 'portfolio') && !isOwnedUploadUrl(url, 'portfolio', currentUser.id)) {
+      return { success: false, message: 'تحقق من الحقول', fieldErrors: { imageUrl: ['ملفات معرض الأعمال غير صالحة — ارفع ملفاتك من جهازك'] } };
+    }
+  }
 
   try {
     await db.insert(portfolioItems).values({
@@ -172,6 +217,10 @@ export async function createPortfolioItemAction(_prev: AuthActionState, formData
       description: description || null,
       externalUrl: externalUrl || null,
       imageUrl,
+      images: images.length > 0 ? images : null,
+      coverImageUrl: coverImageUrl || imageUrl,
+      attachmentUrl: attachmentUrl || null,
+      attachmentName: attachmentName || null,
     });
 
     revalidatePath('/dashboard/profile');

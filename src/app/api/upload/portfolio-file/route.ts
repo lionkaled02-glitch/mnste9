@@ -43,5 +43,5 @@ export async function POST(request: Request) {
   const filename = `${user.id}-${safeTimestamp()}.${ext}`;
   await writeFile(path.join(directory, filename), Buffer.from(await file.arrayBuffer()));
 
-  return NextResponse.json({ url: `/uploads/portfolio/${filename}` });
+  return NextResponse.json({ url: `/uploads/portfolio/${filename}`, name: file.name });
 }

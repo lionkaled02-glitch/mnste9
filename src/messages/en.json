@@ -406,5 +406,55 @@
       "descMax": "Description too long",
       "urlInvalid": "Invalid URL"
     }
+  },
+  "kyc": {
+    "dynamicFields": {
+      "nationalId": {
+        "fullName": "Full name (as shown on ID)",
+        "cardNumber": "ID number",
+        "issueYear": "Issue year",
+        "issuePlace": "Issue place"
+      },
+      "passport": {
+        "fullName": "Full name (as shown on passport)",
+        "passportNumber": "Passport number",
+        "issueDate": "Issue date",
+        "expiryDate": "Expiry date",
+        "issuePlace": "Issue place"
+      },
+      "drivingLicense": {
+        "fullName": "Full name",
+        "licenseNumber": "License number",
+        "issueDate": "Issue date",
+        "expiryDate": "Expiry date"
+      }
+    }
+  },
+  "portfolio": {
+    "minWorks": "Minimum 3 works",
+    "minImages": "Minimum 3 images per work",
+    "addWork": "Add new work",
+    "workTitle": "Work title",
+    "workDescription": "Work description",
+    "workImages": "Work images (at least 3)",
+    "workFile": "Attachment (optional)",
+    "worksCount": "{count} of 3 works completed"
+  },
+  "pendingReview": {
+    "title": "Thank you! Your request is under review",
+    "message": "Your information was submitted successfully. Support will review it within 24 hours.",
+    "referenceNumber": "Reference number",
+    "submittedAt": "Submitted at",
+    "checklist": "Checklist",
+    "items": {
+      "phone": "Phone number received",
+      "bio": "Bio received",
+      "skills": "Skills received",
+      "kyc": "Identity documents received",
+      "portfolio": "Portfolio received"
+    },
+    "notice": "You cannot submit proposals until your account is approved.",
+    "browseProjects": "Browse projects",
+    "contactSupport": "Contact support"
   }
 }

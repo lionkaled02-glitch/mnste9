@@ -406,5 +406,55 @@
       "descMax": "الوصف طويل جداً",
       "urlInvalid": "رابط غير صالح"
     }
+  },
+  "kyc": {
+    "dynamicFields": {
+      "nationalId": {
+        "fullName": "الاسم الكامل (كما في البطاقة)",
+        "cardNumber": "رقم البطاقة",
+        "issueYear": "سنة الإصدار",
+        "issuePlace": "مكان الإصدار"
+      },
+      "passport": {
+        "fullName": "الاسم الكامل (كما في الجواز)",
+        "passportNumber": "رقم الجواز",
+        "issueDate": "تاريخ الإصدار",
+        "expiryDate": "تاريخ الانتهاء",
+        "issuePlace": "مكان الإصدار"
+      },
+      "drivingLicense": {
+        "fullName": "الاسم الكامل",
+        "licenseNumber": "رقم الرخصة",
+        "issueDate": "تاريخ الإصدار",
+        "expiryDate": "تاريخ الانتهاء"
+      }
+    }
+  },
+  "portfolio": {
+    "minWorks": "الحد الأدنى 3 أعمال",
+    "minImages": "الحد الأدنى 3 صور لكل عمل",
+    "addWork": "أضف عمل جديد",
+    "workTitle": "عنوان العمل",
+    "workDescription": "وصف العمل",
+    "workImages": "صور العمل (3 على الأقل)",
+    "workFile": "ملف مرفق (اختياري)",
+    "worksCount": "{count} من 3 أعمال مكتملة"
+  },
+  "pendingReview": {
+    "title": "شكراً لك! طلبك قيد المراجعة",
+    "message": "تم إرسال بياناتك بنجاح. فريق الدعم سيراجعها خلال 24 ساعة.",
+    "referenceNumber": "الرقم المرجعي",
+    "submittedAt": "وقت الإرسال",
+    "checklist": "قائمة التحقق",
+    "items": {
+      "phone": "تم استلام رقم الجوال",
+      "bio": "تم استلام النبذة التعريفية",
+      "skills": "تم استلام المهارات",
+      "kyc": "تم استلام وثائق الهوية",
+      "portfolio": "تم استلام معرض الأعمال"
+    },
+    "notice": "لا يمكنك تقديم عروض حتى الموافقة على حسابك.",
+    "browseProjects": "تصفح المشاريع",
+    "contactSupport": "تواصل مع الدعم"
   }
 }

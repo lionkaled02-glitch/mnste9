@@ -83,6 +83,7 @@ const portfolioV2Schema = z.object({
     .max(500, 'رابط الملف طويل جداً')
     .optional()
     .refine((value) => !value || LOCAL_PORTFOLIO_IMAGE_PATTERN.test(value), 'مسار الملف غير صالح'),
+  attachmentName: z.string().trim().max(255, 'اسم الملف طويل جداً').optional(),
 });
 
 
@@ -176,11 +177,12 @@ export async function createSetupPortfolioWorkAction(formData: FormData): Promis
     externalUrl: String(formData.get('externalUrl') ?? ''),
     imageUrls: String(formData.get('imageUrls') ?? '[]'),
     attachmentUrl: String(formData.get('attachmentUrl') ?? ''),
+    attachmentName: String(formData.get('attachmentName') ?? ''),
   });
 
   if (!parsed.success) return { success: false, message: 'تحقق من حقول العمل', fieldErrors: zodFieldErrors(parsed.error) };
 
-  const { title, description, externalUrl, imageUrls } = parsed.data;
+  const { title, description, externalUrl, imageUrls, attachmentUrl, attachmentName } = parsed.data;
   const coverUrl = imageUrls[0];
 
   await db.insert(portfolioItems).values({
@@ -189,6 +191,10 @@ export async function createSetupPortfolioWorkAction(formData: FormData): Promis
     description,
     externalUrl: externalUrl || null,
     imageUrl: coverUrl,
+    images: imageUrls,
+    coverImageUrl: coverUrl,
+    attachmentUrl: attachmentUrl || null,
+    attachmentName: attachmentName || null,
   });
 
   const [row] = await db.select({ value: count() }).from(portfolioItems).where(eq(portfolioItems.userId, user.id));

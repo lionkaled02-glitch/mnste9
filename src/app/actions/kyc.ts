@@ -91,13 +91,51 @@ function isValidDate(value: string): boolean {
   return !Number.isNaN(date.getTime());
 }
 
+function getDocumentNumber(data: FormData, documentType: SetupDocumentType): string {
+  if (documentType === 'national_id') return requiredText(data.get('documentNumber')) || requiredText(data.get('cardNumber'));
+  if (documentType === 'passport') return requiredText(data.get('documentNumber')) || requiredText(data.get('passportNumber'));
+  return requiredText(data.get('documentNumber')) || requiredText(data.get('licenseNumber'));
+}
+
+function getIssueDateValue(data: FormData, documentType: SetupDocumentType): string {
+  const issueDate = requiredText(data.get('issueDate'));
+  if (issueDate) return issueDate;
+  if (documentType === 'national_id') {
+    const year = requiredText(data.get('issueYear'));
+    return /^\d{4}$/.test(year) ? `${year}-01-01` : '';
+  }
+  return '';
+}
+
+function parseOptionalJson(value: FormDataEntryValue | null): Record<string, unknown> | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildExtraFields(data: FormData, documentType: SetupDocumentType): Record<string, unknown> {
+  const provided = parseOptionalJson(data.get('extraFields')) ?? {};
+  return {
+    ...provided,
+    originalDocumentType: documentType,
+    cardNumber: requiredText(data.get('cardNumber')) || undefined,
+    passportNumber: requiredText(data.get('passportNumber')) || undefined,
+    licenseNumber: requiredText(data.get('licenseNumber')) || undefined,
+    issueYear: requiredText(data.get('issueYear')) || undefined,
+  };
+}
+
 function validateExtraFields(data: FormData, documentType: SetupDocumentType): Record<string, string[]> {
   const errors: Record<string, string[]> = {};
   const fullName = requiredText(data.get('fullName'));
   if (fullName.length < 3 || fullName.length > 120) errors.fullName = ['الاسم الكامل مطلوب (3-120 حرفاً)'];
 
   if (documentType === 'national_id') {
-    const cardNumber = requiredText(data.get('cardNumber'));
+    const cardNumber = getDocumentNumber(data, documentType);
     const issueYear = requiredText(data.get('issueYear'));
     const issuePlace = requiredText(data.get('issuePlace'));
     if (!/^\d{8,20}$/.test(cardNumber)) errors.cardNumber = ['رقم البطاقة يجب أن يكون 8-20 رقماً'];
@@ -106,7 +144,7 @@ function validateExtraFields(data: FormData, documentType: SetupDocumentType): R
   }
 
   if (documentType === 'passport') {
-    const passportNumber = requiredText(data.get('passportNumber'));
+    const passportNumber = getDocumentNumber(data, documentType);
     const issueDate = requiredText(data.get('issueDate'));
     const expiryDate = requiredText(data.get('expiryDate'));
     const issuePlace = requiredText(data.get('issuePlace'));
@@ -118,7 +156,7 @@ function validateExtraFields(data: FormData, documentType: SetupDocumentType): R
   }
 
   if (documentType === 'driving_license' || documentType === 'driver_license') {
-    const licenseNumber = requiredText(data.get('licenseNumber'));
+    const licenseNumber = getDocumentNumber(data, documentType);
     const issueDate = requiredText(data.get('issueDate'));
     const expiryDate = requiredText(data.get('expiryDate'));
     if (!/^[A-Za-z0-9-]{5,30}$/.test(licenseNumber)) errors.licenseNumber = ['رقم الرخصة غير صالح'];
@@ -137,12 +175,16 @@ function getStorageDir(): string {
 
 /** خانات الملفات الثلاث — الاسم في النموذج والوصف ولواحق التخزين */
 const FILE_SLOTS = [
-  { field: 'frontDocument', suffix: 'front' },
-  { field: 'backDocument', suffix: 'back' },
-  { field: 'selfieDocument', suffix: 'selfie' },
+  { field: 'frontDocument', alias: 'frontFile', suffix: 'front' },
+  { field: 'backDocument', alias: 'backFile', suffix: 'back' },
+  { field: 'selfieDocument', alias: 'selfieFile', suffix: 'selfie' },
 ] as const;
 
 type FileSlotField = (typeof FILE_SLOTS)[number]['field'];
+
+function getSlotFile(data: FormData, slot: (typeof FILE_SLOTS)[number]): FormDataEntryValue | null {
+  return data.get(slot.field) ?? data.get(slot.alias);
+}
 
 /**
  * فحص ملف واحد من خانة واحدة — يُعيد رسالة الخطأ المناسبة أو null.
@@ -197,7 +239,7 @@ export async function uploadKycDocuments(
   const fieldErrors: Record<string, string[]> = validateExtraFields(data, documentType);
   const files = new Map<FileSlotField, File>();
   for (const slot of FILE_SLOTS) {
-    const file = data.get(slot.field);
+    const file = getSlotFile(data, slot);
     const isOptionalPassportVisaPage = documentType === 'passport' && slot.field === 'backDocument' && (!(file instanceof File) || file.size === 0);
     if (isOptionalPassportVisaPage) continue;
 
@@ -252,6 +294,13 @@ export async function uploadKycDocuments(
     };
   }
 
+  const fullName = requiredText(data.get('fullName'));
+  const documentNumber = getDocumentNumber(data, documentType);
+  const issueDateValue = getIssueDateValue(data, documentType);
+  const expiryDateValue = requiredText(data.get('expiryDate'));
+  const issuePlace = requiredText(data.get('issuePlace'));
+  const extraFields = buildExtraFields(data, documentType);
+
   // 5) التشفير والتخزين — كل ملف خارج القاعدة، ومساره مشفّر داخلها
   try {
     const storageDir = getStorageDir();
@@ -294,6 +343,12 @@ export async function uploadKycDocuments(
       selfieFilePath: selfiePath,
       documentType: normalizeDocumentType(documentType),
       status: 'pending',
+      fullName,
+      documentNumber,
+      issueDate: issueDateValue ? issueDateValue : null,
+      expiryDate: expiryDateValue ? expiryDateValue : null,
+      issuePlace: issuePlace || null,
+      extraFields,
     });
 
     revalidatePath('/dashboard/kyc');

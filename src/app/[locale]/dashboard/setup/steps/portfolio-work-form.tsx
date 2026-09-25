@@ -23,14 +23,14 @@ async function uploadImages(files: File[]): Promise<string[]> {
   return data.urls;
 }
 
-async function uploadAttachment(file: File | null): Promise<string> {
-  if (!file) return '';
+async function uploadAttachment(file: File | null): Promise<{ url: string; name: string }> {
+  if (!file) return { url: '', name: '' };
   const formData = new FormData();
   formData.append('file', file);
   const response = await fetch('/api/upload/portfolio-file', { method: 'POST', body: formData });
-  const data = (await response.json()) as { url?: string; error?: string };
+  const data = (await response.json()) as { url?: string; name?: string; error?: string };
   if (!response.ok || !data.url) throw new Error(data.error ?? 'تعذر رفع الملف');
-  return data.url;
+  return { url: data.url, name: data.name ?? file.name };
 }
 
 export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
@@ -64,7 +64,8 @@ export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
         actionData.set('description', String(formData.get('description') ?? ''));
         actionData.set('externalUrl', String(formData.get('externalUrl') ?? ''));
         actionData.set('imageUrls', JSON.stringify(imageUrls));
-        actionData.set('attachmentUrl', attachmentUrl);
+        actionData.set('attachmentUrl', attachmentUrl.url);
+        actionData.set('attachmentName', attachmentUrl.name);
 
         const result = await createSetupPortfolioWorkAction(actionData);
         if (!result.success) {
@@ -80,7 +81,7 @@ export function PortfolioWorkForm({ onCreated }: PortfolioWorkFormProps) {
             description: String(formData.get('description') ?? ''),
             coverUrl: result.coverUrl ?? imageUrls[0],
             imagesCount: imageUrls.length,
-            attachmentUrl: attachmentUrl || undefined,
+            attachmentUrl: attachmentUrl.url || undefined,
           },
           result.portfolioCount ?? 0,
         );
