@@ -470,7 +470,8 @@
     "details": "التفاصيل",
     "delete": "حذف",
     "images": "صور",
-    "attachment": "مرفق"
+    "attachment": "مرفق",
+    "sidebarLabel": "معرض أعمالي"
   },
   "wishlistPage": {
     "title": "المفضلة",
@@ -495,6 +496,7 @@
   },
   "userMenu": {
     "wishlist": "المفضلة",
-    "reviews": "التقييمات"
+    "reviews": "التقييمات",
+    "portfolio": "معرض أعمالي"
   }
 }

@@ -470,7 +470,8 @@
     "details": "Details",
     "delete": "Delete",
     "images": "images",
-    "attachment": "Attachment"
+    "attachment": "Attachment",
+    "sidebarLabel": "My Portfolio"
   },
   "wishlistPage": {
     "title": "Wishlist",
@@ -495,6 +496,7 @@
   },
   "userMenu": {
     "wishlist": "Wishlist",
-    "reviews": "Reviews"
+    "reviews": "Reviews",
+    "portfolio": "My Portfolio"
   }
 }

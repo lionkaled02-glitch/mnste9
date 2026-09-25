@@ -13,6 +13,7 @@ const BASE_FREELANCER_NAV_ITEMS = [
   { href: '/dashboard/wallet', label: 'المحفظة' },
   { href: '/dashboard/messages', label: 'الرسائل' },
   { href: '/dashboard/profile', label: 'الملف الشخصي' },
+  { href: '/dashboard/profile/portfolio', label: 'معرض أعمالي', icon: 'portfolio' },
   { href: '/dashboard/wishlist', label: 'المفضلة' },
   { href: '/dashboard/reviews', label: 'التقييمات' },
   { href: '/dashboard/kyc', label: 'توثيق الهوية' },
@@ -27,6 +28,14 @@ function SimpleIcon() {
   );
 }
 
+function PortfolioIcon() {
+  return (
+    <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0Z" />
+    </svg>
+  );
+}
+
 export function FreelancerSidebar({ setupComplete = true, isKycVerified = false }: { setupComplete?: boolean; isKycVerified?: boolean }) {
   const pathname = usePathname();
   const filteredItems = BASE_FREELANCER_NAV_ITEMS.filter((item) => !(isKycVerified && item.href === '/dashboard/kyc'));
@@ -37,8 +46,10 @@ export function FreelancerSidebar({ setupComplete = true, isKycVerified = false 
         ...filteredItems,
       ] as const);
 
-  const isActive = (href: string): boolean =>
-    href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string): boolean => {
+    if (href === '/dashboard' || href === '/dashboard/profile') return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <aside className="border-b border-slate-200 bg-white lg:border-b-0 lg:border-l">
@@ -61,8 +72,8 @@ export function FreelancerSidebar({ setupComplete = true, isKycVerified = false 
               isActive(item.href) ? 'bg-[#2386c8]/10 font-semibold text-[#2386c8]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
             )}
           >
-            <SimpleIcon />
-            {item.label}
+            {'icon' in item && item.icon === 'portfolio' ? <PortfolioIcon /> : <SimpleIcon />}
+            <span>{item.label}</span>
           </Link>
         ))}
       </nav>
