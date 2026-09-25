@@ -175,6 +175,7 @@ export async function createPortfolioItemAction(_prev: AuthActionState, formData
     });
 
     revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/setup');
     return { success: true, message: 'تمت إضافة العمل إلى معرض أعمالك' };
   } catch (e) {
     console.error('createPortfolioItem failed:', e);
@@ -208,6 +209,7 @@ export async function deletePortfolioItemSecureAction(_prev: AuthActionState, fo
     }
 
     revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/setup');
     return { success: true, message: 'تم حذف العمل' };
   } catch (e) {
     console.error('deletePortfolioItem failed:', e);

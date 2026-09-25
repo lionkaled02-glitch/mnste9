@@ -51,11 +51,7 @@ import { db } from '@/db';
 import { kycDocuments, users } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
 import { encryptBuffer, encryptData } from '@/lib/crypto';
-import {
-  KYC_ALLOWED_MIME_TYPES,
-  KYC_DOCUMENT_TYPE_OPTIONS,
-  KYC_MAX_FILE_SIZE_BYTES,
-} from '@/lib/services/kyc-meta';
+import { KYC_ALLOWED_MIME_TYPES, KYC_MAX_FILE_SIZE_BYTES } from '@/lib/services/kyc-meta';
 import { getKycStatus as getKycStatusForUser } from '@/lib/services/kyc';
 
 /* ============================================================================
@@ -71,15 +67,68 @@ function zodFieldErrors(error: z.ZodError): Record<string, string[]> {
   return fieldErrors;
 }
 
-const DOCUMENT_TYPE_VALUES = KYC_DOCUMENT_TYPE_OPTIONS.map(
-  (option) => option.value,
-) as [string, ...string[]];
+const DOCUMENT_TYPE_VALUES = ['national_id', 'passport', 'driving_license', 'driver_license'] as const;
+
+type SetupDocumentType = (typeof DOCUMENT_TYPE_VALUES)[number];
 
 const uploadSchema = z.object({
   documentType: z.enum(DOCUMENT_TYPE_VALUES, {
     error: 'اختر نوع الوثيقة',
   }),
 });
+
+function normalizeDocumentType(value: SetupDocumentType): 'national_id' | 'passport' | 'driver_license' {
+  return value === 'driving_license' ? 'driver_license' : value;
+}
+
+function requiredText(value: FormDataEntryValue | null): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime());
+}
+
+function validateExtraFields(data: FormData, documentType: SetupDocumentType): Record<string, string[]> {
+  const errors: Record<string, string[]> = {};
+  const fullName = requiredText(data.get('fullName'));
+  if (fullName.length < 3 || fullName.length > 120) errors.fullName = ['الاسم الكامل مطلوب (3-120 حرفاً)'];
+
+  if (documentType === 'national_id') {
+    const cardNumber = requiredText(data.get('cardNumber'));
+    const issueYear = requiredText(data.get('issueYear'));
+    const issuePlace = requiredText(data.get('issuePlace'));
+    if (!/^\d{8,20}$/.test(cardNumber)) errors.cardNumber = ['رقم البطاقة يجب أن يكون 8-20 رقماً'];
+    if (!/^\d{4}$/.test(issueYear) || Number(issueYear) < 1950 || Number(issueYear) > new Date().getFullYear()) errors.issueYear = ['سنة الإصدار غير صالحة'];
+    if (issuePlace.length < 2 || issuePlace.length > 100) errors.issuePlace = ['مكان الإصدار مطلوب'];
+  }
+
+  if (documentType === 'passport') {
+    const passportNumber = requiredText(data.get('passportNumber'));
+    const issueDate = requiredText(data.get('issueDate'));
+    const expiryDate = requiredText(data.get('expiryDate'));
+    const issuePlace = requiredText(data.get('issuePlace'));
+    if (!/^[A-Za-z0-9]{5,20}$/.test(passportNumber)) errors.passportNumber = ['رقم الجواز يجب أن يكون حروفاً وأرقاماً (5-20)'];
+    if (!isValidDate(issueDate)) errors.issueDate = ['تاريخ الإصدار غير صالح'];
+    if (!isValidDate(expiryDate)) errors.expiryDate = ['تاريخ الانتهاء غير صالح'];
+    if (isValidDate(issueDate) && isValidDate(expiryDate) && new Date(expiryDate) <= new Date(issueDate)) errors.expiryDate = ['تاريخ الانتهاء يجب أن يكون بعد تاريخ الإصدار'];
+    if (issuePlace.length < 2 || issuePlace.length > 100) errors.issuePlace = ['مكان الإصدار مطلوب'];
+  }
+
+  if (documentType === 'driving_license' || documentType === 'driver_license') {
+    const licenseNumber = requiredText(data.get('licenseNumber'));
+    const issueDate = requiredText(data.get('issueDate'));
+    const expiryDate = requiredText(data.get('expiryDate'));
+    if (!/^[A-Za-z0-9-]{5,30}$/.test(licenseNumber)) errors.licenseNumber = ['رقم الرخصة غير صالح'];
+    if (!isValidDate(issueDate)) errors.issueDate = ['تاريخ الإصدار غير صالح'];
+    if (!isValidDate(expiryDate)) errors.expiryDate = ['تاريخ الانتهاء غير صالح'];
+    if (isValidDate(issueDate) && isValidDate(expiryDate) && new Date(expiryDate) <= new Date(issueDate)) errors.expiryDate = ['تاريخ الانتهاء يجب أن يكون بعد تاريخ الإصدار'];
+  }
+
+  return errors;
+}
 
 /** مجلد تخزين الوثائق المشفّرة (قابل للتوجيه من البيئة) */
 function getStorageDir(): string {
@@ -144,10 +193,14 @@ export async function uploadKycDocuments(
     return { success: false, fieldErrors: zodFieldErrors(parsed.error) };
   }
 
-  const fieldErrors: Record<string, string[]> = {};
+  const documentType = parsed.data.documentType;
+  const fieldErrors: Record<string, string[]> = validateExtraFields(data, documentType);
   const files = new Map<FileSlotField, File>();
   for (const slot of FILE_SLOTS) {
     const file = data.get(slot.field);
+    const isOptionalPassportVisaPage = documentType === 'passport' && slot.field === 'backDocument' && (!(file instanceof File) || file.size === 0);
+    if (isOptionalPassportVisaPage) continue;
+
     const error = validateFile(file);
     if (error) {
       fieldErrors[slot.field] = [error];
@@ -227,7 +280,7 @@ export async function uploadKycDocuments(
     }
 
     const frontPath = encryptedPaths.get('frontDocument')!;
-    const backPath = encryptedPaths.get('backDocument')!;
+    const backPath = encryptedPaths.get('backDocument') ?? null;
     const selfiePath = encryptedPaths.get('selfieDocument')!;
 
     // 6) الإدراج — قيد المراجعة افتراضياً
@@ -239,7 +292,7 @@ export async function uploadKycDocuments(
       frontFilePath: frontPath,
       backFilePath: backPath,
       selfieFilePath: selfiePath,
-      documentType: parsed.data.documentType,
+      documentType: normalizeDocumentType(documentType),
       status: 'pending',
     });
 

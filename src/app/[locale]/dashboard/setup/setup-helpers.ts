@@ -42,7 +42,7 @@ export function buildSetupState(values: SetupProfileValues): SetupState {
   if (hasText(values.bio)) completedSteps.push('bio');
   if (hasText(values.skills)) completedSteps.push('skills');
   if (values.isKycVerified || values.hasKycRequest) completedSteps.push('kyc');
-  if (values.portfolioCount > 0) completedSteps.push('portfolio');
+  if (values.portfolioCount >= 3) completedSteps.push('portfolio');
 
   const currentStep = SETUP_STEPS.find((step) => !completedSteps.includes(step.key))?.key ?? 'complete';
   const progress = Math.round((completedSteps.length / TOTAL_STEPS) * 100);

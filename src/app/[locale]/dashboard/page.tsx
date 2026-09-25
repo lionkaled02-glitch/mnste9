@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { eq } from 'drizzle-orm';
 
+import { getLatestKycDocument } from '@/app/actions/kyc-status';
+import { db } from '@/db';
+import { users } from '@/db/schema';
 import { Link } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -15,10 +19,6 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-interface DashboardPageProps {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
 function SessionExpired() {
   return (
     <div className="rounded-[14px] border border-gray-200 bg-white p-10 text-center shadow-sm">
@@ -31,39 +31,32 @@ function SessionExpired() {
   );
 }
 
-function firstParam(searchParams: Record<string, string | string[] | undefined>, key: string): string | undefined {
-  const value = searchParams[key];
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function SetupCompleteMessage() {
-  return (
-    <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800 shadow-sm">
-      🎉 تهانينا! اكتمل إعداد حسابك كمستقل، ويمكنك الآن استخدام لوحة التحكم.
-    </div>
-  );
-}
-
-export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return <SessionExpired />;
-
-  const resolvedSearchParams = await searchParams;
-  const setupCompletedNow = firstParam(resolvedSearchParams, 'setup') === 'complete';
 
   if (user.role === 'client') {
     return <ClientDashboard user={user} />;
   }
 
   if (user.role === 'freelancer') {
-    const setupState = await getFreelancerSetupState(user.id);
+    const [profile, setupState, kycDoc] = await Promise.all([
+      db
+        .select({ phone: users.phone, bio: users.bio, isKycVerified: users.isKycVerified })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1)
+        .then((rows) => rows[0]),
+      getFreelancerSetupState(user.id),
+      getLatestKycDocument(user.id),
+    ]);
+
+    if (!profile?.phone && !profile?.bio) redirect('/dashboard/setup');
+    if (!kycDoc) redirect('/dashboard/setup');
+    if (kycDoc.status === 'pending' && !profile.isKycVerified) redirect('/dashboard/pending-review');
+    if (kycDoc.status === 'rejected') redirect('/dashboard/kyc?rejected=1');
     if (!isFreelancerSetupComplete(setupState)) redirect('/dashboard/setup');
   }
 
-  return (
-    <>
-      {setupCompletedNow && <SetupCompleteMessage />}
-      <FreelancerDashboard />
-    </>
-  );
+  return <FreelancerDashboard />;
 }

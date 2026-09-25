@@ -30,7 +30,7 @@ export function SetupWizard({ initialState, initialValues, userName }: SetupWiza
       setCompletedSteps((prev) => (prev.includes(step) ? prev : [...prev, step]));
 
       if (nextStep === 'complete') {
-        router.push('/dashboard?setup=complete');
+        router.push('/dashboard/pending-review');
         router.refresh();
         return;
       }
@@ -65,7 +65,7 @@ export function SetupWizard({ initialState, initialValues, userName }: SetupWiza
         {currentStep === 'bio' && <StepBio initialBio={initialValues.bio} onComplete={() => completeStep('bio')} />}
         {currentStep === 'skills' && <StepSkills initialSkills={initialValues.skills} onComplete={() => completeStep('skills')} />}
         {currentStep === 'kyc' && <StepKyc alreadySubmitted={initialValues.isKycVerified || initialValues.hasKycRequest} onComplete={() => completeStep('kyc')} />}
-        {currentStep === 'portfolio' && <StepPortfolio onComplete={() => completeStep('portfolio')} />}
+        {currentStep === 'portfolio' && <StepPortfolio initialCount={initialValues.portfolioCount} onComplete={() => completeStep('portfolio')} />}
       </section>
     </div>
   );

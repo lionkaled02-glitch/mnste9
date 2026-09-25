@@ -1,13 +1,13 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { createPortfolioItemAction } from '@/app/actions/portfolio';
 import { uploadKycDocumentsAction } from '@/app/actions/kyc';
 import { db } from '@/db';
-import { users } from '@/db/schema';
+import { portfolioItems, users } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
 
 function zodFieldErrors(error: z.ZodError): Record<string, string[]> {
@@ -49,6 +49,42 @@ const skillsSchema = z.object({
       'أضف مهارة واحدة على الأقل',
     ),
 });
+
+const HTTP_URL_PATTERN = /^https?:\/\/.+/;
+const LOCAL_PORTFOLIO_IMAGE_PATTERN = /^\/uploads\/portfolio\/[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/;
+
+const portfolioV2Schema = z.object({
+  title: z.string().trim().min(3, 'عنوان العمل 3 أحرف على الأقل').max(200, 'العنوان طويل جداً (200 حرف كحد أقصى)'),
+  description: z.string().trim().min(20, 'وصف العمل يجب أن يكون 20 حرفاً على الأقل').max(2000, 'الوصف طويل جداً (2000 حرف كحد أقصى)'),
+  externalUrl: z
+    .string()
+    .trim()
+    .max(500, 'الرابط طويل جداً')
+    .optional()
+    .refine((value) => !value || HTTP_URL_PATTERN.test(value), 'رابط خارجي غير صالح'),
+  imageUrls: z
+    .string()
+    .transform((value, ctx) => {
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === 'string')) throw new Error('invalid');
+        return parsed.map((item) => item.trim()).filter(Boolean);
+      } catch {
+        ctx.addIssue({ code: 'custom', message: 'صور العمل غير صالحة' });
+        return z.NEVER;
+      }
+    })
+    .refine((urls) => urls.length >= 3, 'الحد الأدنى 3 صور لكل عمل')
+    .refine((urls) => urls.length <= 10, 'الحد الأقصى 10 صور لكل عمل')
+    .refine((urls) => urls.every((url) => LOCAL_PORTFOLIO_IMAGE_PATTERN.test(url)), 'مسارات الصور غير صالحة'),
+  attachmentUrl: z
+    .string()
+    .trim()
+    .max(500, 'رابط الملف طويل جداً')
+    .optional()
+    .refine((value) => !value || LOCAL_PORTFOLIO_IMAGE_PATTERN.test(value), 'مسار الملف غير صالح'),
+});
+
 
 async function requireFreelancer(): Promise<{ id: number } | AuthActionState> {
   const currentUser = await getCurrentUser();
@@ -122,4 +158,47 @@ export async function submitSetupPortfolioAction(prev: AuthActionState, formData
   const result = await createPortfolioItemAction(prev, formData);
   revalidateSetup();
   return result.success ? { ...result, message: result.message ?? 'تمت إضافة العمل' } : result;
+}
+
+
+export interface SetupPortfolioResult extends AuthActionState {
+  portfolioCount?: number;
+  coverUrl?: string;
+}
+
+export async function createSetupPortfolioWorkAction(formData: FormData): Promise<SetupPortfolioResult> {
+  const user = await requireFreelancer();
+  if ('success' in user) return user;
+
+  const parsed = portfolioV2Schema.safeParse({
+    title: formData.get('title'),
+    description: formData.get('description'),
+    externalUrl: String(formData.get('externalUrl') ?? ''),
+    imageUrls: String(formData.get('imageUrls') ?? '[]'),
+    attachmentUrl: String(formData.get('attachmentUrl') ?? ''),
+  });
+
+  if (!parsed.success) return { success: false, message: 'تحقق من حقول العمل', fieldErrors: zodFieldErrors(parsed.error) };
+
+  const { title, description, externalUrl, imageUrls } = parsed.data;
+  const coverUrl = imageUrls[0];
+
+  await db.insert(portfolioItems).values({
+    userId: user.id,
+    title,
+    description,
+    externalUrl: externalUrl || null,
+    imageUrl: coverUrl,
+  });
+
+  const [row] = await db.select({ value: count() }).from(portfolioItems).where(eq(portfolioItems.userId, user.id));
+  const portfolioCount = Number(row?.value ?? 0);
+
+  revalidateSetup();
+  return {
+    success: true,
+    message: portfolioCount >= 3 ? 'تمت إضافة العمل — اكتمل معرض الأعمال' : `تمت إضافة العمل (${portfolioCount}/3)`,
+    portfolioCount,
+    coverUrl,
+  };
 }
