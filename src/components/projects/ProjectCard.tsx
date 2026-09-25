@@ -5,6 +5,7 @@
  */
 
 import { Link } from '@/i18n/navigation';
+import { FavoriteButton } from '@/components/favorite-button';
 import type { ProjectListItem } from '@/lib/services/projects';
 import {
   formatBudgetRange,
@@ -19,18 +20,24 @@ import {
 
 interface Props {
   project: ProjectListItem;
+  isLoggedIn?: boolean;
+  isWishlisted?: boolean;
 }
 
-export function ProjectCard({ project }: Props) {
+export function ProjectCard({ project, isLoggedIn = false, isWishlisted = false }: Props) {
   const categoryLabel = deriveCategoryLabel(`${project.title} ${project.description}`);
   const skills = extractSkills(`${project.title} ${project.description}`, 3);
   const cleanDesc = stripCategoryTag(project.description);
 
   return (
     <article className="group relative flex flex-col rounded-[12px] border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-[#2386c8]/30 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+      <div className="absolute left-4 top-4 z-20">
+        <FavoriteButton type="project" id={project.id} isLoggedIn={isLoggedIn} initialFavorited={isWishlisted} />
+      </div>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <h2 className="line-clamp-1 flex-1 text-[14.5px] font-bold leading-6 text-[#222] group-hover:text-[#2386c8]">
+        <h2 className="line-clamp-1 flex-1 pe-10 text-[14.5px] font-bold leading-6 text-[#222] group-hover:text-[#2386c8]">
           <Link href={`/projects/${project.id}`} className="after:absolute after:inset-0">
             {project.title}
           </Link>
