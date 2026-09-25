@@ -23,20 +23,26 @@
 import { getCurrentUser } from '@/lib/auth';
 
 import { DashboardSidebar } from './sidebar';
+import { getFreelancerSetupState } from './setup/setup-data';
+import { isFreelancerSetupComplete } from './setup/setup-helpers';
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // دور الجلسة الحالية — لعرض رابط التوثيق للمستقلين فقط (القاعدة الذهبية)
+  // دور الجلسة الحالية — لاختيار القائمة المناسبة لكل دور.
   const currentUser = await getCurrentUser();
+  const setupComplete =
+    currentUser?.role === 'freelancer'
+      ? isFreelancerSetupComplete(await getFreelancerSetupState(currentUser.id))
+      : true;
 
   return (
     <div className="flex-1 bg-slate-50">
       <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr]">
         {/* القائمة الجانبية — يمين الشاشة على الحواسيب، وأعلى الصفحة على الجوال */}
-        <DashboardSidebar role={currentUser?.role ?? null} />
+        <DashboardSidebar role={currentUser?.role ?? null} setupComplete={setupComplete} />
 
         {/* المحتوى — يسار القائمة على الحواسيب */}
         <main className="min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>

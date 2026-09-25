@@ -1,16 +1,23 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
 import { Link } from '@/i18n/navigation';
 import { getCurrentUser } from '@/lib/auth';
 
 import { ClientDashboard } from './client-dashboard';
 import { FreelancerDashboard } from './freelancer-dashboard';
+import { getFreelancerSetupState } from './setup/setup-data';
+import { isFreelancerSetupComplete } from './setup/setup-helpers';
 
 export const metadata: Metadata = {
   title: 'لوحة التحكم | خدمات',
 };
 
 export const dynamic = 'force-dynamic';
+
+interface DashboardPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
 function SessionExpired() {
   return (
@@ -24,13 +31,39 @@ function SessionExpired() {
   );
 }
 
-export default async function DashboardPage() {
+function firstParam(searchParams: Record<string, string | string[] | undefined>, key: string): string | undefined {
+  const value = searchParams[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function SetupCompleteMessage() {
+  return (
+    <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800 shadow-sm">
+      🎉 تهانينا! اكتمل إعداد حسابك كمستقل، ويمكنك الآن استخدام لوحة التحكم.
+    </div>
+  );
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const user = await getCurrentUser();
   if (!user) return <SessionExpired />;
+
+  const resolvedSearchParams = await searchParams;
+  const setupCompletedNow = firstParam(resolvedSearchParams, 'setup') === 'complete';
 
   if (user.role === 'client') {
     return <ClientDashboard user={user} />;
   }
 
-  return <FreelancerDashboard />;
+  if (user.role === 'freelancer') {
+    const setupState = await getFreelancerSetupState(user.id);
+    if (!isFreelancerSetupComplete(setupState)) redirect('/dashboard/setup');
+  }
+
+  return (
+    <>
+      {setupCompletedNow && <SetupCompleteMessage />}
+      <FreelancerDashboard />
+    </>
+  );
 }
