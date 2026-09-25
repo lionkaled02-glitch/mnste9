@@ -5,7 +5,8 @@
  *  - Hero: عنوان جذاب + بحث سريع + CTA + شارات ثقة KYC Escrow Kuraimi PayPal
  *  - Categories Grid: 8 أقسام بطاقات
  *  - How It Works: خطوات للعميل + خطوات للمستقل
- *  - Escrow & Security Showcase
+ *  - Escrow & Security Showcase (قسم «تقنيات الحماية») — مخفي حالياً عبر
+ *    SHOW_SECURITY_SECTION = false (أعده بتغيير القيمة إلى true)
  *  - Latest Projects: جلب من قاعدة البيانات (مع fallback)
  *  - Bottom CTA
  *  - Tailwind فقط — RTL — Responsive Mobile First
@@ -17,6 +18,9 @@ import { Link } from '@/i18n/navigation';
 import { getTranslations } from 'next-intl/server';
 
 export const dynamic = 'force-dynamic';
+
+/** إظهار قسم «تقنيات الحماية» (Escrow & Security) في الصفحة الرئيسية — مخفي حالياً */
+const SHOW_SECURITY_SECTION = false;
 
 type ProjectRow = {
   id: number;
@@ -398,7 +402,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ===================== Escrow & Security ===================== */}
+      {/* ===================== Escrow & Security (تقنيات الحماية) — مخفي ===================== */}
+      {SHOW_SECURITY_SECTION && (
       <section className="relative overflow-hidden bg-[#f4f5f7] py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4">
           <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
@@ -499,6 +504,7 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ===================== Latest Projects ===================== */}
       <section className="border-t border-gray-200 bg-white py-14 sm:py-16">

@@ -74,3 +74,7 @@ Thumbs.db
 
 # ملفات KYC المشفّرة (تخزين محلي للتطوير — وجّه KYC_STORAGE_DIR في الإنتاج)
 storage/
+
+# صور المستخدمين المرفوعة (الصورة الشخصية / معرض الأعمال) — تُنشأ وقت التشغيل
+public/uploads/*
+!public/uploads/.gitkeep

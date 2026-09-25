@@ -1,7 +1,9 @@
 'use client';
 
 /**
- * خدمات — نموذج الملف الشخصي — أدوار + avatarUrl + #2386c8
+ * خدمات — نموذج الملف الشخصي — أدوار + رفع صورة شخصية + #2386c8
+ * - الصورة الشخصية تُرفع من الجهاز (AvatarUpload) بدل إدخال رابط:
+ *   المسار المرفوع يصل في الحقل المخفي avatarUrl ويُحفظ مع «حفظ التغييرات».
  */
 
 import { useActionState, useState, useMemo } from 'react';
@@ -9,6 +11,8 @@ import { useActionState, useState, useMemo } from 'react';
 import { updateProfileAction } from '@/app/actions/profile';
 import type { AuthActionState } from '@/lib/auth';
 import { PREFERRED_CURRENCY_OPTIONS } from '@/lib/services/user-meta';
+
+import { AvatarUpload } from './avatar-upload';
 
 const INITIAL_STATE: AuthActionState = { success: false };
 
@@ -108,6 +112,13 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
       <fieldset className="space-y-5" disabled={isPending}>
         <legend className={SECTION_TITLE_CLASSES}>المعلومات الأساسية</legend>
 
+        <AvatarUpload
+          initialUrl={defaultValues.avatarUrl}
+          displayName={defaultValues.name}
+          serverError={avatarUrlError}
+          disabled={isPending}
+        />
+
         <div>
           <label htmlFor="profile-name" className="mb-2 block text-sm font-medium text-gray-700">
             الاسم
@@ -123,27 +134,6 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
             className={inputClasses(Boolean(nameError))}
           />
           {nameError && <p className="mt-1.5 text-sm text-red-600">{nameError}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="profile-avatarUrl" className="mb-2 block text-sm font-medium text-gray-700">
-            رابط الصورة الرمزية <span className="text-slate-400">(اختياري)</span>
-          </label>
-          <input
-            id="profile-avatarUrl"
-            name="avatarUrl"
-            type="url"
-            dir="ltr"
-            maxLength={500}
-            defaultValue={defaultValues.avatarUrl ?? ''}
-            placeholder="https://example.com/avatar.jpg"
-            className={`${inputClasses(Boolean(avatarUrlError))} text-left`}
-          />
-          {avatarUrlError ? (
-            <p className="mt-1.5 text-sm text-red-600">{avatarUrlError}</p>
-          ) : (
-            <p className="mt-1.5 text-xs text-slate-400">رابط مباشر لصورتك — الحد 500 حرف.</p>
-          )}
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">

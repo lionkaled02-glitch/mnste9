@@ -44,6 +44,7 @@ function FreelancerCard({
   specialty,
   isKycVerified,
   createdAt,
+  avatarUrl,
   isLoggedIn,
 }: {
   id: number;
@@ -51,6 +52,7 @@ function FreelancerCard({
   specialty: string;
   isKycVerified: boolean;
   createdAt: Date;
+  avatarUrl: string | null;
   isLoggedIn: boolean;
 }) {
   const initial = name.trim().charAt(0) || 'م';
@@ -62,9 +64,14 @@ function FreelancerCard({
       </div>
 
       <div className="relative">
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 text-xl font-bold text-emerald-800">
-          {initial}
-        </span>
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={avatarUrl} alt={name} loading="lazy" className="h-16 w-16 rounded-full object-cover ring-2 ring-emerald-50" />
+        ) : (
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 text-xl font-bold text-emerald-800">
+            {initial}
+          </span>
+        )}
         {isKycVerified && (
           <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white shadow ring-2 ring-white">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
@@ -170,6 +177,7 @@ export default async function FreelancersPage({ searchParams }: FreelancersPageP
                 specialty={freelancer.specialty}
                 isKycVerified={freelancer.isKycVerified}
                 createdAt={freelancer.createdAt}
+                avatarUrl={freelancer.avatarUrl}
                 isLoggedIn={isLoggedIn}
               />
             ))}

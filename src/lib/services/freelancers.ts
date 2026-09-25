@@ -44,6 +44,8 @@ export interface FreelancerListItem {
   name: string;
   isKycVerified: boolean;
   createdAt: Date;
+  /** مسار الصورة الشخصية المرفوعة (أو null → الحرف الأول) */
+  avatarUrl: string | null;
   /** التخصص المستنتج (أو UNSPECIALIZED_LABEL) — راجع الترويسة */
   specialty: string;
 }
@@ -55,6 +57,8 @@ export interface FreelancerDetail {
   role: string;
   isKycVerified: boolean;
   createdAt: Date;
+  /** مسار الصورة الشخصية المرفوعة (أو null → الحرف الأول) */
+  avatarUrl: string | null;
   phone: string | null;
   city: string | null;
   skills: string | null;
@@ -122,6 +126,7 @@ export async function listFreelancers(
       name: users.name,
       isKycVerified: users.isKycVerified,
       createdAt: users.createdAt,
+      avatarUrl: users.avatarUrl,
     })
     .from(users)
     .where(and(...conditions))
@@ -168,6 +173,7 @@ export async function getFreelancerById(id: number): Promise<FreelancerDetail | 
       role: users.role,
       isKycVerified: users.isKycVerified,
       createdAt: users.createdAt,
+      avatarUrl: users.avatarUrl,
       phone: users.phone,
       city: users.city,
       skills: users.skills,

@@ -6,6 +6,9 @@
  *  - نموذج تقديم عرض مع حساب عمولة تلقائي 15%
  *  - قسم العروض المقدمة (صاحب المشروع يراها كاملة)
  *  - Tailwind RTL Mobile First + #2386c8
+ *  ملاحظة: هذه صفحة سيرفر — لا تمرَّر معالجات أحداث (onClick…) هنا مباشرة؛
+ *  زر «نسخ الرابط» مكوّن عميل مستقل (CopyLinkButton) لتجنّب خطأ
+ *  "Event handlers cannot be passed to Client Component props".
  * ============================================================================
  */
 
@@ -25,6 +28,7 @@ import {
   timeAgo,
 } from '@/lib/services/project-meta';
 import { getProjectProposals, getProjectWithClient, hasUserProposed } from '@/lib/services/projects';
+import { CopyLinkButton } from '@/components/copy-link-button';
 import { ProposalFormEnhanced } from '@/components/projects/ProposalFormEnhanced';
 import { ProposalsList } from '@/components/projects/ProposalsList';
 
@@ -321,12 +325,7 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
             <div className="rounded-[14px] border border-gray-200 bg-white p-6 shadow-sm">
               <h3 className="text-[13px] font-bold text-[#222]">شارك المشروع</h3>
               <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => navigator.clipboard?.writeText(typeof window !== 'undefined' ? window.location.href : '')}
-                  className="flex-1 rounded-[8px] bg-[#f4f5f7] border border-gray-200 px-3 py-2 text-[11px] font-bold text-[#444] hover:bg-white"
-                >
-                  نسخ الرابط
-                </button>
+                <CopyLinkButton />
                 <Link href="/help#guarantee" className="flex-1 rounded-[8px] bg-[#222] px-3 py-2 text-center text-[11px] font-bold text-white hover:bg-black">
                   الضمان
                 </Link>

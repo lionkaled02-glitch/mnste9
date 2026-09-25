@@ -84,6 +84,7 @@ export default async function ProfilePage() {
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
           <div className="relative shrink-0">
             {profile.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.avatarUrl}
                 alt={profile.name}

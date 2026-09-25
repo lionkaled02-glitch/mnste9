@@ -1,12 +1,40 @@
 'use server';
 
-import { desc, eq } from 'drizzle-orm';
+/**
+ * ============================================================================
+ *  خدمات — إجراءات معرض الأعمال Portfolio (Server Actions)
+ * ============================================================================
+ *  - getMyPortfolio()                 : أعمال المستخدم الحالي (حتى 50).
+ *  - getUserPortfolio(userId)         : أعمال مستخدم للعرض العام.
+ *  - createPortfolioItemAction        : إضافة عمل (useActionState).
+ *  - deletePortfolioItemSecureAction  : حذف عمل يملكه المستخدم (useActionState).
+ *  - deletePortfolioItemAction        : اسم قديم — يفوّض إلى النسخة الآمنة.
+ *
+ *  قرار موثّق — صورة العمل (رفع من الجهاز):
+ *   - المسار الطبيعي: العميل يرفع الصورة إلى /api/upload/portfolio ويصل هنا
+ *     المسار المحلي /uploads/portfolio/<userId>-<timestamp>.<ext> في imageUrl.
+ *   - مسار بديل (بلا JavaScript): يصل الملف نفسه في الحقل imageFile ويُحفظ
+ *     هنا عبر lib/uploads (نفس التحقق: 5MB — JPG/PNG/WEBP).
+ *   - المسار المحلي يجب أن يكون ملفاً رفعه المستخدم نفسه (البادئة userId-).
+ *   - عند حذف العمل يُحذف ملف صورته المحلي من القرص (best-effort).
+ *   - الروابط الخارجية http(s) تبقى مقبولة (بيانات قديمة / API).
+ * ============================================================================
+ */
+
+import { and, desc, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { db } from '@/db';
 import { portfolioItems } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
+import { deleteLocalUpload, isLocalUploadUrl, isOwnedUploadUrl, saveUploadedImage } from '@/lib/uploads';
+
+/* ============================================================================
+ * التحقق (zod)
+ * ========================================================================== */
+
+const HTTP_URL_PATTERN = /^https?:\/\/.+/;
 
 const portfolioSchema = z.object({
   title: z.string().min(3, 'العنوان 3 أحرف على الأقل').max(200, 'العنوان طويل جداً (200 حرف كحد أقصى)'),
@@ -15,13 +43,20 @@ const portfolioSchema = z.object({
     .string()
     .max(500, 'الرابط طويل جداً')
     .optional()
-    .refine((v) => !v || v === '' || /^https?:\/\/.+/.test(v), 'رابط خارجي غير صالح (يجب أن يبدأ بـ http/https)'),
+    .refine((v) => !v || HTTP_URL_PATTERN.test(v), 'رابط خارجي غير صالح (يجب أن يبدأ بـ http/https)'),
   imageUrl: z
     .string()
     .max(500, 'رابط الصورة طويل جداً')
     .optional()
-    .refine((v) => !v || v === '' || /^https?:\/\/.+/.test(v), 'رابط الصورة غير صالح'),
+    .refine(
+      (v) => !v || HTTP_URL_PATTERN.test(v) || isLocalUploadUrl(v, 'portfolio'),
+      'الصورة غير صالحة — ارفع صورة من جهازك (JPG/PNG/WEBP حتى 5MB)',
+    ),
 });
+
+/* ============================================================================
+ * الأنواع والأدوات
+ * ========================================================================== */
 
 export interface PortfolioItemDTO {
   id: number;
@@ -39,18 +74,8 @@ function parseId(v: unknown): number | null {
   return n;
 }
 
-export async function getMyPortfolio(): Promise<PortfolioItemDTO[]> {
-  const currentUser = await getCurrentUser();
-  if (!currentUser) return [];
-
-  const rows = await db
-    .select()
-    .from(portfolioItems)
-    .where(eq(portfolioItems.userId, currentUser.id))
-    .orderBy(desc(portfolioItems.createdAt))
-    .limit(50);
-
-  return rows.map((r) => ({
+function toDTO(r: typeof portfolioItems.$inferSelect): PortfolioItemDTO {
+  return {
     id: r.id,
     userId: r.userId,
     title: r.title,
@@ -58,8 +83,39 @@ export async function getMyPortfolio(): Promise<PortfolioItemDTO[]> {
     externalUrl: r.externalUrl,
     imageUrl: r.imageUrl,
     createdAt: r.createdAt,
-  }));
+  };
 }
+
+/** ملف الصورة المرفوع مباشرة مع النموذج (المسار البديل بلا JavaScript) */
+function extractImageFile(formData: FormData): File | null {
+  const file = formData.get('imageFile');
+  return file instanceof File && file.size > 0 ? file : null;
+}
+
+/* ============================================================================
+ * القراءة
+ * ========================================================================== */
+
+export async function getMyPortfolio(): Promise<PortfolioItemDTO[]> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return [];
+  return getUserPortfolio(currentUser.id);
+}
+
+export async function getUserPortfolio(userId: number): Promise<PortfolioItemDTO[]> {
+  const rows = await db
+    .select()
+    .from(portfolioItems)
+    .where(eq(portfolioItems.userId, userId))
+    .orderBy(desc(portfolioItems.createdAt))
+    .limit(50);
+
+  return rows.map(toDTO);
+}
+
+/* ============================================================================
+ * الإضافة
+ * ========================================================================== */
 
 export async function createPortfolioItemAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
   const currentUser = await getCurrentUser();
@@ -85,7 +141,29 @@ export async function createPortfolioItemAction(_prev: AuthActionState, formData
     return { success: false, message: 'تحقق من الحقول', fieldErrors };
   }
 
-  const { title, description, externalUrl, imageUrl } = parsed.data;
+  const { title, description, externalUrl } = parsed.data;
+  let imageUrl = parsed.data.imageUrl || null;
+
+  // صورة مرفوعة مباشرة مع النموذج (بلا JavaScript) — تحلّ محل أي قيمة نصية
+  let savedHere: string | null = null;
+  const imageFile = extractImageFile(formData);
+  if (imageFile) {
+    const saved = await saveUploadedImage(imageFile, 'portfolio', currentUser.id);
+    if (!saved.ok) {
+      return { success: false, message: 'تحقق من الحقول', fieldErrors: { imageUrl: [saved.error] } };
+    }
+    imageUrl = saved.url;
+    savedHere = saved.url;
+  }
+
+  // مسار محلي يجب أن يكون ملفاً رفعه هذا المستخدم (لا استخدام صور الآخرين)
+  if (imageUrl && isLocalUploadUrl(imageUrl, 'portfolio') && !isOwnedUploadUrl(imageUrl, 'portfolio', currentUser.id)) {
+    return {
+      success: false,
+      message: 'تحقق من الحقول',
+      fieldErrors: { imageUrl: ['الصورة غير صالحة — ارفع صورة من جهازك'] },
+    };
+  }
 
   try {
     await db.insert(portfolioItems).values({
@@ -93,65 +171,51 @@ export async function createPortfolioItemAction(_prev: AuthActionState, formData
       title,
       description: description || null,
       externalUrl: externalUrl || null,
-      imageUrl: imageUrl || null,
+      imageUrl,
     });
 
     revalidatePath('/dashboard/profile');
     return { success: true, message: 'تمت إضافة العمل إلى معرض أعمالك' };
   } catch (e) {
     console.error('createPortfolioItem failed:', e);
-    return { success: false, message: e instanceof Error ? e.message : 'فشل الإضافة' };
+    // لا نترك ملفاً يتيماً إن فشل الإدراج بعد أن حفظنا الصورة هنا
+    if (savedHere) await deleteLocalUpload(savedHere);
+    return { success: false, message: 'تعذّر إضافة العمل — حاول مرة أخرى' };
   }
 }
 
-export async function deletePortfolioItemAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
+/* ============================================================================
+ * الحذف — بشرط الملكية (id + userId) وحذف ملف الصورة المحلي بعده
+ * ========================================================================== */
+
+export async function deletePortfolioItemSecureAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
-  }
+  if (!currentUser) return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
 
   const id = parseId(formData.get('id'));
   if (!id) return { success: false, message: 'معرّف غير صالح' };
 
   try {
-    const [existing] = await db.select({ id: portfolioItems.id }).from(portfolioItems).where(eq(portfolioItems.id, id)).limit(1);
-    if (!existing) return { success: false, message: 'العمل غير موجود' };
+    const [deleted] = await db
+      .delete(portfolioItems)
+      .where(and(eq(portfolioItems.id, id), eq(portfolioItems.userId, currentUser.id)))
+      .returning({ imageUrl: portfolioItems.imageUrl });
 
-    // تحقق ملكية
-    const [owned] = await db
-      .select({ id: portfolioItems.id })
-      .from(portfolioItems)
-      .where(eq(portfolioItems.id, id))
-      .limit(1);
+    if (!deleted) return { success: false, message: 'العمل غير موجود أو لا تملكه' };
 
-    // نحذف مع شرط المستخدم
-    await db.delete(portfolioItems).where(eq(portfolioItems.id, id));
-
-    // تحقق إضافي: إذا لم يكن للمستخدم، نعيد (لكن حذفنا بالفعل — نتحقق قبل الحذف في الإنتاج عبر and)
-    // للتبسيط نستخدم شرطين
-    const rows = await db.select().from(portfolioItems).where(eq(portfolioItems.id, id)).limit(1);
-    // إذا لا يزال موجوداً يعني ليس للمستخدم (لن يحدث)
+    if (deleted.imageUrl && isLocalUploadUrl(deleted.imageUrl, 'portfolio')) {
+      await deleteLocalUpload(deleted.imageUrl);
+    }
 
     revalidatePath('/dashboard/profile');
     return { success: true, message: 'تم حذف العمل' };
   } catch (e) {
     console.error('deletePortfolioItem failed:', e);
-    return { success: false, message: e instanceof Error ? e.message : 'فشل الحذف' };
+    return { success: false, message: 'تعذّر حذف العمل — حاول مرة أخرى' };
   }
 }
 
-// نسخة آمنة مع and
-export async function deletePortfolioItemSecureAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
-  const currentUser = await getCurrentUser();
-  if (!currentUser) return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
-  const id = parseId(formData.get('id'));
-  if (!id) return { success: false, message: 'معرّف غير صالح' };
-  try {
-    const { and } = await import('drizzle-orm');
-    await db.delete(portfolioItems).where(and(eq(portfolioItems.id, id), eq(portfolioItems.userId, currentUser.id)));
-    revalidatePath('/dashboard/profile');
-    return { success: true, message: 'تم حذف العمل' };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : 'فشل الحذف' };
-  }
+/** اسم قديم محفوظ للتوافق — يفوّض إلى النسخة الآمنة */
+export async function deletePortfolioItemAction(prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
+  return deletePortfolioItemSecureAction(prev, formData);
 }
