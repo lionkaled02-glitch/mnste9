@@ -23,6 +23,7 @@ import { Link } from '@/i18n/navigation';
 import { notFound } from 'next/navigation';
 
 import { getUserPortfolio } from '@/app/actions/portfolio';
+import { getWishlistItemIdSet } from '@/app/actions/wishlist';
 import { ContactFreelancerButton } from '@/components/contact-freelancer-button';
 import { FavoriteButton } from '@/components/favorite-button';
 import { getCurrentUser } from '@/lib/auth';
@@ -64,7 +65,10 @@ export default async function FreelancerDetailPage({ params }: Props) {
 
   if (!freelancer) notFound();
 
-  const portfolio = await getUserPortfolio(freelancer.id);
+  const [portfolio, wishlistedFreelancers] = await Promise.all([
+    getUserPortfolio(freelancer.id),
+    getWishlistItemIdSet('freelancer'),
+  ]);
 
   const isLoggedIn = Boolean(currentUser);
   const isSelf = currentUser?.id === freelancer.id;
@@ -145,7 +149,7 @@ export default async function FreelancerDetailPage({ params }: Props) {
 
                   <div className="flex items-center justify-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                     <span className="text-sm text-slate-600">أضف للمفضلة</span>
-                    <FavoriteButton type="freelancer" id={freelancer.id} isLoggedIn={isLoggedIn} size="md" />
+                    <FavoriteButton type="freelancer" id={freelancer.id} isLoggedIn={isLoggedIn} initialFavorited={wishlistedFreelancers.has(freelancer.id)} size="md" />
                   </div>
                 </div>
               </div>

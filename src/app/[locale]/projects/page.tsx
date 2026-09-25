@@ -15,6 +15,8 @@ import { Link } from '@/i18n/navigation';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectFiltersSidebar } from '@/components/projects/ProjectFiltersSidebar';
 import { ProjectSearchBar } from '@/components/projects/ProjectSearchBar';
+import { getWishlistItemIdSet } from '@/app/actions/wishlist';
+import { getCurrentUser } from '@/lib/auth';
 import {
   parseCategoryParam,
   parseBudgetParam,
@@ -69,7 +71,12 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     pageSize: 12,
   };
 
-  const { items: projects, total, totalPages } = await listProjectsPaginated(filters);
+  const [{ items: projects, total, totalPages }, currentUser, wishlistedProjects] = await Promise.all([
+    listProjectsPaginated(filters),
+    getCurrentUser(),
+    getWishlistItemIdSet('project'),
+  ]);
+  const isLoggedIn = Boolean(currentUser);
 
   const hasActiveFilters = Boolean(q || category || budgetLegacy || budgetMin !== undefined || budgetMax !== undefined || status);
 
@@ -204,7 +211,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
               <>
                 <div className="grid gap-4">
                   {projects.map((project) => (
-                    <ProjectCard key={project.id} project={project} />
+                    <ProjectCard key={project.id} project={project} isLoggedIn={isLoggedIn} isWishlisted={wishlistedProjects.has(project.id)} />
                   ))}
                 </div>
 

@@ -52,11 +52,8 @@ export default async function middleware(request: NextRequest): Promise<NextResp
 
   // 1) Auto-Redirect: إذا كان المسار بدون بادئة لغة، أضف /ar تلقائياً
   if (!hasLocalePrefix(pathname)) {
-    // لا تعيد توجيه الصفحة الرئيسية / إلى /ar/ مباشرة عبر intlMiddleware سيتولى ذلك
-    // لكننا نضمن إضافة /ar لأي مسار بدون لغة
     const newUrl = new URL(`/${DEFAULT_LOCALE}${pathname === '/' ? '' : pathname}`, request.url);
     newUrl.search = request.nextUrl.search;
-    // حماية المسارات قبل إعادة التوجيه؟ نتحقق من الأصل أيضاً
     const isProtectedOriginal = PROTECTED_PREFIXES.some(
       (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     );
@@ -72,15 +69,8 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     return NextResponse.redirect(newUrl);
   }
 
-  // 2) /select-account-type → redirect إلى /dashboard (النظام الموحد)
+  // 2) حماية المسارات مع بادئة اللغة — /register و /login و /select-account-type عامة
   const pathWithoutLocale = getPathWithoutLocale(pathname);
-  if (pathWithoutLocale === '/select-account-type' || pathWithoutLocale.startsWith('/select-account-type/')) {
-    const locale = pathname.split('/')[1] || DEFAULT_LOCALE;
-    const dashboardUrl = new URL(`/${locale}/dashboard`, request.url);
-    return NextResponse.redirect(dashboardUrl);
-  }
-
-  // 3) حماية المسارات مع بادئة اللغة — /register و /login عامة
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => pathWithoutLocale === prefix || pathWithoutLocale.startsWith(`${prefix}/`),
   );
@@ -97,7 +87,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     }
   }
 
-  // 4) توجيه اللغة (next-intl)
+  // 3) توجيه اللغة (next-intl)
   return intlMiddleware(request);
 }
 

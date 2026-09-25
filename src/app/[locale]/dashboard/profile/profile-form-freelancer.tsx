@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * خدمات — نموذج الملف الشخصي — أدوار + رفع صورة شخصية + #2386c8
+ * خدمات — نموذج ملف المستقل — رفع صورة شخصية + #2386c8
  * - الصورة الشخصية تُرفع من الجهاز (AvatarUpload) بدل إدخال رابط:
  *   المسار المرفوع يصل في الحقل المخفي avatarUrl ويُحفظ مع «حفظ التغييرات».
  */
@@ -58,7 +58,7 @@ interface ProfileFormProps {
   };
 }
 
-export function ProfileForm({ defaultValues }: ProfileFormProps) {
+export function FreelancerProfileForm({ defaultValues }: ProfileFormProps) {
   const [state, formAction, isPending] = useActionState(updateProfileAction, INITIAL_STATE);
 
   const [skills, setSkills] = useState<string[]>(() => parseSkills(defaultValues.skills));
@@ -223,8 +223,8 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
 
       <fieldset className="space-y-6" disabled={isPending}>
         <legend className={SECTION_TITLE_CLASSES}>
-          المعلومات المهنية
-          <span className="ms-2 text-xs font-medium text-slate-400">للمستقلين — تظهر عند الترقية</span>
+          المهارات والاهتمامات
+          <span className="ms-2 text-xs font-medium text-slate-400">اختيارية — تساعدنا على تخصيص تجربتك</span>
         </legend>
 
         <div>
@@ -257,7 +257,7 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
             </div>
           ) : (
             <p className="mb-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              لم تضف أي مهارات بعد — أضف مهاراتك لتظهر في ملفك الشخصي.
+              لم تضف أي مهارات أو اهتمامات بعد — يمكنك إضافتها الآن.
             </p>
           )}
 
@@ -316,43 +316,49 @@ export function ProfileForm({ defaultValues }: ProfileFormProps) {
           </div>
         </div>
 
-        <div>
-          <label htmlFor="profile-bio" className="mb-2 block text-sm font-medium text-gray-700">
-            النبذة <span className="text-slate-400">(اختياري)</span>
-          </label>
-          <textarea
-            id="profile-bio"
-            name="bio"
-            rows={5}
-            maxLength={1000}
-            defaultValue={defaultValues.bio ?? ''}
-            placeholder="عرّف الآخرين بخبرتك وأسلوب عملك وما تقدمه…"
-            className={`${inputClasses(Boolean(bioError))} resize-y`}
-          />
-          {bioError && <p className="mt-1.5 text-sm text-red-600">{bioError}</p>}
-        </div>
+        <fieldset className="space-y-5 rounded-xl border border-[#2386c8]/10 bg-[#2386c8]/[0.03] p-4">
+          <legend className="px-2 text-sm font-bold text-[#2386c8]">بيانات المستقل</legend>
+          <div>
+            <label htmlFor="profile-bio" className="mb-2 block text-sm font-medium text-gray-700">
+              النبذة <span className="text-slate-400">(اختياري)</span>
+            </label>
+            <textarea
+              id="profile-bio"
+              name="bio"
+              rows={5}
+              maxLength={1000}
+              defaultValue={defaultValues.bio ?? ''}
+              placeholder="عرّف العملاء بخبرتك وأسلوب عملك وما تقدمه…"
+              className={`${inputClasses(Boolean(bioError))} resize-y bg-white`}
+            />
+            {bioError && <p className="mt-1.5 text-sm text-red-600">{bioError}</p>}
+          </div>
+        </fieldset>
 
-        <div>
-          <label htmlFor="profile-hourly-rate" className="mb-2 block text-sm font-medium text-gray-700">
-            السعر بالساعة <span className="text-slate-400">(اختياري)</span>
-          </label>
-          <input
-            id="profile-hourly-rate"
-            name="hourlyRate"
-            type="number"
-            dir="ltr"
-            min={0}
-            step="0.01"
-            defaultValue={defaultValues.hourlyRate ?? ''}
-            placeholder="25.00"
-            className={`${inputClasses(Boolean(hourlyRateError))} text-left`}
-          />
-          {hourlyRateError ? (
-            <p className="mt-1.5 text-sm text-red-600">{hourlyRateError}</p>
-          ) : (
-            <p className="mt-1.5 text-xs text-slate-400">بالدولار الأمريكي (USD) — عملة التعاملات في المنصة.</p>
-          )}
-        </div>
+        <fieldset className="space-y-5 rounded-xl border border-[#2386c8]/10 bg-[#2386c8]/[0.03] p-4">
+          <legend className="px-2 text-sm font-bold text-[#2386c8]">التسعير</legend>
+          <div>
+            <label htmlFor="profile-hourly-rate" className="mb-2 block text-sm font-medium text-gray-700">
+              السعر بالساعة <span className="text-slate-400">(اختياري)</span>
+            </label>
+            <input
+              id="profile-hourly-rate"
+              name="hourlyRate"
+              type="number"
+              dir="ltr"
+              min={0}
+              step="0.01"
+              defaultValue={defaultValues.hourlyRate ?? ''}
+              placeholder="25.00"
+              className={`${inputClasses(Boolean(hourlyRateError))} bg-white text-left`}
+            />
+            {hourlyRateError ? (
+              <p className="mt-1.5 text-sm text-red-600">{hourlyRateError}</p>
+            ) : (
+              <p className="mt-1.5 text-xs text-slate-400">بالدولار الأمريكي (USD) — عملة التعاملات في المنصة.</p>
+            )}
+          </div>
+        </fieldset>
       </fieldset>
 
       <div className="border-t border-slate-100 pt-6">

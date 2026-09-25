@@ -10,6 +10,7 @@ import type { Metadata } from 'next';
 import { Link } from '@/i18n/navigation';
 
 import { FavoriteButton } from '@/components/favorite-button';
+import { getWishlistItemIdSet } from '@/app/actions/wishlist';
 import { getCurrentUser } from '@/lib/auth';
 import { listFreelancers } from '@/lib/services/freelancers';
 import { formatDate } from '@/lib/utils';
@@ -46,6 +47,7 @@ function FreelancerCard({
   createdAt,
   avatarUrl,
   isLoggedIn,
+  isWishlisted,
 }: {
   id: number;
   name: string;
@@ -54,13 +56,14 @@ function FreelancerCard({
   createdAt: Date;
   avatarUrl: string | null;
   isLoggedIn: boolean;
+  isWishlisted: boolean;
 }) {
   const initial = name.trim().charAt(0) || 'م';
 
   return (
     <article className="relative flex flex-col items-center rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm transition hover:shadow">
       <div className="absolute left-4 top-4">
-        <FavoriteButton type="freelancer" id={id} isLoggedIn={isLoggedIn} />
+        <FavoriteButton type="freelancer" id={id} isLoggedIn={isLoggedIn} initialFavorited={isWishlisted} />
       </div>
 
       <div className="relative">
@@ -116,7 +119,11 @@ export default async function FreelancersPage({ searchParams }: FreelancersPageP
   const rawSearch = firstParam(resolvedSearchParams, 'q')?.trim();
   const search = rawSearch || undefined;
 
-  const [freelancers, currentUser] = await Promise.all([listFreelancers({ search }), getCurrentUser()]);
+  const [freelancers, currentUser, wishlistedFreelancers] = await Promise.all([
+    listFreelancers({ search }),
+    getCurrentUser(),
+    getWishlistItemIdSet('freelancer'),
+  ]);
 
   const isLoggedIn = Boolean(currentUser);
 
@@ -179,6 +186,7 @@ export default async function FreelancersPage({ searchParams }: FreelancersPageP
                 createdAt={freelancer.createdAt}
                 avatarUrl={freelancer.avatarUrl}
                 isLoggedIn={isLoggedIn}
+                isWishlisted={wishlistedFreelancers.has(freelancer.id)}
               />
             ))}
           </div>
