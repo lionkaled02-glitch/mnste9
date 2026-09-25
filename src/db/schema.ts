@@ -9,14 +9,8 @@
  *    database/migrations/2026_09_21_000004_create_contracts.sql
  *    database/migrations/2026_09_22_000005_add_platform_tables.sql
  *      (notifications, conversations, messages, reviews, wishlist, platform_settings)
- *    + portfolio_items (من فرع main)
- *    + pending_delivery في حالات العقود
- *
- *  ملاحظات معمارية:
- *   - مصدر الحقيقة لإنشاء القاعدة هو ملف الـ SQL.
- *   - هذا الملف هو طبقة الأنواع والاستعلام الآمن (Type-safe) للتطبيق.
- *   - عمود updated_at يحمل $onUpdate ليُحدَّث تلقائياً.
- *   - الأعمدة المالية NUMERIC تُمثَّل كنص (string) في TypeScript.
+ *    database/migrations/2026_09_26_000007_add_kyc_portfolio_fields.sql
+ *      (kyc dynamic fields + portfolio images/attachments)
  * ============================================================================
  */
 
@@ -25,6 +19,7 @@ import {
   bigint,
   boolean,
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -105,7 +100,6 @@ export const users = pgTable(
     avatarUrl: varchar('avatar_url', { length: 500 }),
     notifyEmail: boolean('notify_email').notNull().default(true),
     notifySms: boolean('notify_sms').notNull().default(true),
-    
   },
   (t) => [
     unique('uq_users_email').on(t.email),
@@ -118,7 +112,7 @@ export const users = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * portfolio_items — معرض الأعمال
+ * portfolio_items — معرض الأعمال (V2: صور متعددة + مرفق)
  * ------------------------------------------------------------------------- */
 export const portfolioItems = pgTable(
   'portfolio_items',
@@ -130,7 +124,15 @@ export const portfolioItems = pgTable(
     title: varchar('title', { length: 200 }).notNull(),
     description: text('description'),
     externalUrl: varchar('external_url', { length: 500 }),
+    // صورة غلاف واحدة (للتوافق مع الكود القديم)
     imageUrl: varchar('image_url', { length: 500 }),
+    // V2: مصفوفة مسارات الصور (3-10 صور)
+    images: jsonb('images').$type<string[]>(),
+    // V2: صورة الغلاف (الصورة الأولى)
+    coverImageUrl: varchar('cover_image_url', { length: 500 }),
+    // V2: ملف مرفق اختياري (PDF / ZIP / DOCX)
+    attachmentUrl: varchar('attachment_url', { length: 500 }),
+    attachmentName: varchar('attachment_name', { length: 255 }),
     ...timestamps,
   },
   (t) => [
@@ -269,7 +271,7 @@ export const proposals = pgTable(
 );
 
 /* ---------------------------------------------------------------------------
- * kyc_documents — وثائق توثيق الهوية
+ * kyc_documents — وثائق توثيق الهوية (V2: ديناميكي حسب النوع)
  * ------------------------------------------------------------------------- */
 export const kycDocuments = pgTable(
   'kyc_documents',
@@ -285,6 +287,13 @@ export const kycDocuments = pgTable(
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     documentType: varchar('document_type', { length: 50 }).notNull(),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
+    // V2: حقول ديناميكية حسب نوع الوثيقة
+    fullName: varchar('full_name', { length: 200 }),
+    documentNumber: varchar('document_number', { length: 100 }),
+    issueDate: date('issue_date'),
+    expiryDate: date('expiry_date'),
+    issuePlace: varchar('issue_place', { length: 200 }),
+    extraFields: jsonb('extra_fields').$type<Record<string, unknown>>(),
     ...timestamps,
   },
   (t) => [
