@@ -2,12 +2,12 @@
 
 /**
  * ============================================================================
- *  mnste9 — صفحة تسجيل الدخول (/login)
+ *  خدمات — صفحة تسجيل الدخول (/login)
  * ============================================================================
- *  نموذج دخول بالبريد وكلمة المرور عبر Server Action (loginUser) مع:
- *   - عرض أخطاء التحقق لكل حقل + رسالة خطأ عامة.
- *   - حالة انتظار أثناء التنفيذ (isPending).
- *   - توجيه تلقائي بعد النجاح إلى المسار المحجوز (?from=) أو /dashboard.
+ *  - نموذج تسجيل دخول بسيط يستدعي Server Action (loginUser).
+ *  - التحقق من المدخلات عبر zod داخل الإجراء.
+ *  - عرض أخطاء الحقول + حالة الإرسال (isPending).
+ *  - التوجيه بعد النجاح إلى /dashboard أو الصفحة المطلوبة.
  * ============================================================================
  */
 
@@ -40,11 +40,11 @@ export default function LoginPage() {
   const passwordError = state.fieldErrors?.password?.[0];
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-emerald-50 via-white to-emerald-100 px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#f8fafc] via-white to-[#e0f2fe] px-4 py-12">
       <div className="w-full max-w-md">
         {/* الشعار */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 shadow-lg shadow-emerald-200">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#2386c8] shadow-lg shadow-[#2386c8]/20">
             <svg
               className="h-8 w-8 text-white"
               fill="none"
@@ -66,7 +66,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            mnste9
+            خدمات
           </h1>
           <p className="mt-2 text-sm text-gray-500">
             منصة العمل الحر العربية — سجّل الدخول لمتابعة أعمالك
@@ -74,8 +74,10 @@ export default function LoginPage() {
         </div>
 
         {/* البطاقة */}
-        <section className="rounded-2xl border border-emerald-100 bg-white p-8 shadow-xl shadow-emerald-100/60">
-          <h2 className="mb-6 text-xl font-bold text-gray-900">تسجيل الدخول</h2>
+        <section className="rounded-2xl border border-[#2386c8]/20 bg-white p-8 shadow-xl shadow-[#2386c8]/10">
+          <h2 className="mb-6 text-xl font-bold text-gray-900">
+            تسجيل الدخول
+          </h2>
 
           {state.message && !state.success ? (
             <div
@@ -105,7 +107,7 @@ export default function LoginPage() {
                 className={`w-full rounded-lg border px-4 py-2.5 text-left text-gray-900 placeholder-gray-400 outline-none transition focus:ring-2 ${
                   emailError
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                    : 'border-emerald-200 focus:border-emerald-500 focus:ring-emerald-100'
+                    : 'border-[#2386c8]/20 focus:border-[#2386c8] focus:ring-[#2386c8]/20'
                 }`}
               />
               {emailError ? (
@@ -130,7 +132,7 @@ export default function LoginPage() {
                 className={`w-full rounded-lg border px-4 py-2.5 text-gray-900 placeholder-gray-400 outline-none transition focus:ring-2 ${
                   passwordError
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                    : 'border-emerald-200 focus:border-emerald-500 focus:ring-emerald-100'
+                    : 'border-[#2386c8]/20 focus:border-[#2386c8] focus:ring-[#2386c8]/20'
                 }`}
               />
               {passwordError ? (
@@ -141,17 +143,17 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg bg-[#2386c8] px-4 py-3 font-semibold text-white transition hover:bg-[#1a6da8] focus:outline-none focus:ring-2 focus:ring-[#2386c8] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isPending ? 'جارٍ تسجيل الدخول…' : 'تسجيل الدخول'}
+              {isPending ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-500">
-            لا تملك حساباً؟{' '}
+            ليس لديك حساب؟{' '}
             <Link
               href="/register"
-              className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+              className="font-semibold text-[#2386c8] hover:text-[#1a6da8] hover:underline"
             >
               أنشئ حساباً جديداً
             </Link>
