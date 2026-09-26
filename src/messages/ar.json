@@ -498,5 +498,26 @@
     "wishlist": "المفضلة",
     "reviews": "التقييمات",
     "portfolio": "معرض أعمالي"
+  },
+  "admin": {
+    "title": "لوحة الإدارة",
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "kyc": "KYC",
+    "projects": "Projects",
+    "proposals": "Proposals",
+    "contracts": "Contracts",
+    "wallet": "Wallet",
+    "withdrawals": "Withdrawals",
+    "reviews": "Reviews",
+    "notifications": "Notifications",
+    "reports": "Reports",
+    "activityLog": "Activity Log",
+    "settings": "Settings",
+    "backToPlatform": "العودة إلى المنصة",
+    "adminBadge": "مشرف",
+    "empty": "لا توجد بيانات",
+    "actions": "الإجراءات",
+    "filters": "الفلاتر"
   }
 }

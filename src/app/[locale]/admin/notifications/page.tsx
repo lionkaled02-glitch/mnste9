@@ -1,0 +1,6 @@
+import { getAdminNotifications } from '@/app/actions/admin';
+import { DataTable } from '@/components/admin/data-table';
+import { StatusBadge } from '@/components/admin/status-badge';
+export const dynamic='force-dynamic';
+export default async function AdminNotificationsPage(){const rows=await getAdminNotifications();return <div className="space-y-6"><Header title="Notifications" desc="الإشعارات المرسلة للمستخدمين."/><div className="rounded-2xl border bg-white p-4"><button className="rounded-xl bg-[#1a1a2e] px-4 py-2 text-sm font-bold text-white">إرسال إشعار جديد</button></div><DataTable columns={['المستخدم','العنوان','الرسالة','النوع','القراءة','التاريخ']} empty={rows.length===0}>{rows.map(r=><tr key={r.id}><td className="px-4 py-3">{r.userName}</td><td className="px-4 py-3 font-bold">{r.title}</td><td className="px-4 py-3">{r.message}</td><td className="px-4 py-3">{r.type}</td><td className="px-4 py-3"><StatusBadge status={r.isRead?'approved':'pending'}>{r.isRead?'مقروء':'غير مقروء'}</StatusBadge></td><td className="px-4 py-3">{r.createdAt.toLocaleDateString('ar')}</td></tr>)}</DataTable></div>}
+function Header({title,desc}:{title:string;desc:string}){return <div><h1 className="text-3xl font-extrabold text-[#1a1a2e]">{title}</h1><p className="mt-2 text-sm text-slate-500">{desc}</p></div>}

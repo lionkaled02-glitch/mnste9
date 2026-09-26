@@ -19,7 +19,7 @@ import { routing } from '@/i18n/routing';
 
 const intlMiddleware = createMiddleware(routing);
 
-const PROTECTED_PREFIXES = ['/dashboard', '/wallet', '/contracts'];
+const PROTECTED_PREFIXES = ['/dashboard', '/wallet', '/contracts', '/admin'];
 const LOCALES = routing.locales as unknown as string[];
 const DEFAULT_LOCALE = routing.defaultLocale;
 

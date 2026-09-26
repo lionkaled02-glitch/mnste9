@@ -1,0 +1,5 @@
+import { getAdminReviews } from '@/app/actions/admin';
+import { DataTable } from '@/components/admin/data-table';
+export const dynamic='force-dynamic';
+export default async function AdminReviewsPage(){const rows=await getAdminReviews();return <div className="space-y-6"><Header title="Reviews" desc="متابعة تقييمات العقود."/><DataTable columns={['المقيّم','المقيّم له','النجوم','العقد','التعليق','التاريخ']} empty={rows.length===0}>{rows.map(r=><tr key={r.id}><td className="px-4 py-3">{r.reviewerName}</td><td className="px-4 py-3">{r.reviewedName}</td><td className="px-4 py-3 text-amber-400">{'★'.repeat(r.rating)}</td><td className="px-4 py-3">{r.contractId??'—'}</td><td className="px-4 py-3">{r.comment??'—'}</td><td className="px-4 py-3">{r.createdAt.toLocaleDateString('ar')}</td></tr>)}</DataTable></div>}
+function Header({title,desc}:{title:string;desc:string}){return <div><h1 className="text-3xl font-extrabold text-[#1a1a2e]">{title}</h1><p className="mt-2 text-sm text-slate-500">{desc}</p></div>}

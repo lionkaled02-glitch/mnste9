@@ -498,5 +498,26 @@
     "wishlist": "Wishlist",
     "reviews": "Reviews",
     "portfolio": "My Portfolio"
+  },
+  "admin": {
+    "title": "Admin Dashboard",
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "kyc": "KYC",
+    "projects": "Projects",
+    "proposals": "Proposals",
+    "contracts": "Contracts",
+    "wallet": "Wallet",
+    "withdrawals": "Withdrawals",
+    "reviews": "Reviews",
+    "notifications": "Notifications",
+    "reports": "Reports",
+    "activityLog": "Activity Log",
+    "settings": "Settings",
+    "backToPlatform": "Back to platform",
+    "adminBadge": "Admin",
+    "empty": "No data",
+    "actions": "Actions",
+    "filters": "Filters"
   }
 }

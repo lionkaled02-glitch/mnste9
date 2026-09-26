@@ -1,0 +1,4 @@
+import { getAdminActivityLog } from '@/app/actions/admin';
+export const dynamic='force-dynamic';
+export default async function AdminActivityLogPage(){const rows=await getAdminActivityLog();return <div className="space-y-6"><Header title="Activity Log" desc="آخر الأحداث المهمة في المنصة."/><div className="rounded-2xl border bg-white p-6 shadow-sm"><div className="space-y-3">{rows.map(r=><div key={r.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><b>{r.title}</b><time className="text-xs text-slate-500">{r.createdAt.toLocaleString('ar')}</time></div>)}</div></div></div>}
+function Header({title,desc}:{title:string;desc:string}){return <div><h1 className="text-3xl font-extrabold text-[#1a1a2e]">{title}</h1><p className="mt-2 text-sm text-slate-500">{desc}</p></div>}
