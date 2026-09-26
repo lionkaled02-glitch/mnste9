@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { approveKycAction, getAdminKycDetails, getAdminKycImagePreviews, rejectKycAction } from '@/app/actions/admin';
 import { StatusBadge } from '@/components/admin/status-badge';
 
+import { KycImageModal } from './kyc-image-modal';
+
 type Props = { params: Promise<{ id: string }> };
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +18,10 @@ export default async function AdminKycDetailsPage({ params }: Props) {
     backFilePath: row.backFilePath,
     selfieFilePath: row.selfieFilePath,
   });
+  const displayImages = images
+    .filter((image): image is typeof image & { dataUrl: string } => Boolean(image.dataUrl))
+    .map((image) => ({ src: image.dataUrl, label: image.label }));
+  const imageErrors = images.filter((image) => !image.dataUrl && image.error);
 
   return (
     <div className="space-y-6">
@@ -42,26 +48,20 @@ export default async function AdminKycDetailsPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          {images.map((image) => (
-            <article key={image.key} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-              <div className="border-b border-slate-200 bg-white px-4 py-3">
-                <h3 className="text-sm font-extrabold text-slate-900">{image.label}</h3>
-              </div>
-              {image.dataUrl ? (
-                <a href={image.dataUrl} target="_blank" rel="noreferrer" className="block group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={image.dataUrl} alt={image.label} className="h-56 w-full object-cover transition group-hover:scale-[1.02]" />
-                  <div className="bg-white px-4 py-2 text-center text-xs font-bold text-[#2386c8]">اضغط للتكبير</div>
-                </a>
-              ) : (
-                <div className="flex h-56 items-center justify-center p-4 text-center text-sm leading-6 text-slate-500">
-                  {image.error ?? 'لا يمكن عرض هذه الصورة'}
-                </div>
-              )}
-            </article>
-          ))}
+        <div className="mt-4">
+          <KycImageModal images={displayImages} />
         </div>
+
+        {imageErrors.length > 0 && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {imageErrors.map((image) => (
+              <div key={image.key} className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                <p className="font-extrabold">{image.label}</p>
+                <p className="mt-1">{image.error}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
