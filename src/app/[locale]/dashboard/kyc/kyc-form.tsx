@@ -1,23 +1,55 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useCallback, useState, useTransition, type FormEvent } from 'react';
 
 import { uploadKycDocumentsAction } from '@/app/actions/kyc';
-import { KycDynamicForm } from '@/app/[locale]/dashboard/setup/steps/kyc-dynamic-form';
+import { KycDynamicForm, type KycFiles } from '@/app/[locale]/dashboard/setup/steps/kyc-dynamic-form';
 import type { AuthActionState } from '@/lib/auth';
 import { KYC_MAX_FILE_SIZE_BYTES } from '@/lib/services/kyc-meta';
 
 const INITIAL_STATE: AuthActionState = { success: false };
+const EMPTY_FILES: KycFiles = { frontDocument: null, backDocument: null, selfieDocument: null };
+
+function buildKycFormData(form: HTMLFormElement, files: KycFiles): FormData {
+  const formData = new FormData(form);
+  formData.delete('frontDocument');
+  formData.delete('backDocument');
+  formData.delete('selfieDocument');
+  formData.delete('frontFile');
+  formData.delete('backFile');
+  formData.delete('selfieFile');
+
+  if (files.frontDocument) formData.set('frontDocument', files.frontDocument);
+  if (files.backDocument) formData.set('backDocument', files.backDocument);
+  if (files.selfieDocument) formData.set('selfieDocument', files.selfieDocument);
+
+  return formData;
+}
 
 export function KycUploadForm() {
-  const [state, formAction, isPending] = useActionState(uploadKycDocumentsAction, INITIAL_STATE);
+  const [state, setState] = useState<AuthActionState>(INITIAL_STATE);
+  const [files, setFiles] = useState<KycFiles>(EMPTY_FILES);
+  const [isPending, startTransition] = useTransition();
+
+  const handleFilesChange = useCallback((nextFiles: KycFiles) => {
+    setFiles(nextFiles);
+  }, []);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = buildKycFormData(event.currentTarget, files);
+    startTransition(async () => {
+      const result = await uploadKycDocumentsAction(state, formData);
+      setState(result);
+    });
+  };
 
   return (
-    <form action={formAction} className="space-y-5" noValidate>
+    <form onSubmit={submit} className="space-y-5" noValidate>
       {state.message && !state.success && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{state.message}</p>}
       {state.success && state.message && <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{state.message}</p>}
 
-      <KycDynamicForm disabled={isPending} errors={state.fieldErrors} />
+      <KycDynamicForm disabled={isPending} errors={state.fieldErrors} onFilesChange={handleFilesChange} />
 
       <div className="flex gap-2 rounded-xl border border-[#2386c8]/15 bg-[#2386c8]/[0.06] px-4 py-3">
         <span className="mt-0.5 text-[#2386c8]">🔒</span>

@@ -10,9 +10,16 @@ import { PassportFields } from './kyc-fields/passport-fields';
 
 export type DynamicDocumentType = 'national_id' | 'passport' | 'driving_license';
 
+export interface KycFiles {
+  frontDocument: File | null;
+  backDocument: File | null;
+  selfieDocument: File | null;
+}
+
 interface KycDynamicFormProps {
   disabled?: boolean;
   errors?: Record<string, string[]>;
+  onFilesChange?: (files: KycFiles) => void;
 }
 
 const DOCUMENT_TYPES: { value: DynamicDocumentType; label: string }[] = [
@@ -27,25 +34,24 @@ const FILE_LABELS: Record<DynamicDocumentType, { front: string; back: string; se
   driving_license: { front: 'الوجه الأمامي (صورة)', back: 'الوجه الخلفي (صورة)', selfie: 'سيلفي مع الرخصة' },
 };
 
+const ACCEPTED_IMAGE_TYPES = KYC_ALLOWED_MIME_TYPES.filter((type) => type.startsWith('image/')).join(',');
+
 function FileField({
   name,
-  alias,
   label,
   required,
-  error,
   disabled,
-  selfie = false,
+  error,
+  onChange,
 }: {
-  name: string;
-  alias: string;
+  name: keyof KycFiles;
   label: string;
   required: boolean;
-  error?: string;
   disabled?: boolean;
-  selfie?: boolean;
+  error?: string;
+  onChange: (file: File | null) => void;
 }) {
-  const cameraRef = useRef<HTMLInputElement | null>(null);
-  const galleryRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -56,130 +62,106 @@ function FileField({
     };
   }, []);
 
-  const setPreviewFile = (file: File, source: 'camera' | 'gallery') => {
-    // الملف يجب أن يبقى داخل input الأصلي المثبت في DOM حتى يصل إلى FormData عند submit.
-    // لذلك لا نعيد تركيب input بعد المعاينة، ونفرّغ فقط input البديل لمنع إرسال ملفين لنفس الحقل.
-    if (source === 'camera' && galleryRef.current) galleryRef.current.value = '';
-    if (source === 'gallery' && cameraRef.current) cameraRef.current.value = '';
+  const handleFile = (file: File | undefined) => {
+    if (!file) {
+      onChange(null);
+      return;
+    }
 
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-    const nextUrl = URL.createObjectURL(file);
-    previewUrlRef.current = nextUrl;
+    const url = URL.createObjectURL(file);
+    previewUrlRef.current = url;
+    setPreview(url);
     setFileName(file.name);
-    setPreview(nextUrl);
-  };
-
-  const handleFile = (source: 'camera' | 'gallery', file: File | undefined) => {
-    if (!file) return;
-    setPreviewFile(file, source);
+    onChange(file);
   };
 
   const clear = () => {
-    if (cameraRef.current) cameraRef.current.value = '';
-    if (galleryRef.current) galleryRef.current.value = '';
+    if (inputRef.current) inputRef.current.value = '';
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     previewUrlRef.current = null;
     setPreview(null);
     setFileName(null);
+    onChange(null);
   };
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <label className="block text-xs font-bold text-slate-800">
-          {label}
-          {required ? <span className="ms-1 text-red-500">*</span> : <span className="ms-1 text-slate-400">(اختياري)</span>}
-        </label>
-        {preview && <button type="button" onClick={clear} className="text-xs font-bold text-red-600">حذف</button>}
-      </div>
-
-      {/*
-        مهم: inputs الملفات تبقى مثبتة دائماً في DOM.
-        في React 19، إزالة input بعد اختيار الصورة ثم إظهار preview يجعل FormData لا يحتوي الملف وقت submit.
-      */}
-      {selfie && (
-        <input
-          ref={cameraRef}
-          name={name}
-          type="file"
-          accept="image/*"
-          capture="user"
-          disabled={disabled}
-          onChange={(event) => handleFile('camera', event.target.files?.[0])}
-          className="sr-only"
-          tabIndex={-1}
-        />
-      )}
-      <input
-        ref={galleryRef}
-        name={selfie ? alias : name}
-        type="file"
-        accept={KYC_ALLOWED_MIME_TYPES.join(',')}
-        disabled={disabled}
-        onChange={(event) => handleFile('gallery', event.target.files?.[0])}
-        className="sr-only"
-        tabIndex={-1}
-      />
+      <label className="mb-3 block text-xs font-bold text-slate-800">
+        {label}
+        {required ? <span className="ms-1 text-red-500">*</span> : <span className="ms-1 text-slate-400">(اختياري)</span>}
+      </label>
 
       {preview ? (
         <div className="space-y-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt={fileName ?? label} className="h-36 w-full rounded-xl object-cover ring-1 ring-slate-200" />
           <p className="truncate text-xs text-slate-500">{fileName}</p>
-          <div className={`grid gap-2 ${selfie ? 'sm:grid-cols-2' : ''}`}>
-            {selfie && (
-              <button
-                type="button"
-                onClick={() => cameraRef.current?.click()}
-                disabled={disabled}
-                className="rounded-xl border border-[#2386c8]/30 bg-[#2386c8]/5 p-3 text-center text-xs font-bold text-[#2386c8] hover:bg-[#2386c8]/10 disabled:opacity-60"
-              >
-                تغيير بالكاميرا
-              </button>
-            )}
+          <div className="grid gap-2 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => galleryRef.current?.click()}
+              onClick={() => inputRef.current?.click()}
               disabled={disabled}
-              className="rounded-xl border border-slate-300 bg-white p-3 text-center text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+              className="rounded-xl border border-[#2386c8]/30 bg-[#2386c8]/5 p-3 text-center text-xs font-bold text-[#2386c8] hover:bg-[#2386c8]/10 disabled:opacity-60"
             >
-              تغيير من المعرض
+              تغيير
+            </button>
+            <button
+              type="button"
+              onClick={clear}
+              disabled={disabled}
+              className="rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs font-bold text-red-600 hover:bg-red-100 disabled:opacity-60"
+            >
+              حذف
             </button>
           </div>
         </div>
       ) : (
-        <div className={`grid gap-3 ${selfie ? 'sm:grid-cols-2' : ''}`}>
-          {selfie && (
-            <button
-              type="button"
-              onClick={() => cameraRef.current?.click()}
-              disabled={disabled}
-              className="flex items-center gap-3 rounded-xl border-2 border-dashed border-[#2386c8]/30 bg-[#2386c8]/5 p-4 text-start hover:border-[#2386c8] hover:bg-[#2386c8]/10 disabled:opacity-60"
-            >
-              <span className="text-2xl">📷</span>
-              <span><span className="block text-sm font-bold text-[#2386c8]">التقاط بالكاميرا</span><span className="block text-xs text-slate-500">الكاميرا الأمامية للسيلفي</span></span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => galleryRef.current?.click()}
-            disabled={disabled}
-            className="flex items-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 text-start hover:border-[#2386c8]/50 hover:bg-slate-100 disabled:opacity-60"
-          >
-            <span className="text-2xl">🖼️</span>
-            <span><span className="block text-sm font-bold text-slate-700">اختيار من المعرض</span><span className="block text-xs text-slate-500">ارفع صورة واضحة من جهازك</span></span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={disabled}
+          className="flex w-full items-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 text-start hover:border-[#2386c8]/50 hover:bg-slate-100 disabled:opacity-60"
+        >
+          <span className="text-2xl">🖼️</span>
+          <span>
+            <span className="block text-sm font-bold text-slate-700">اختيار من المعرض</span>
+            <span className="block text-xs text-slate-500">ارفع صورة واضحة من جهازك</span>
+          </span>
+        </button>
       )}
+
+      <input
+        ref={inputRef}
+        name={name}
+        type="file"
+        accept={ACCEPTED_IMAGE_TYPES}
+        onChange={(event) => handleFile(event.target.files?.[0])}
+        disabled={disabled}
+        className="sr-only"
+        tabIndex={-1}
+      />
+
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
   );
 }
 
-export function KycDynamicForm({ disabled, errors = {} }: KycDynamicFormProps) {
+export function KycDynamicForm({ disabled, errors = {}, onFilesChange }: KycDynamicFormProps) {
   const [documentType, setDocumentType] = useState<DynamicDocumentType>('national_id');
+  const [frontFile, setFrontFile] = useState<File | null>(null);
+  const [backFile, setBackFile] = useState<File | null>(null);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const fileLabels = FILE_LABELS[documentType];
   const extraFieldsJson = useMemo(() => JSON.stringify({ documentType }), [documentType]);
+
+  useEffect(() => {
+    onFilesChange?.({
+      frontDocument: frontFile,
+      backDocument: backFile,
+      selfieDocument: selfieFile,
+    });
+  }, [frontFile, backFile, selfieFile, onFilesChange]);
 
   return (
     <div className="space-y-5">
@@ -197,9 +179,9 @@ export function KycDynamicForm({ disabled, errors = {} }: KycDynamicFormProps) {
       {documentType === 'driving_license' && <DrivingLicenseFields disabled={disabled} errors={errors} />}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <FileField name="frontDocument" alias="frontFile" label={fileLabels.front} required disabled={disabled} error={errors.frontDocument?.[0] ?? errors.frontFile?.[0]} />
-        <FileField name="backDocument" alias="backFile" label={fileLabels.back} required={!fileLabels.backOptional} disabled={disabled} error={errors.backDocument?.[0] ?? errors.backFile?.[0]} />
-        <FileField name="selfieDocument" alias="selfieFile" label={fileLabels.selfie} required disabled={disabled} selfie error={errors.selfieDocument?.[0] ?? errors.selfieFile?.[0]} />
+        <FileField name="frontDocument" label={fileLabels.front} required disabled={disabled} error={errors.frontDocument?.[0] ?? errors.frontFile?.[0]} onChange={setFrontFile} />
+        <FileField name="backDocument" label={fileLabels.back} required={!fileLabels.backOptional} disabled={disabled} error={errors.backDocument?.[0] ?? errors.backFile?.[0]} onChange={setBackFile} />
+        <FileField name="selfieDocument" label={fileLabels.selfie} required disabled={disabled} error={errors.selfieDocument?.[0] ?? errors.selfieFile?.[0]} onChange={setSelfieFile} />
       </div>
     </div>
   );
