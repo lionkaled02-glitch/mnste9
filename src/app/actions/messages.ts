@@ -4,9 +4,11 @@ import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 import { db } from '@/db';
-import { conversations, messages } from '@/db/schema';
+import { conversations, messages, users } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
+import { sendNewMessageEmail } from '@/lib/services/email';
 import { getOrCreateConversation } from '@/lib/services/messages';
+import { createNotification } from '@/lib/services/notifications';
 
 function parseId(v: unknown): number | null {
   const n = typeof v === 'string' ? Number(v) : typeof v === 'number' ? v : NaN;
@@ -49,10 +51,15 @@ export async function sendMessageAction(_prev: AuthActionState, formData: FormDa
     }
 
     // verify membership
-    const [conv] = await db.select({ id: conversations.id }).from(conversations).where(eq(conversations.id, conversationId)).limit(1);
+    const [conv] = await db
+      .select({ id: conversations.id, participant1Id: conversations.participant1Id, participant2Id: conversations.participant2Id })
+      .from(conversations)
+      .where(eq(conversations.id, conversationId))
+      .limit(1);
     if (!conv) return { success: false, message: 'المحادثة غير موجودة' };
+    const recipientId = conv.participant1Id === currentUser.id ? conv.participant2Id : conv.participant1Id;
 
-    const [msg] = await db
+    await db
       .insert(messages)
       .values({
         conversationId,
@@ -66,6 +73,16 @@ export async function sendMessageAction(_prev: AuthActionState, formData: FormDa
       .update(conversations)
       .set({ lastMessageAt: new Date(), updatedAt: new Date() })
       .where(eq(conversations.id, conversationId));
+
+    const [recipient] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, recipientId)).limit(1);
+    await createNotification({
+      userId: recipientId,
+      title: 'رسالة جديدة',
+      message: `رسالة جديدة من ${currentUser.name}: ${content.slice(0, 80)}`,
+      type: 'info',
+      link: `/dashboard/messages?conversationId=${conversationId}`,
+    });
+    if (recipient) await sendNewMessageEmail(recipient.email, recipient.name, currentUser.name, content.slice(0, 140));
 
     revalidatePath('/dashboard/messages');
     revalidatePath(`/dashboard/messages?conversationId=${conversationId}`);

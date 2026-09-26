@@ -44,6 +44,8 @@ import {
   CATEGORY_SLUGS,
   PROJECT_CATEGORIES,
 } from '@/lib/services/project-meta';
+import { sendNewProposalEmail } from '@/lib/services/email';
+import { createNotification } from '@/lib/services/notifications';
 import { toNumeric } from '@/lib/utils';
 
 /* ============================================================================
@@ -265,6 +267,7 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
       id: projects.id,
       clientId: projects.clientId,
       status: projects.status,
+      title: projects.title,
     })
     .from(projects)
     .where(eq(projects.id, parsed.data.projectId))
@@ -311,6 +314,21 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
       durationDays: parsed.data.durationDays,
       comment: parsed.data.comment || null,
     });
+
+    const [client] = await db
+      .select({ name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, project.clientId))
+      .limit(1);
+
+    await createNotification({
+      userId: project.clientId,
+      title: 'عرض جديد على مشروعك',
+      message: `تلقيت عرضاً بقيمة $${parsed.data.amount} على "${project.title}"`,
+      type: 'info',
+      link: `/dashboard/projects/${project.id}`,
+    });
+    if (client) await sendNewProposalEmail(client.email, client.name, project.title, parsed.data.amount, currentUser.name);
 
     return {
       success: true,

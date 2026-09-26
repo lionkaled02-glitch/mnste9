@@ -53,6 +53,8 @@ import { getCurrentUser, type AuthActionState } from '@/lib/auth';
 import { encryptBuffer, encryptData } from '@/lib/crypto';
 import { KYC_ALLOWED_MIME_TYPES, KYC_MAX_FILE_SIZE_BYTES } from '@/lib/services/kyc-meta';
 import { getKycStatus as getKycStatusForUser } from '@/lib/services/kyc';
+import { createNotification } from '@/lib/services/notifications';
+import { sendKYCApprovedEmail, sendKYCRejectedEmail } from '@/lib/services/email';
 
 /* ============================================================================
  * أدوات داخلية (نفس نمط بقية الإجراءات)
@@ -478,12 +480,37 @@ export async function reviewKyc(data: unknown): Promise<AuthActionState> {
       return { success: false, message: 'طلب التوثيق غير موجود' };
     }
 
+    const [targetUser] = await db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, request.userId))
+      .limit(1);
+
     // 5) الاعتماد يرفع علم التوثيق للمستقل صاحب الطلب
     if (decision === 'approved') {
       await db
         .update(users)
         .set({ isKycVerified: true })
         .where(eq(users.id, request.userId));
+
+      await createNotification({
+        userId: request.userId,
+        title: 'تم توثيق هويتك ✅',
+        message: 'يمكنك الآن تقديم عروض وسحب الأرباح.',
+        type: 'success',
+        link: '/dashboard',
+      });
+      if (targetUser) await sendKYCApprovedEmail(targetUser.email, targetUser.name);
+    } else {
+      const rejectionReason = reason ?? 'الوثائق غير واضحة أو غير مطابقة';
+      await createNotification({
+        userId: request.userId,
+        title: 'تم رفض توثيق هويتك',
+        message: `السبب: ${rejectionReason}`,
+        type: 'error',
+        link: '/dashboard/kyc',
+      });
+      if (targetUser) await sendKYCRejectedEmail(targetUser.email, targetUser.name, rejectionReason);
     }
 
     revalidatePath('/dashboard/kyc');

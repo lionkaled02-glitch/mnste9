@@ -519,5 +519,12 @@
     "empty": "No data",
     "actions": "Actions",
     "filters": "Filters"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "markAllAsRead": "Mark all as read",
+    "viewAll": "View all notifications",
+    "loading": "Loading…"
   }
 }

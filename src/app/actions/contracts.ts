@@ -41,6 +41,8 @@ import {
   lockFunds,
   releaseFunds,
 } from '@/lib/services/escrow.service';
+import { sendEscrowReleasedEmail, sendProposalAcceptedEmail } from '@/lib/services/email';
+import { createNotification } from '@/lib/services/notifications';
 
 /* ============================================================================
  * أدوات داخلية
@@ -124,6 +126,7 @@ export async function createContract(
       projectTitle: projects.title,
       freelancerKyc: users.isKycVerified,
       freelancerName: users.name,
+      freelancerEmail: users.email,
     })
     .from(proposals)
     .innerJoin(projects, eq(proposals.projectId, projects.id))
@@ -186,6 +189,11 @@ export async function createContract(
   try {
     await lockFunds(currentUser.id, proposal.projectId, amount);
 
+    const rejectedProposalOwners = await db
+      .select({ freelancerId: proposals.freelancerId })
+      .from(proposals)
+      .where(and(eq(proposals.projectId, proposal.projectId), eq(proposals.status, 'pending')));
+
     const result = await db.transaction(async (tx) => {
       const [newContract] = await tx
         .insert(contracts)
@@ -230,6 +238,35 @@ export async function createContract(
 
       return newContract;
     });
+
+    await createNotification({
+      userId: proposal.freelancerId,
+      title: 'تم قبول عرضك 🎉',
+      message: `تم قبول عرضك على مشروع "${proposal.projectTitle}" وإنشاء العقد.`,
+      type: 'success',
+      link: `/dashboard/contracts/${result.id}`,
+    });
+    await createNotification({
+      userId: currentUser.id,
+      title: 'تم إنشاء العقد',
+      message: `تم إنشاء عقد مشروع "${proposal.projectTitle}" وحجز مبلغ الضمان.`,
+      type: 'success',
+      link: `/dashboard/contracts/${result.id}`,
+    });
+    await Promise.all(
+      rejectedProposalOwners
+        .filter((owner) => owner.freelancerId !== proposal.freelancerId)
+        .map((owner) =>
+          createNotification({
+            userId: owner.freelancerId,
+            title: 'لم يتم اختيار عرضك',
+            message: `تم اختيار عرض آخر لمشروع "${proposal.projectTitle}".`,
+            type: 'warning',
+            link: '/dashboard/proposals',
+          }),
+        ),
+    );
+    await sendProposalAcceptedEmail(proposal.freelancerEmail, proposal.freelancerName, proposal.projectTitle);
 
     revalidatePath('/dashboard/contracts');
     revalidatePath('/dashboard/proposals');
@@ -310,6 +347,19 @@ export async function releasePayment(
 
   try {
     const { commission, netAmount } = await releaseFunds(contract.id);
+
+    const [[freelancer], [project]] = await Promise.all([
+      db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, contract.freelancerId)).limit(1),
+      db.select({ title: projects.title }).from(projects).where(eq(projects.id, contract.projectId)).limit(1),
+    ]);
+    await createNotification({
+      userId: contract.freelancerId,
+      title: 'تم تحرير دفعة الضمان ✅',
+      message: `تم تحرير $${netAmount.toFixed(2)} إلى محفظتك.`,
+      type: 'success',
+      link: '/dashboard/wallet',
+    });
+    if (freelancer) await sendEscrowReleasedEmail(freelancer.email, freelancer.name, netAmount.toFixed(2), project?.title ?? 'مشروع');
 
     revalidatePath('/dashboard/contracts');
     revalidatePath(`/dashboard/contracts/${contract.id}`);

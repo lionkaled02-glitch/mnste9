@@ -1,0 +1,5 @@
+import { Body, Button, Container, Head, Heading, Html, Preview, Text } from '@react-email/components';
+
+export function KYCRejectedEmail({ userName, reason }: { userName: string; reason: string }) {
+  return <Html dir="rtl" lang="ar"><Head /><Preview>تم رفض طلب توثيق الهوية</Preview><Body style={{ fontFamily: 'Arial, sans-serif', backgroundColor: '#f8fafc', padding: '40px 0' }}><Container style={{ backgroundColor: '#ffffff', padding: '40px', borderRadius: '12px', maxWidth: '600px' }}><Heading style={{ color: '#2386c8', textAlign: 'center' }}>خدمات</Heading><Heading as="h2" style={{ color: '#222' }}>مرحباً {userName}</Heading><Text style={{ color: '#666', lineHeight: '1.8' }}>لم نتمكن من اعتماد وثائقك حالياً.</Text><Text style={{ color: '#b91c1c', lineHeight: '1.8' }}>السبب: {reason}</Text><Button href="https://khadamat.com/ar/dashboard/kyc" style={{ backgroundColor: '#2386c8', color: '#fff', padding: '12px 24px', borderRadius: '8px', textDecoration: 'none', display: 'inline-block', marginTop: '20px' }}>إعادة الرفع</Button></Container></Body></Html>;
+}

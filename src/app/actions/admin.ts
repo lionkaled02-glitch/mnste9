@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import { contracts, kycDocuments, notifications, platformSettings, projects, proposals, reviews, transactions, users, wallets } from '@/db/schema';
 import { getCurrentUser } from '@/lib/auth';
+import { sendKYCApprovedEmail, sendKYCRejectedEmail } from '@/lib/services/email';
+import { createNotification } from '@/lib/services/notifications';
 
 export type AdminActionResult = { success: boolean; message?: string };
 
@@ -122,7 +124,12 @@ export async function approveKycAction(formData: FormData): Promise<void> {
   const id = Number(formData.get('id'));
   if (!Number.isSafeInteger(id)) return;
   const [doc] = await db.update(kycDocuments).set({ status: 'approved', reviewedBy: admin.id, reviewedAt: new Date(), rejectionReason: null }).where(eq(kycDocuments.id, id)).returning({ userId: kycDocuments.userId });
-  if (doc) await db.update(users).set({ isKycVerified: true }).where(eq(users.id, doc.userId));
+  if (doc) {
+    await db.update(users).set({ isKycVerified: true }).where(eq(users.id, doc.userId));
+    const [user] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, doc.userId)).limit(1);
+    await createNotification({ userId: doc.userId, title: 'تم توثيق هويتك ✅', message: 'يمكنك الآن تقديم عروض وسحب الأرباح.', type: 'success', link: '/dashboard' });
+    if (user) await sendKYCApprovedEmail(user.email, user.name);
+  }
   revalidatePath('/admin/kyc');
 }
 
@@ -133,7 +140,12 @@ export async function rejectKycAction(formData: FormData): Promise<void> {
   const reason = String(formData.get('reason') ?? '').trim() || 'الوثائق غير واضحة أو غير مطابقة';
   if (!Number.isSafeInteger(id)) return;
   const [doc] = await db.update(kycDocuments).set({ status: 'rejected', reviewedBy: admin.id, reviewedAt: new Date(), rejectionReason: reason }).where(eq(kycDocuments.id, id)).returning({ userId: kycDocuments.userId });
-  if (doc) await db.update(users).set({ isKycVerified: false }).where(eq(users.id, doc.userId));
+  if (doc) {
+    await db.update(users).set({ isKycVerified: false }).where(eq(users.id, doc.userId));
+    const [user] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, doc.userId)).limit(1);
+    await createNotification({ userId: doc.userId, title: 'تم رفض توثيق هويتك', message: `السبب: ${reason}`, type: 'error', link: '/dashboard/kyc' });
+    if (user) await sendKYCRejectedEmail(user.email, user.name, reason);
+  }
   revalidatePath('/admin/kyc');
 }
 
