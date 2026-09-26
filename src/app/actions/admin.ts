@@ -108,12 +108,29 @@ export async function getAdminKyc(status = 'pending') {
     .orderBy(desc(kycDocuments.createdAt));
 }
 
-export async function getAdminKycDetails(id: number) {
+export async function getAdminKycDetails(identifier: number | string) {
+  const rawIdentifier = typeof identifier === 'string' ? identifier.trim() : String(identifier);
+  const numericId = /^\d+$/.test(rawIdentifier) ? Number(rawIdentifier) : null;
+
+  if (numericId !== null && (!Number.isSafeInteger(numericId) || numericId <= 0)) return null;
+
+  const whereClause =
+    numericId !== null
+      ? eq(kycDocuments.id, numericId)
+      : or(
+          eq(kycDocuments.encryptedFilePath, rawIdentifier),
+          eq(kycDocuments.frontFilePath, rawIdentifier),
+          eq(kycDocuments.backFilePath, rawIdentifier),
+          eq(kycDocuments.selfieFilePath, rawIdentifier),
+        );
+
+  if (!whereClause) return null;
+
   const [row] = await db
     .select({ id: kycDocuments.id, userId: kycDocuments.userId, userName: users.name, userEmail: users.email, avatarUrl: users.avatarUrl, documentType: kycDocuments.documentType, documentNumber: kycDocuments.documentNumber, fullName: kycDocuments.fullName, issueDate: kycDocuments.issueDate, expiryDate: kycDocuments.expiryDate, issuePlace: kycDocuments.issuePlace, frontFilePath: kycDocuments.frontFilePath, backFilePath: kycDocuments.backFilePath, selfieFilePath: kycDocuments.selfieFilePath, status: kycDocuments.status, rejectionReason: kycDocuments.rejectionReason, createdAt: kycDocuments.createdAt })
     .from(kycDocuments)
     .leftJoin(users, eq(users.id, kycDocuments.userId))
-    .where(eq(kycDocuments.id, id))
+    .where(whereClause)
     .limit(1);
   return row ?? null;
 }
