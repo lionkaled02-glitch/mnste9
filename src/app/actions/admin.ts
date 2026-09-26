@@ -1,11 +1,14 @@
 'use server';
 
+import { readFile } from 'node:fs/promises';
+
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 import { db } from '@/db';
 import { contracts, kycDocuments, notifications, platformSettings, projects, proposals, reviews, transactions, users, wallets } from '@/db/schema';
 import { getCurrentUser } from '@/lib/auth';
+import { decryptBuffer, decryptData } from '@/lib/crypto';
 import { sendKYCApprovedEmail, sendKYCRejectedEmail } from '@/lib/services/email';
 import { createNotification } from '@/lib/services/notifications';
 
@@ -22,6 +25,57 @@ function numberValue(value: unknown): number {
   if (typeof value === 'number') return value;
   if (typeof value === 'string') return Number(value) || 0;
   return 0;
+}
+
+function sniffImageMime(buffer: Buffer): 'image/jpeg' | 'image/png' | 'image/webp' | null {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47 && buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a) return 'image/png';
+  if (buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
+}
+
+export interface AdminKycImagePreview {
+  key: 'front' | 'back' | 'selfie';
+  label: string;
+  dataUrl: string | null;
+  error: string | null;
+}
+
+async function readKycImagePreview(key: AdminKycImagePreview['key'], label: string, encryptedPath: string | null): Promise<AdminKycImagePreview> {
+  if (!encryptedPath) return { key, label, dataUrl: null, error: 'لا توجد صورة مرفوعة لهذا الحقل' };
+
+  try {
+    const relativePath = decryptData(encryptedPath);
+    const encryptedBytes = await readFile(relativePath);
+    const plainBytes = decryptBuffer(encryptedBytes);
+    const mimeType = sniffImageMime(plainBytes);
+
+    if (!mimeType) {
+      return { key, label, dataUrl: null, error: 'الملف المرفوع ليس صورة قابلة للعرض داخل المتصفح' };
+    }
+
+    return {
+      key,
+      label,
+      dataUrl: `data:${mimeType};base64,${plainBytes.toString('base64')}`,
+      error: null,
+    };
+  } catch (error) {
+    console.error('readKycImagePreview failed:', error);
+    return { key, label, dataUrl: null, error: 'تعذر فك تشفير الصورة أو قراءة الملف من التخزين' };
+  }
+}
+
+export async function getAdminKycImagePreviews(input: {
+  frontFilePath: string | null;
+  backFilePath: string | null;
+  selfieFilePath: string | null;
+}): Promise<AdminKycImagePreview[]> {
+  return Promise.all([
+    readKycImagePreview('front', 'الوجه الأمامي', input.frontFilePath),
+    readKycImagePreview('back', 'الوجه الخلفي', input.backFilePath),
+    readKycImagePreview('selfie', 'السيلفي', input.selfieFilePath),
+  ]);
 }
 
 export async function getAdminDashboard() {
