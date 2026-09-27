@@ -35,7 +35,7 @@ import { getProjectProposals, getProjectWithClient, hasUserProposed } from '@/li
 import { CopyLinkButton } from '@/components/copy-link-button';
 import { FavoriteButton } from '@/components/favorite-button';
 import { ProposalFormEnhanced } from '@/components/projects/ProposalFormEnhanced';
-import { ProposalsList } from '@/components/projects/ProposalsList';
+import { ProposalsList } from './proposals-list';
 
 export const dynamic = 'force-dynamic';
 
