@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { DataTable } from '@/components/admin/data-table';
+import { ExportButton } from '@/components/admin/export-modal';
 
 type AuditLogRow = {
   id: number;
@@ -50,25 +51,12 @@ export function AuditLogTab({ logs }: { logs: AuditLogRow[] }) {
 
   const labelAction = (action: string) => {
     try {
-      return actionT(action);
+      const translated = actionT(action);
+      if (translated === action || translated.startsWith('admin.security.actions.')) return action.replace(/_/g, ' ');
+      return translated;
     } catch {
-      return action;
+      return action.replace(/_/g, ' ');
     }
-  };
-
-  const exportCsv = () => {
-    const rows = [
-      ['admin', 'action', 'target', 'ip', 'date'],
-      ...visibleLogs.map((log) => [log.adminName ?? `#${log.adminId}`, labelAction(log.action), `${log.targetType ?? '—'} ${log.targetId ? `#${log.targetId}` : ''}`.trim(), log.ip ?? '', formatDate(log.createdAt)]),
-    ];
-    const csv = rows.map((row) => row.map(toCsvValue).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'audit-log.csv';
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -93,7 +81,7 @@ export function AuditLogTab({ logs }: { logs: AuditLogRow[] }) {
             <option value="168">{t('last7d')}</option>
             <option value="720">{t('last30d')}</option>
           </select>
-          <button type="button" onClick={exportCsv} className="rounded-xl bg-[#1a1a2e] px-4 py-2 text-sm font-extrabold text-white hover:bg-[#111122]">{t('export')}</button>
+          <ExportButton title="audit-log" data={visibleLogs.map((log) => ({ admin: log.adminName ?? `#${log.adminId}`, action: labelAction(log.action), target: `${log.targetType ?? '—'} ${log.targetId ? `#${log.targetId}` : ''}`.trim(), ip: log.ip ?? '', date: formatDate(log.createdAt) }))} columns={[{ key: 'admin', label: t('admin') }, { key: 'action', label: t('action') }, { key: 'target', label: t('target') }, { key: 'ip', label: t('ip') }, { key: 'date', label: t('date') }]} />
         </div>
       </div>
 

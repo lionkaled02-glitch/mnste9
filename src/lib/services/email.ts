@@ -6,6 +6,7 @@ import { KYCApprovedEmail } from '@/lib/email/templates/kyc-approved';
 import { KYCRejectedEmail } from '@/lib/email/templates/kyc-rejected';
 import { NewMessageEmail } from '@/lib/email/templates/new-message';
 import { NewProposalEmail } from '@/lib/email/templates/new-proposal';
+import { PasswordResetEmail } from '@/lib/email/templates/password-reset';
 import { ProposalAcceptedEmail } from '@/lib/email/templates/proposal-accepted';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -91,4 +92,13 @@ export async function sendContactEmail(input: { name: string; email: string; sub
   });
 
   if (!sent) throw new Error('contact email failed');
+}
+
+
+export async function sendPasswordResetEmail(input: { email: string; userName: string; password: string }) {
+  return sendEmail({
+    to: input.email,
+    subject: 'إعادة تعيين كلمة المرور - خدمات',
+    react: PasswordResetEmail({ userName: input.userName, password: input.password }),
+  });
 }

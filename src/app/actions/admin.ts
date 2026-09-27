@@ -1,5 +1,6 @@
 'use server';
 
+import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 import { and, count, desc, eq, gte, ilike, or, sql } from 'drizzle-orm';
@@ -9,7 +10,7 @@ import { db } from '@/db';
 import { auditLogs, contracts, failedLoginAttempts, kycDocuments, notifications, platformSettings, projects, proposals, rateLimits, reviews, sessions, transactions, users, wallets } from '@/db/schema';
 import { getCurrentUser, hashPassword } from '@/lib/auth';
 import { decryptBuffer, decryptData } from '@/lib/crypto';
-import { sendKYCApprovedEmail, sendKYCRejectedEmail } from '@/lib/services/email';
+import { sendKYCApprovedEmail, sendKYCRejectedEmail, sendPasswordResetEmail as sendPasswordResetEmailService } from '@/lib/services/email';
 import { createNotification } from '@/lib/services/notifications';
 
 export type AdminActionResult = { success: boolean; message?: string };
@@ -463,12 +464,16 @@ export async function getAuditLogs(filters?: {
   adminId?: number;
   action?: string;
   hours?: number;
+  page?: number;
+  limit?: number;
 }) {
   const admin = await getCurrentUser();
   if (!admin || admin.role !== 'admin') {
-    return { success: false, data: [] };
+    return { success: false, data: [], total: 0, page: 1, limit: 50, totalPages: 0 };
   }
 
+  const page = Math.max(filters?.page ?? 1, 1);
+  const limit = Math.min(Math.max(filters?.limit ?? 50, 1), 100);
   const conditions = [];
   if (filters?.adminId) conditions.push(eq(auditLogs.adminId, filters.adminId));
   if (filters?.action) conditions.push(eq(auditLogs.action, filters.action));
@@ -476,6 +481,7 @@ export async function getAuditLogs(filters?: {
     const since = new Date(Date.now() - filters.hours * 60 * 60 * 1000);
     conditions.push(gte(auditLogs.createdAt, since));
   }
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const logs = await db
     .select({
@@ -492,11 +498,14 @@ export async function getAuditLogs(filters?: {
     })
     .from(auditLogs)
     .leftJoin(users, eq(users.id, auditLogs.adminId))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(where)
     .orderBy(desc(auditLogs.createdAt))
-    .limit(500);
+    .limit(limit)
+    .offset((page - 1) * limit);
 
-  return { success: true, data: logs };
+  const [totalRow] = await db.select({ value: count() }).from(auditLogs).where(where);
+  const total = Number(totalRow?.value ?? 0);
+  return { success: true, data: logs, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
 export async function getRateLimits() {
@@ -555,7 +564,7 @@ export async function getAdminSecurity() {
     db.select({ value: count() }).from(rateLimits).where(sql`${rateLimits.blockedUntil} is not null and ${rateLimits.blockedUntil} > now()`),
     getActiveSessions(),
     getFailedLoginAttempts(24 * 7),
-    getAuditLogs(),
+    getAuditLogs({ limit: 50 }),
     getRateLimits(),
   ]);
 
@@ -621,17 +630,34 @@ export async function toggleUserActive(userId: number) {
   return { success: true, message: shouldSuspend ? 'تم تعطيل المستخدم' : 'تم تفعيل المستخدم' };
 }
 
+function generateStrongPassword(length = 16): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  const bytes = randomBytes(length);
+  let password = '';
+  for (let i = 0; i < length; i += 1) password += chars[bytes[i] % chars.length];
+  return password;
+}
+
 export async function resetUserPassword(userId: number) {
   const admin = await assertAdmin();
   if (!admin) return { success: false, message: 'غير مصرح' };
-  const temporaryPassword = `Kh-${Math.random().toString(36).slice(2, 8)}-${Math.random().toString(36).slice(2, 6)}`;
+  const temporaryPassword = generateStrongPassword();
   const password = await hashPassword(temporaryPassword);
   await db.update(users).set({ password }).where(eq(users.id, userId));
   await db.delete(sessions).where(eq(sessions.userId, userId));
-  await createAuditLog({ adminId: admin.id, action: 'reset_user_password', targetType: 'user', targetId: userId });
+  await createAuditLog({ adminId: admin.id, action: 'reset_password', targetType: 'user', targetId: userId });
   revalidatePath('/admin/users');
   revalidatePath(`/admin/users/${userId}`);
   return { success: true, message: 'تم إنشاء كلمة مرور مؤقتة', password: temporaryPassword };
+}
+
+export async function sendPasswordResetEmail(input: { userId: number; email: string; userName: string; password: string }) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  if (!input.password) return { success: false, message: 'لا توجد كلمة مرور لإرسالها' };
+  const sent = await sendPasswordResetEmailService({ email: input.email, userName: input.userName, password: input.password });
+  await createAuditLog({ adminId: admin.id, action: 'send_password_reset_email', targetType: 'user', targetId: input.userId, metadata: { email: input.email, sent } });
+  return { success: sent, message: sent ? 'تم إرسال البريد' : 'تعذر إرسال البريد' };
 }
 
 export async function deleteUser(userId: number) {
@@ -703,7 +729,7 @@ export async function resolveContractDispute(contractId: number) {
   const admin = await assertAdmin();
   if (!admin) return { success: false, message: 'غير مصرح' };
   await db.update(contracts).set({ status: 'completed', releasedAt: new Date() }).where(eq(contracts.id, contractId));
-  await createAuditLog({ adminId: admin.id, action: 'resolve_contract_dispute', targetType: 'contract', targetId: contractId });
+  await createAuditLog({ adminId: admin.id, action: 'resolve_dispute', targetType: 'contract', targetId: contractId });
   revalidatePath('/admin/contracts');
   revalidatePath(`/admin/contracts/${contractId}`);
   return { success: true, message: 'تم حل النزاع' };
