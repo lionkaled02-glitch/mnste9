@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { ToastProvider } from "@/components/ui/toast";
 import { routing } from "@/i18n/routing";
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default async function LocaleLayout({
   const { locale } = await params;
 
   // تحقق من اللغة
-  if (!routing.locales.includes(locale as any)) {
+  if (!(routing.locales as readonly string[]).includes(locale)) {
     notFound();
   }
 
@@ -42,11 +43,13 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider messages={messages} locale={locale}>
-      <div dir={dir} className="flex min-h-screen flex-col">
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
-      </div>
+      <ToastProvider>
+        <div dir={dir} className="flex min-h-screen flex-col">
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </div>
+      </ToastProvider>
     </NextIntlClientProvider>
   );
 }

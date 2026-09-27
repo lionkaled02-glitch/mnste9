@@ -929,5 +929,34 @@
     ],
     "promiseTitle": "Our promise",
     "promiseText": "We treat every message seriously and provide clear answers that help you work confidently on Khadamat."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous"
+  },
+  "errors": {
+    "notFound": {
+      "title": "Page not found",
+      "description": "The link you are looking for is invalid or has been removed."
+    },
+    "generic": {
+      "title": "Unexpected error",
+      "description": "Sorry for the inconvenience. Try reloading the page."
+    }
+  },
+  "toasts": {
+    "saved": "Saved successfully",
+    "deleted": "Deleted successfully",
+    "error": "Something went wrong, please try again later",
+    "copied": "Copied"
   }
 }
