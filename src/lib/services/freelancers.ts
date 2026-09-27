@@ -214,7 +214,7 @@ export async function getFreelancerById(id: number): Promise<FreelancerDetail | 
       hourlyRate: users.hourlyRate,
     })
     .from(users)
-    .where(and(eq(users.id, id), eq(users.role, 'freelancer')))
+    .where(eq(users.id, id))
     .limit(1);
 
   if (!user) return null;

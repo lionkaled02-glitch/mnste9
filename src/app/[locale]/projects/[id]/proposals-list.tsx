@@ -116,9 +116,12 @@ export function ProposalsList({
 
             {isOwner ? (
               <div className="flex gap-2">
-                <span className="inline-flex h-8 items-center justify-center rounded-[8px] border border-gray-200 bg-white px-3 text-[11px] font-bold text-[#444]">
-                  {proposal.freelancerName}
-                </span>
+                <Link
+                  href={`/freelancers/${proposal.freelancerId}`}
+                  className="inline-flex h-8 items-center justify-center rounded-[8px] border border-gray-200 bg-white px-3 text-[11px] font-bold text-[#444] hover:border-[#2386c8] hover:text-[#2386c8]"
+                >
+                  الملف الشخصي
+                </Link>
                 <Link
                   href={`/dashboard/messages?user=${proposal.freelancerId}`}
                   className="inline-flex h-8 items-center justify-center rounded-[8px] bg-[#222] px-3 text-[11px] font-bold text-white hover:bg-black"
