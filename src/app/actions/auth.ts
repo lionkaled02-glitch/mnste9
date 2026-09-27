@@ -30,6 +30,7 @@ import { cookies, headers } from 'next/headers';
 import { z } from 'zod';
 
 import { db } from '@/db';
+import { checkRateLimit } from '@/lib/services/rate-limit';
 import { failedLoginAttempts, sessions, users, wallets } from '@/db/schema';
 import {
   clearSessionCookie,
@@ -134,6 +135,11 @@ const accountTypeSchema = z.object({
  */
 export async function registerUser(data: unknown): Promise<AuthActionState> {
   const input = normalizeInput(data);
+  const { ip, userAgent } = await getRequestInfo();
+  const rateCheck = await checkRateLimit(`register:${ip}`, 3, 3600, 60);
+  if (!rateCheck.allowed) {
+    return { success: false, message: `تم تجاوز الحد. حاول بعد ${Math.ceil((rateCheck.retryAfter ?? 3600) / 60)} دقيقة.` };
+  }
 
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) {
@@ -175,6 +181,7 @@ export async function registerUser(data: unknown): Promise<AuthActionState> {
     /* جلسة فورية بعد التسجيل */
     const token = await createSession(userId);
     await setSessionCookie(token);
+    await persistSession(userId, token, ip, userAgent);
 
     return {
       success: true,
@@ -216,6 +223,10 @@ export async function registerUser(data: unknown): Promise<AuthActionState> {
 export async function loginUser(data: unknown): Promise<AuthActionState> {
   const input = normalizeInput(data);
   const { ip, userAgent } = await getRequestInfo();
+  const rateCheck = await checkRateLimit(`login:${ip}`, 5, 60, 15);
+  if (!rateCheck.allowed) {
+    return { success: false, message: `تم تجاوز الحد. حاول بعد ${Math.ceil((rateCheck.retryAfter ?? 60) / 60)} دقيقة.` };
+  }
 
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) {
