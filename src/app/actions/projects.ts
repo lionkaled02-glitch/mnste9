@@ -326,7 +326,7 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
       title: 'عرض جديد على مشروعك',
       message: `تلقيت عرضاً بقيمة $${parsed.data.amount} على "${project.title}"`,
       type: 'info',
-      link: `/dashboard/projects/${project.id}`,
+      link: `/projects/${project.id}`,
     });
     if (client) await sendNewProposalEmail(client.email, client.name, project.title, parsed.data.amount, currentUser.name);
 
