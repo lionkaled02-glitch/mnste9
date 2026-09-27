@@ -645,6 +645,19 @@
         "unblock_ip": "Unblock IP",
         "unblock_rate_limit": "Unblock Rate Limit"
       }
+    },
+    "uiActions": {
+      "suspend": "Suspend",
+      "activate": "Activate",
+      "suspendUser": "Suspend user",
+      "activateUser": "Activate user",
+      "confirmAction": "Are you sure you want to perform this action?",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "resetPassword": "Reset password",
+      "resetPasswordDesc": "A temporary password will be generated and current user sessions will be terminated. Copy it and send it through a secure channel.",
+      "close": "Close",
+      "generate": "Generate"
     }
   },
   "notifications": {

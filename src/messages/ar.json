@@ -645,6 +645,19 @@
         "unblock_ip": "إلغاء حظر IP",
         "unblock_rate_limit": "إلغاء تحديد المعدل"
       }
+    },
+    "uiActions": {
+      "suspend": "تعطيل",
+      "activate": "تفعيل",
+      "suspendUser": "تعطيل المستخدم",
+      "activateUser": "تفعيل المستخدم",
+      "confirmAction": "هل أنت متأكد من تنفيذ هذا الإجراء؟",
+      "cancel": "إلغاء",
+      "confirm": "تأكيد",
+      "resetPassword": "إعادة تعيين كلمة المرور",
+      "resetPasswordDesc": "سيتم إنشاء كلمة مرور مؤقتة وإلغاء جلسات المستخدم الحالية. انسخها وأرسلها للمستخدم عبر قناة آمنة.",
+      "close": "إغلاق",
+      "generate": "إنشاء"
     }
   },
   "notifications": {

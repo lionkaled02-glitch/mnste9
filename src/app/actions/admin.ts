@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 
 import { db } from '@/db';
 import { auditLogs, contracts, failedLoginAttempts, kycDocuments, notifications, platformSettings, projects, proposals, rateLimits, reviews, sessions, transactions, users, wallets } from '@/db/schema';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, hashPassword } from '@/lib/auth';
 import { decryptBuffer, decryptData } from '@/lib/crypto';
 import { sendKYCApprovedEmail, sendKYCRejectedEmail } from '@/lib/services/email';
 import { createNotification } from '@/lib/services/notifications';
@@ -131,25 +131,28 @@ export async function getAdminUsers(params: { role?: string; kyc?: string; q?: s
   if (params.kyc === 'verified') filters.push(eq(users.isKycVerified, true));
   if (params.kyc === 'unverified') filters.push(eq(users.isKycVerified, false));
   if (params.q) filters.push(or(ilike(users.name, `%${params.q}%`), ilike(users.email, `%${params.q}%`))!);
-  return db
+  const rows = await db
     .select({ id: users.id, name: users.name, email: users.email, role: users.role, isKycVerified: users.isKycVerified, avatarUrl: users.avatarUrl, createdAt: users.createdAt, updatedAt: users.updatedAt, balance: wallets.balance })
     .from(users)
     .leftJoin(wallets, eq(wallets.userId, users.id))
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(desc(users.createdAt))
     .limit(100);
+  const suspended = await getSuspendedUserIds();
+  return rows.map((row) => ({ ...row, isActive: !suspended.has(row.id) }));
 }
 
 export async function getAdminUserDetails(id: number) {
   const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
   if (!user) return null;
-  const [userProjects, userContracts, userTransactions, userReviews] = await Promise.all([
+  const [userProjects, userContracts, userTransactions, userReviews, suspension] = await Promise.all([
     db.select().from(projects).where(eq(projects.clientId, id)).orderBy(desc(projects.createdAt)).limit(10),
     db.select().from(contracts).where(or(eq(contracts.clientId, id), eq(contracts.freelancerId, id))!).orderBy(desc(contracts.createdAt)).limit(10),
     db.select().from(transactions).where(eq(transactions.userId, id)).orderBy(desc(transactions.createdAt)).limit(10),
     db.select().from(reviews).where(or(eq(reviews.reviewerId, id), eq(reviews.reviewedId, id))!).orderBy(desc(reviews.createdAt)).limit(10),
+    db.select({ value: platformSettings.value }).from(platformSettings).where(eq(platformSettings.key, suspendedUserKey(id))).limit(1),
   ]);
-  return { user, projects: userProjects, contracts: userContracts, transactions: userTransactions, reviews: userReviews };
+  return { user: { ...user, isActive: suspension[0]?.value !== 'true' }, projects: userProjects, contracts: userContracts, transactions: userTransactions, reviews: userReviews };
 }
 
 export async function getAdminKyc(status = 'pending') {
@@ -568,4 +571,201 @@ export async function getAdminSecurity() {
     auditLogs: auditResult.data,
     rateLimits: rateLimitsResult.data,
   };
+}
+
+
+function suspendedUserKey(userId: number) {
+  return `admin.user.${userId}.suspended`;
+}
+
+async function getSuspendedUserIds() {
+  const rows = await db
+    .select({ key: platformSettings.key })
+    .from(platformSettings)
+    .where(sql`${platformSettings.key} like 'admin.user.%.suspended' and ${platformSettings.value} = 'true'`);
+  return new Set(rows.map((row) => Number(row.key.split('.')[2])).filter(Number.isFinite));
+}
+
+async function assertAdmin() {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') return null;
+  return admin;
+}
+
+export async function updateUserRole(userId: number, role: 'client' | 'freelancer' | 'admin') {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  if (!['client', 'freelancer', 'admin'].includes(role)) return { success: false, message: 'دور غير صالح' };
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+  await createAuditLog({ adminId: admin.id, action: 'update_user_role', targetType: 'user', targetId: userId, metadata: { role } });
+  revalidatePath('/admin/users');
+  revalidatePath(`/admin/users/${userId}`);
+  return { success: true, message: 'تم تحديث الدور' };
+}
+
+export async function toggleUserActive(userId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  const key = suspendedUserKey(userId);
+  const [row] = await db.select({ value: platformSettings.value }).from(platformSettings).where(eq(platformSettings.key, key)).limit(1);
+  const shouldSuspend = row?.value !== 'true';
+  if (shouldSuspend) {
+    await db.insert(platformSettings).values({ key, value: 'true', description: 'تعطيل مستخدم من لوحة الإدارة' }).onConflictDoUpdate({ target: platformSettings.key, set: { value: 'true', description: 'تعطيل مستخدم من لوحة الإدارة' } });
+    await db.delete(sessions).where(eq(sessions.userId, userId));
+  } else {
+    await db.delete(platformSettings).where(eq(platformSettings.key, key));
+  }
+  await createAuditLog({ adminId: admin.id, action: shouldSuspend ? 'suspend_user' : 'activate_user', targetType: 'user', targetId: userId });
+  revalidatePath('/admin/users');
+  revalidatePath(`/admin/users/${userId}`);
+  return { success: true, message: shouldSuspend ? 'تم تعطيل المستخدم' : 'تم تفعيل المستخدم' };
+}
+
+export async function resetUserPassword(userId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  const temporaryPassword = `Kh-${Math.random().toString(36).slice(2, 8)}-${Math.random().toString(36).slice(2, 6)}`;
+  const password = await hashPassword(temporaryPassword);
+  await db.update(users).set({ password }).where(eq(users.id, userId));
+  await db.delete(sessions).where(eq(sessions.userId, userId));
+  await createAuditLog({ adminId: admin.id, action: 'reset_user_password', targetType: 'user', targetId: userId });
+  revalidatePath('/admin/users');
+  revalidatePath(`/admin/users/${userId}`);
+  return { success: true, message: 'تم إنشاء كلمة مرور مؤقتة', password: temporaryPassword };
+}
+
+export async function deleteUser(userId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  if (admin.id === userId) return { success: false, message: 'لا يمكنك حذف حسابك الحالي' };
+  await createAuditLog({ adminId: admin.id, action: 'delete_user', targetType: 'user', targetId: userId });
+  await db.delete(users).where(eq(users.id, userId));
+  revalidatePath('/admin/users');
+  return { success: true, message: 'تم حذف الحساب' };
+}
+
+export async function approveWithdrawal(withdrawalId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  const [tx] = await db.select().from(transactions).where(eq(transactions.id, withdrawalId)).limit(1);
+  if (!tx || tx.type !== 'withdrawal') return { success: false, message: 'طلب السحب غير موجود' };
+  if (tx.status !== 'pending') return { success: false, message: 'تمت معالجة الطلب مسبقاً' };
+  await db.update(transactions).set({ status: 'completed', meta: { ...(tx.meta ?? {}), approvedBy: admin.id, approvedAt: new Date().toISOString() } }).where(eq(transactions.id, withdrawalId));
+  await db.update(wallets).set({ balance: sql`greatest(${wallets.balance} - ${tx.amount}, 0)`, pendingBalance: sql`greatest(${wallets.pendingBalance} - ${tx.amount}, 0)` }).where(eq(wallets.userId, tx.userId));
+  await createAuditLog({ adminId: admin.id, action: 'approve_withdrawal', targetType: 'transaction', targetId: withdrawalId });
+  revalidatePath('/admin/withdrawals');
+  revalidatePath('/admin/wallet');
+  return { success: true, message: 'تمت الموافقة على السحب' };
+}
+
+export async function rejectWithdrawal(withdrawalId: number, reason: string) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  const [tx] = await db.select().from(transactions).where(eq(transactions.id, withdrawalId)).limit(1);
+  if (!tx || tx.type !== 'withdrawal') return { success: false, message: 'طلب السحب غير موجود' };
+  await db.update(transactions).set({ status: 'failed', meta: { ...(tx.meta ?? {}), rejectedBy: admin.id, rejectedAt: new Date().toISOString(), rejectionReason: reason || 'لم يتم تحديد سبب' } }).where(eq(transactions.id, withdrawalId));
+  await db.update(wallets).set({ pendingBalance: sql`greatest(${wallets.pendingBalance} - ${tx.amount}, 0)` }).where(eq(wallets.userId, tx.userId));
+  await createAuditLog({ adminId: admin.id, action: 'reject_withdrawal', targetType: 'transaction', targetId: withdrawalId, metadata: { reason } });
+  revalidatePath('/admin/withdrawals');
+  revalidatePath('/admin/wallet');
+  return { success: true, message: 'تم رفض السحب' };
+}
+
+export async function deleteProject(projectId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  await createAuditLog({ adminId: admin.id, action: 'delete_project', targetType: 'project', targetId: projectId });
+  await db.delete(projects).where(eq(projects.id, projectId));
+  revalidatePath('/admin/projects');
+  return { success: true, message: 'تم حذف المشروع' };
+}
+
+export async function disableProject(projectId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  await db.update(projects).set({ status: 'cancelled' }).where(eq(projects.id, projectId));
+  await createAuditLog({ adminId: admin.id, action: 'disable_project', targetType: 'project', targetId: projectId });
+  revalidatePath('/admin/projects');
+  revalidatePath(`/admin/projects/${projectId}`);
+  return { success: true, message: 'تم تعطيل المشروع' };
+}
+
+export async function deleteProposal(proposalId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  await createAuditLog({ adminId: admin.id, action: 'delete_proposal', targetType: 'proposal', targetId: proposalId });
+  await db.delete(proposals).where(eq(proposals.id, proposalId));
+  revalidatePath('/admin/proposals');
+  return { success: true, message: 'تم حذف العرض' };
+}
+
+export async function resolveContractDispute(contractId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  await db.update(contracts).set({ status: 'completed', releasedAt: new Date() }).where(eq(contracts.id, contractId));
+  await createAuditLog({ adminId: admin.id, action: 'resolve_contract_dispute', targetType: 'contract', targetId: contractId });
+  revalidatePath('/admin/contracts');
+  revalidatePath(`/admin/contracts/${contractId}`);
+  return { success: true, message: 'تم حل النزاع' };
+}
+
+export async function deleteReview(reviewId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  await createAuditLog({ adminId: admin.id, action: 'delete_review', targetType: 'review', targetId: reviewId });
+  await db.delete(reviews).where(eq(reviews.id, reviewId));
+  revalidatePath('/admin/reviews');
+  return { success: true, message: 'تم حذف التقييم' };
+}
+
+export async function updateSettingsAction(formData: FormData) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  const entries = [
+    ['siteName', String(formData.get('siteName') ?? 'خدمات'), 'اسم المنصة'],
+    ['siteDescription', String(formData.get('siteDescription') ?? ''), 'وصف المنصة'],
+    ['commissionRate', String(formData.get('commissionRate') ?? '15'), 'نسبة العمولة (%)'],
+    ['minWithdrawal', String(formData.get('minWithdrawal') ?? '10'), 'الحد الأدنى للسحب'],
+    ['maxWithdrawal', String(formData.get('maxWithdrawal') ?? '1000'), 'الحد الأقصى للسحب'],
+    ['kycRequiredForFreelancers', formData.get('kycRequiredForFreelancers') === 'on' ? 'true' : 'false', 'KYC مطلوب للمستقلين'],
+  ] as const;
+  for (const [key, value, description] of entries) {
+    await db.insert(platformSettings).values({ key, value, description }).onConflictDoUpdate({ target: platformSettings.key, set: { value, description } });
+  }
+  await createAuditLog({ adminId: admin.id, action: 'update_settings', targetType: 'settings' });
+  revalidatePath('/admin/settings');
+  return { success: true, message: 'تم حفظ الإعدادات' };
+}
+
+export async function sendNotificationAction(formData: FormData) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  const target = String(formData.get('target') ?? 'all');
+  const email = String(formData.get('email') ?? '').trim();
+  const title = String(formData.get('title') ?? '').trim();
+  const message = String(formData.get('message') ?? '').trim();
+  if (!title || !message) return { success: false, message: 'العنوان والرسالة مطلوبان' };
+  const conditions = [];
+  if (target === 'freelancers') conditions.push(eq(users.role, 'freelancer'));
+  if (target === 'clients') conditions.push(eq(users.role, 'client'));
+  if (target === 'specific') conditions.push(eq(users.email, email));
+  const recipients = await db.select({ id: users.id }).from(users).where(conditions.length ? and(...conditions) : undefined).limit(target === 'specific' ? 1 : 1000);
+  if (recipients.length === 0) return { success: false, message: 'لا يوجد مستلمون' };
+  await db.insert(notifications).values(recipients.map((recipient) => ({ userId: recipient.id, title, message, type: 'info', link: '/dashboard/notifications' })));
+  await createAuditLog({ adminId: admin.id, action: 'send_notification', targetType: 'notification', metadata: { target, recipients: recipients.length } });
+  revalidatePath('/admin/notifications');
+  return { success: true, message: `تم إرسال ${recipients.length} إشعار` };
+}
+
+
+export async function getAdminProjectDetails(projectId: number) {
+  const [project] = await db
+    .select({ id: projects.id, title: projects.title, description: projects.description, clientId: projects.clientId, clientName: users.name, budgetMin: projects.budgetMin, budgetMax: projects.budgetMax, durationDays: projects.durationDays, status: projects.status, createdAt: projects.createdAt, updatedAt: projects.updatedAt })
+    .from(projects)
+    .leftJoin(users, eq(users.id, projects.clientId))
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  if (!project) return null;
+  const projectProposals = await getAdminProposals();
+  return { project, proposals: projectProposals.filter((proposal) => proposal.projectId === projectId) };
 }
