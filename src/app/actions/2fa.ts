@@ -20,17 +20,48 @@ async function requestInfo() {
   };
 }
 
+async function buildQrCode(email: string, secret: string) {
+  const otpauthUrl = generateURI({ issuer: APP_NAME, label: email, secret });
+  return QRCode.toDataURL(otpauthUrl);
+}
+
 export async function generate2FASecret(): Promise<{ success: boolean; qrCodeUrl?: string; secret?: string; message?: string }> {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { success: false, message: 'غير مصرح' };
   if (currentUser.role !== 'admin') return { success: false, message: 'الأدمن فقط' };
 
-  const secret = generateSecret();
-  const otpauthUrl = generateURI({ issuer: APP_NAME, label: currentUser.email, secret });
-  const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
+  const [user] = await db
+    .select({ email: users.email, twoFactorSecret: users.twoFactorSecret, twoFactorEnabled: users.twoFactorEnabled })
+    .from(users)
+    .where(eq(users.id, currentUser.id))
+    .limit(1);
 
+  if (!user) return { success: false, message: 'المستخدم غير موجود' };
+  if (user.twoFactorEnabled) return { success: false, message: '2FA مفعّل بالفعل' };
+
+  if (user.twoFactorSecret) {
+    const qrCodeUrl = await buildQrCode(user.email, user.twoFactorSecret);
+    return { success: true, secret: user.twoFactorSecret, qrCodeUrl };
+  }
+
+  const secret = generateSecret();
   await db.update(users).set({ twoFactorSecret: secret }).where(eq(users.id, currentUser.id));
+  const qrCodeUrl = await buildQrCode(user.email, secret);
+  revalidatePath('/admin/security/2fa');
   return { success: true, secret, qrCodeUrl };
+}
+
+export async function cancel2FASetup(): Promise<{ success: boolean; message: string }> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { success: false, message: 'غير مصرح' };
+  if (currentUser.role !== 'admin') return { success: false, message: 'الأدمن فقط' };
+
+  const [user] = await db.select({ twoFactorEnabled: users.twoFactorEnabled }).from(users).where(eq(users.id, currentUser.id)).limit(1);
+  if (!user || user.twoFactorEnabled) return { success: false, message: 'لا يمكن إلغاء إعداد مفعّل' };
+
+  await db.update(users).set({ twoFactorSecret: null }).where(eq(users.id, currentUser.id));
+  revalidatePath('/admin/security/2fa');
+  return { success: true, message: 'تم إلغاء إعداد 2FA' };
 }
 
 export async function verify2FACode(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
