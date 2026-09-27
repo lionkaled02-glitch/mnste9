@@ -6,15 +6,39 @@ interface StatusBadgeProps {
   className?: string;
 }
 
+const statusLabels: Record<string, string> = {
+  approved: 'مقبول',
+  completed: 'مكتمل',
+  active: 'نشط',
+  open: 'مفتوح',
+  pending: 'قيد الانتظار',
+  pending_delivery: 'بانتظار التسليم',
+  rejected: 'مرفوض',
+  cancelled: 'ملغي',
+  failed: 'فشل',
+  disputed: 'متنازع عليه',
+  admin: 'مشرف',
+  freelancer: 'مستقل',
+  client: 'عميل',
+  accepted: 'مقبول',
+  withdrawn: 'مسحوب',
+  in_progress: 'قيد التنفيذ',
+  refunded: 'مسترد',
+  withdrawal: 'سحب',
+  deposit: 'إيداع',
+};
+
 function tone(status?: string | null): string {
   switch (status) {
     case 'approved':
     case 'completed':
     case 'active':
     case 'open':
+    case 'accepted':
       return 'border-emerald-200 bg-emerald-50 text-emerald-700';
     case 'pending':
     case 'pending_delivery':
+    case 'in_progress':
       return 'border-amber-200 bg-amber-50 text-amber-700';
     case 'rejected':
     case 'cancelled':
@@ -32,6 +56,10 @@ function tone(status?: string | null): string {
   }
 }
 
+function localizedChildren(children: React.ReactNode) {
+  return typeof children === 'string' ? (statusLabels[children] ?? children) : children;
+}
+
 export function StatusBadge({ children, status, className }: StatusBadgeProps) {
-  return <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold', tone(status), className)}>{children}</span>;
+  return <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold', tone(status), className)}>{localizedChildren(children)}</span>;
 }

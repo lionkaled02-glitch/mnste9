@@ -2,11 +2,11 @@
 
 import { readFile } from 'node:fs/promises';
 
-import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 import { db } from '@/db';
-import { contracts, kycDocuments, notifications, platformSettings, projects, proposals, reviews, transactions, users, wallets } from '@/db/schema';
+import { auditLogs, contracts, failedLoginAttempts, kycDocuments, notifications, platformSettings, projects, proposals, rateLimits, reviews, sessions, transactions, users, wallets } from '@/db/schema';
 import { getCurrentUser } from '@/lib/auth';
 import { decryptBuffer, decryptData } from '@/lib/crypto';
 import { sendKYCApprovedEmail, sendKYCRejectedEmail } from '@/lib/services/email';
@@ -297,4 +297,275 @@ export async function getAdminActivityLog() {
 
 export async function getAdminSettings() {
   return db.select().from(platformSettings).orderBy(desc(platformSettings.updatedAt));
+}
+
+
+export async function getActiveSessions() {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, data: [] };
+  }
+
+  const sessionsList = await db
+    .select({
+      id: sessions.id,
+      userId: sessions.userId,
+      userName: users.name,
+      userEmail: users.email,
+      ip: sessions.ip,
+      userAgent: sessions.userAgent,
+      lastActiveAt: sessions.lastActiveAt,
+      expiresAt: sessions.expiresAt,
+      createdAt: sessions.createdAt,
+    })
+    .from(sessions)
+    .leftJoin(users, eq(users.id, sessions.userId))
+    .where(sql`${sessions.expiresAt} > NOW()`)
+    .orderBy(desc(sessions.lastActiveAt))
+    .limit(100);
+
+  return { success: true, data: sessionsList };
+}
+
+export async function terminateSession(sessionId: number) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, message: 'غير مصرح' };
+  }
+
+  await db.delete(sessions).where(eq(sessions.id, sessionId));
+
+  await createAuditLog({
+    adminId: admin.id,
+    action: 'terminate_session',
+    targetType: 'session',
+    targetId: sessionId,
+  });
+
+  revalidatePath('/admin/security');
+  return { success: true };
+}
+
+export async function terminateAllSessions(userId?: number) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, message: 'غير مصرح' };
+  }
+
+  if (userId) {
+    await db.delete(sessions).where(eq(sessions.userId, userId));
+  } else {
+    await db.delete(sessions);
+  }
+
+  await createAuditLog({
+    adminId: admin.id,
+    action: 'terminate_all_sessions',
+    targetType: userId ? 'user' : 'all',
+    targetId: userId ?? null,
+  });
+
+  revalidatePath('/admin/security');
+  return { success: true };
+}
+
+export async function getFailedLoginAttempts(hours = 24) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, data: [] };
+  }
+
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+  const attempts = await db
+    .select()
+    .from(failedLoginAttempts)
+    .where(gte(failedLoginAttempts.createdAt, since))
+    .orderBy(desc(failedLoginAttempts.createdAt))
+    .limit(200);
+
+  return { success: true, data: attempts };
+}
+
+export async function blockIp(ip: string, minutes = 60) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, message: 'غير مصرح' };
+  }
+
+  const blockedUntil = new Date(Date.now() + minutes * 60 * 1000);
+
+  await db
+    .insert(rateLimits)
+    .values({
+      key: `ip:${ip}`,
+      attempts: 9999,
+      blockedUntil,
+    })
+    .onConflictDoUpdate({
+      target: rateLimits.key,
+      set: { blockedUntil, attempts: 9999 },
+    });
+
+  await createAuditLog({
+    adminId: admin.id,
+    action: 'block_ip',
+    targetType: 'ip',
+    metadata: { ip, minutes },
+  });
+
+  revalidatePath('/admin/security');
+  return { success: true };
+}
+
+export async function unblockIp(ip: string) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, message: 'غير مصرح' };
+  }
+
+  await db.delete(rateLimits).where(eq(rateLimits.key, `ip:${ip}`));
+
+  await createAuditLog({
+    adminId: admin.id,
+    action: 'unblock_ip',
+    targetType: 'ip',
+    metadata: { ip },
+  });
+
+  revalidatePath('/admin/security');
+  return { success: true };
+}
+
+export async function unblockRateLimit(key: string) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, message: 'غير مصرح' };
+  }
+
+  await db.delete(rateLimits).where(eq(rateLimits.key, key));
+
+  await createAuditLog({
+    adminId: admin.id,
+    action: key.startsWith('ip:') ? 'unblock_ip' : 'unblock_rate_limit',
+    targetType: 'rate_limit',
+    metadata: { key },
+  });
+
+  revalidatePath('/admin/security');
+  return { success: true };
+}
+
+export async function getAuditLogs(filters?: {
+  adminId?: number;
+  action?: string;
+  hours?: number;
+}) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, data: [] };
+  }
+
+  const conditions = [];
+  if (filters?.adminId) conditions.push(eq(auditLogs.adminId, filters.adminId));
+  if (filters?.action) conditions.push(eq(auditLogs.action, filters.action));
+  if (filters?.hours) {
+    const since = new Date(Date.now() - filters.hours * 60 * 60 * 1000);
+    conditions.push(gte(auditLogs.createdAt, since));
+  }
+
+  const logs = await db
+    .select({
+      id: auditLogs.id,
+      adminId: auditLogs.adminId,
+      adminName: users.name,
+      action: auditLogs.action,
+      targetType: auditLogs.targetType,
+      targetId: auditLogs.targetId,
+      metadata: auditLogs.metadata,
+      ip: auditLogs.ip,
+      userAgent: auditLogs.userAgent,
+      createdAt: auditLogs.createdAt,
+    })
+    .from(auditLogs)
+    .leftJoin(users, eq(users.id, auditLogs.adminId))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(500);
+
+  return { success: true, data: logs };
+}
+
+export async function getRateLimits() {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== 'admin') {
+    return { success: false, data: [] };
+  }
+
+  const limits = await db
+    .select({
+      id: rateLimits.id,
+      key: rateLimits.key,
+      attempts: rateLimits.attempts,
+      windowStart: rateLimits.windowStart,
+      blockedUntil: rateLimits.blockedUntil,
+    })
+    .from(rateLimits)
+    .orderBy(desc(rateLimits.blockedUntil), desc(rateLimits.windowStart))
+    .limit(200);
+
+  return { success: true, data: limits };
+}
+
+export async function createAuditLog(input: {
+  adminId: number;
+  action: string;
+  targetType?: string;
+  targetId?: number | null;
+  metadata?: Record<string, unknown>;
+}) {
+  try {
+    const { headers } = await import('next/headers');
+    const headersList = await headers();
+    const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? headersList.get('x-real-ip') ?? null;
+    const userAgent = headersList.get('user-agent') ?? null;
+
+    await db.insert(auditLogs).values({
+      adminId: input.adminId,
+      action: input.action,
+      targetType: input.targetType ?? null,
+      targetId: input.targetId ?? null,
+      metadata: input.metadata ?? null,
+      ip,
+      userAgent,
+    });
+  } catch (e) {
+    console.error('createAuditLog failed', e);
+  }
+}
+
+export async function getAdminSecurity() {
+  const [activeSessions, failedAttemptsToday, twoFactorUsers, blockedRateLimits, sessionsResult, failedResult, auditResult, rateLimitsResult] = await Promise.all([
+    db.select({ value: count() }).from(sessions).where(sql`${sessions.expiresAt} > now()`),
+    db.select({ value: count() }).from(failedLoginAttempts).where(sql`${failedLoginAttempts.createdAt} >= now() - interval '24 hours'`),
+    db.select({ value: count() }).from(users).where(eq(users.twoFactorEnabled, true)),
+    db.select({ value: count() }).from(rateLimits).where(sql`${rateLimits.blockedUntil} is not null and ${rateLimits.blockedUntil} > now()`),
+    getActiveSessions(),
+    getFailedLoginAttempts(24 * 7),
+    getAuditLogs(),
+    getRateLimits(),
+  ]);
+
+  return {
+    stats: {
+      activeSessions: activeSessions[0]?.value ?? 0,
+      failedAttemptsToday: failedAttemptsToday[0]?.value ?? 0,
+      twoFactorUsers: twoFactorUsers[0]?.value ?? 0,
+      blockedRateLimits: blockedRateLimits[0]?.value ?? 0,
+    },
+    activeSessions: sessionsResult.data,
+    failedLoginAttempts: failedResult.data,
+    auditLogs: auditResult.data,
+    rateLimits: rateLimitsResult.data,
+  };
 }

@@ -2,33 +2,36 @@
 
 import { Link } from '@/i18n/navigation';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
 
 const items = [
-  { href: '/admin', label: 'Dashboard', icon: '📊' },
-  { href: '/admin/users', label: 'Users', icon: '👥', children: ['All Users', 'Clients', 'Freelancers', 'Admins'] },
-  { href: '/admin/kyc', label: 'KYC', icon: '🆔', badge: '!', children: ['Pending', 'Approved', 'Rejected'] },
-  { href: '/admin/projects', label: 'Projects', icon: '📋' },
-  { href: '/admin/proposals', label: 'Proposals', icon: '🎯' },
-  { href: '/admin/contracts', label: 'Contracts', icon: '📝', badge: '!', children: ['Active', 'Disputed'] },
-  { href: '/admin/wallet', label: 'Wallet', icon: '💰' },
-  { href: '/admin/withdrawals', label: 'Withdrawals', icon: '💸', badge: '!' },
-  { href: '/admin/reviews', label: 'Reviews', icon: '⭐' },
-  { href: '/admin/notifications', label: 'Notifications', icon: '📢' },
-  { href: '/admin/reports', label: 'Reports', icon: '📈' },
-  { href: '/admin/activity-log', label: 'Activity Log', icon: '📜' },
-  { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
+  { href: '/admin', labelKey: 'dashboard', icon: '📊' },
+  { href: '/admin/users', labelKey: 'users', icon: '👥' },
+  { href: '/admin/kyc', labelKey: 'kyc', icon: '🆔', badge: '!' },
+  { href: '/admin/projects', labelKey: 'projects', icon: '📋' },
+  { href: '/admin/proposals', labelKey: 'proposals', icon: '🎯' },
+  { href: '/admin/contracts', labelKey: 'contracts', icon: '📝', badge: '!' },
+  { href: '/admin/wallet', labelKey: 'wallet', icon: '💰' },
+  { href: '/admin/withdrawals', labelKey: 'withdrawals', icon: '💸', badge: '!' },
+  { href: '/admin/reviews', labelKey: 'reviews', icon: '⭐' },
+  { href: '/admin/notifications', labelKey: 'notifications', icon: '📢' },
+  { href: '/admin/reports', labelKey: 'reports', icon: '📈' },
+  { href: '/admin/activity-log', labelKey: 'activityLog', icon: '📜' },
+  { href: '/admin/settings', labelKey: 'settings', icon: '⚙️' },
+  { href: '/admin/security', labelKey: 'security', icon: '🔒' },
 ] as const;
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const t = useTranslations('admin.sidebar');
   const normalizedPath = pathname.replace(/^\/(ar|en)/, '') || '/admin';
   const isActive = (href: string) => (href === '/admin' ? normalizedPath === '/admin' : normalizedPath === href || normalizedPath.startsWith(`${href}/`));
 
   return (
     <aside className="w-full shrink-0 bg-[#1a1a2e] text-white shadow-2xl lg:min-h-[calc(100vh-4rem)] lg:w-72">
-      <nav className="flex gap-2 overflow-x-auto p-3 lg:flex-col lg:overflow-visible lg:p-4" aria-label="Admin navigation">
+      <nav className="flex gap-2 overflow-x-auto p-3 lg:flex-col lg:overflow-visible lg:p-4" aria-label="تنقل لوحة الإدارة">
         {items.map((item) => (
           <Link
             key={item.href}
@@ -40,7 +43,7 @@ export function AdminSidebar() {
             )}
           >
             <span className="text-lg">{item.icon}</span>
-            <span className="flex-1">{item.label}</span>
+            <span className="flex-1">{t(item.labelKey)}</span>
             {'badge' in item && <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-extrabold', isActive(item.href) ? 'bg-red-100 text-red-700' : 'bg-red-500 text-white')}>{item.badge}</span>}
           </Link>
         ))}

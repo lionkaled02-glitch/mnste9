@@ -521,7 +521,131 @@
     "adminBadge": "Admin",
     "empty": "No data",
     "actions": "Actions",
-    "filters": "Filters"
+    "filters": "Filters",
+    "sidebar": {
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "kyc": "KYC Verification",
+      "projects": "Projects",
+      "proposals": "Proposals",
+      "contracts": "Contracts",
+      "wallet": "Wallet",
+      "withdrawals": "Withdrawals",
+      "reviews": "Reviews",
+      "notifications": "Notifications",
+      "reports": "Reports",
+      "activityLog": "Activity Log",
+      "settings": "Settings",
+      "security": "Security"
+    },
+    "header": {
+      "admin": "Admin Panel",
+      "viewSite": "View Site"
+    },
+    "common": {
+      "search": "Search",
+      "filter": "Filter",
+      "sort": "Sort",
+      "actions": "Actions",
+      "status": "Status",
+      "date": "Date",
+      "amount": "Amount",
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "back": "Back",
+      "next": "Next",
+      "previous": "Previous",
+      "noResults": "No results",
+      "loading": "Loading"
+    },
+    "security": {
+      "eyebrow": "Security Center",
+      "title": "Security",
+      "subtitle": "Manage platform security, sessions, failed logins, and audit activity",
+      "stats": {
+        "activeSessions": "Sessions that have not expired yet",
+        "failedToday": "Last 24 hours",
+        "twoFactorTitle": "Two-factor authentication",
+        "twoFactorUsers": "Users with two-factor authentication enabled",
+        "blockedRateLimits": "Temporarily blocked keys"
+      },
+      "tabs": {
+        "navigation": "Security center sections",
+        "sessions": "Active Sessions",
+        "failedLogins": "Failed Login Attempts",
+        "auditLog": "Audit Log",
+        "rateLimits": "Rate Limits"
+      },
+      "sessions": {
+        "title": "Active Sessions",
+        "subtitle": "Monitor current user sessions and terminate any suspicious session immediately.",
+        "user": "User",
+        "ip": "IP",
+        "device": "User Agent",
+        "lastActive": "Last Active",
+        "expiresAt": "Expires At",
+        "actions": "Actions",
+        "terminate": "Terminate",
+        "terminateAll": "Terminate All Sessions",
+        "empty": "No active sessions"
+      },
+      "failedLogins": {
+        "title": "Failed Login Attempts",
+        "subtitle": "Review rejected login attempts and act on risky IP addresses.",
+        "email": "Email",
+        "ip": "IP",
+        "reason": "Reason",
+        "date": "Date",
+        "actions": "Actions",
+        "block": "Block IP",
+        "unblock": "Unblock",
+        "empty": "No failed attempts",
+        "filter24h": "Last 24 hours",
+        "filter7d": "Last 7 days"
+      },
+      "auditLog": {
+        "title": "Audit Log",
+        "subtitle": "Track admin operations with filtering and export support.",
+        "admin": "Admin",
+        "action": "Action",
+        "target": "Target",
+        "ip": "IP",
+        "date": "Date",
+        "filter": "Filter",
+        "export": "Export CSV",
+        "empty": "No logs",
+        "allAdmins": "All admins",
+        "allActions": "All actions",
+        "allDates": "All dates",
+        "last24h": "Last 24 hours",
+        "last7d": "Last 7 days",
+        "last30d": "Last 30 days"
+      },
+      "rateLimits": {
+        "title": "Rate Limits",
+        "subtitle": "Manage temporary blocking keys and attempt limits.",
+        "key": "Key",
+        "attempts": "Attempts",
+        "blockedUntil": "Blocked Until",
+        "actions": "Actions",
+        "unblock": "Unblock",
+        "empty": "No cases"
+      },
+      "actions": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "delete": "Delete",
+        "terminate_session": "Terminate Session",
+        "terminate_all_sessions": "Terminate All Sessions",
+        "block_ip": "Block IP",
+        "unblock_ip": "Unblock IP",
+        "unblock_rate_limit": "Unblock Rate Limit"
+      }
+    }
   },
   "notifications": {
     "title": "Notifications",

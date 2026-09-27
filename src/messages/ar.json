@@ -521,7 +521,131 @@
     "adminBadge": "مشرف",
     "empty": "لا توجد بيانات",
     "actions": "الإجراءات",
-    "filters": "الفلاتر"
+    "filters": "الفلاتر",
+    "sidebar": {
+      "dashboard": "لوحة التحكم",
+      "users": "المستخدمون",
+      "kyc": "توثيق الهوية",
+      "projects": "المشاريع",
+      "proposals": "العروض",
+      "contracts": "العقود",
+      "wallet": "المحفظة",
+      "withdrawals": "السحوبات",
+      "reviews": "التقييمات",
+      "notifications": "الإشعارات",
+      "reports": "التقارير",
+      "activityLog": "سجل الأنشطة",
+      "settings": "الإعدادات",
+      "security": "الحماية"
+    },
+    "header": {
+      "admin": "لوحة الإدارة",
+      "viewSite": "عرض الموقع"
+    },
+    "common": {
+      "search": "بحث",
+      "filter": "فلترة",
+      "sort": "فرز",
+      "actions": "إجراءات",
+      "status": "الحالة",
+      "date": "التاريخ",
+      "amount": "المبلغ",
+      "view": "عرض",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "save": "حفظ",
+      "cancel": "إلغاء",
+      "confirm": "تأكيد",
+      "back": "رجوع",
+      "next": "التالي",
+      "previous": "السابق",
+      "noResults": "لا توجد نتائج",
+      "loading": "جارٍ التحميل"
+    },
+    "security": {
+      "eyebrow": "مركز الأمان",
+      "title": "الحماية",
+      "subtitle": "إدارة أمان المنصة والجلسات ومحاولات الدخول وسجل الأنشطة",
+      "stats": {
+        "activeSessions": "جلسات لم تنتهِ بعد",
+        "failedToday": "آخر 24 ساعة",
+        "twoFactorTitle": "التحقق الثنائي",
+        "twoFactorUsers": "مستخدمون فعّلوا التحقق الثنائي",
+        "blockedRateLimits": "مفاتيح محظورة مؤقتاً"
+      },
+      "tabs": {
+        "navigation": "أقسام مركز الحماية",
+        "sessions": "الجلسات النشطة",
+        "failedLogins": "محاولات الدخول الفاشلة",
+        "auditLog": "سجل الأنشطة",
+        "rateLimits": "تحديد المعدل"
+      },
+      "sessions": {
+        "title": "الجلسات النشطة",
+        "subtitle": "راقب جلسات المستخدمين الحالية وأنهِ أي جلسة مشبوهة فوراً.",
+        "user": "المستخدم",
+        "ip": "IP",
+        "device": "User Agent",
+        "lastActive": "آخر نشاط",
+        "expiresAt": "ينتهي في",
+        "actions": "إجراءات",
+        "terminate": "إنهاء",
+        "terminateAll": "إنهاء كل الجلسات",
+        "empty": "لا توجد جلسات نشطة"
+      },
+      "failedLogins": {
+        "title": "محاولات الدخول الفاشلة",
+        "subtitle": "راجع محاولات الدخول المرفوضة واتخذ إجراءً تجاه عناوين IP الخطرة.",
+        "email": "البريد",
+        "ip": "IP",
+        "reason": "السبب",
+        "date": "التاريخ",
+        "actions": "إجراءات",
+        "block": "حظر IP",
+        "unblock": "إلغاء الحظر",
+        "empty": "لا توجد محاولات فاشلة",
+        "filter24h": "آخر 24 ساعة",
+        "filter7d": "آخر 7 أيام"
+      },
+      "auditLog": {
+        "title": "سجل الأنشطة",
+        "subtitle": "تتبع عمليات المشرفين مع إمكانية الفلترة والتصدير.",
+        "admin": "المشرف",
+        "action": "الإجراء",
+        "target": "الكائن",
+        "ip": "IP",
+        "date": "التاريخ",
+        "filter": "فلترة",
+        "export": "تصدير CSV",
+        "empty": "لا توجد سجلات",
+        "allAdmins": "كل المشرفين",
+        "allActions": "كل الإجراءات",
+        "allDates": "كل التواريخ",
+        "last24h": "آخر 24 ساعة",
+        "last7d": "آخر 7 أيام",
+        "last30d": "آخر 30 يوم"
+      },
+      "rateLimits": {
+        "title": "تحديد المعدل",
+        "subtitle": "إدارة مفاتيح الحظر المؤقت وحدود المحاولات.",
+        "key": "المفتاح",
+        "attempts": "المحاولات",
+        "blockedUntil": "محظور حتى",
+        "actions": "إجراءات",
+        "unblock": "إلغاء الحظر",
+        "empty": "لا توجد حالات"
+      },
+      "actions": {
+        "approve": "موافقة",
+        "reject": "رفض",
+        "delete": "حذف",
+        "terminate_session": "إنهاء جلسة",
+        "terminate_all_sessions": "إنهاء كل الجلسات",
+        "block_ip": "حظر IP",
+        "unblock_ip": "إلغاء حظر IP",
+        "unblock_rate_limit": "إلغاء تحديد المعدل"
+      }
+    }
   },
   "notifications": {
     "title": "الإشعارات",

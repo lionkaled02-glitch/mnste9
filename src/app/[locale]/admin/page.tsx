@@ -14,7 +14,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-[#1a1a2e]">Dashboard</h1>
+          <h1 className="text-3xl font-extrabold text-[#1a1a2e]">لوحة التحكم</h1>
           <p className="mt-2 text-sm text-slate-500">نظرة تنفيذية على أداء منصة خدمات.</p>
         </div>
         <div className="flex gap-2">
@@ -29,8 +29,8 @@ export default async function AdminDashboardPage() {
         <StatCard title="العروض" value={stats.proposalsTotal} subtitle={`${stats.proposalsPending} قيد الانتظار`} icon="🎯" tone="amber" />
         <StatCard title="العقود" value={stats.activeContracts} subtitle={`${stats.completedContracts} مكتملة`} icon="📝" tone="emerald" />
         <StatCard title="الإيرادات" value={`$${stats.revenue.toFixed(2)}`} subtitle={`$${stats.monthlyRevenue.toFixed(2)} هذا الشهر`} icon="💵" tone="emerald" />
-        <StatCard title="Escrow" value={`$${stats.escrow.toFixed(2)}`} subtitle="المحتجز حالياً" icon="🔒" tone="violet" />
-        <StatCard title="KYC" value={stats.pendingKyc} subtitle="طلبات بانتظار المراجعة" icon="🆔" tone="red" />
+        <StatCard title="رصيد الضمان" value={`$${stats.escrow.toFixed(2)}`} subtitle="المحتجز حالياً" icon="🔒" tone="violet" />
+        <StatCard title="توثيق الهوية" value={stats.pendingKyc} subtitle="طلبات بانتظار المراجعة" icon="🆔" tone="red" />
         <StatCard title="السحب" value={stats.pendingWithdrawals} subtitle="طلبات معلقة" icon="💸" tone="red" />
       </section>
 
