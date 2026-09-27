@@ -8,15 +8,44 @@ import { NewMessageEmail } from '@/lib/email/templates/new-message';
 import { NewProposalEmail } from '@/lib/email/templates/new-proposal';
 import { ProposalAcceptedEmail } from '@/lib/email/templates/proposal-accepted';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = 'خدمات <noreply@khadamat.com>';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
-async function sendEmail(input: { to: string; subject: string; react: React.ReactElement }) {
-  if (!process.env.RESEND_API_KEY) return;
+// Resend rejects unverified domains. Keep production configurable, and use
+// Resend's verified sandbox sender as a safe fallback for development/testing.
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'Khadamat <onboarding@resend.dev>';
+
+type EmailInput = {
+  to: string;
+  subject: string;
+  react: React.ReactElement;
+  replyTo?: string;
+};
+
+async function sendEmail(input: EmailInput): Promise<boolean> {
+  if (!resend) {
+    console.warn('sendEmail skipped: RESEND_API_KEY is not configured');
+    return false;
+  }
+
   try {
-    await resend.emails.send({ from: FROM_EMAIL, ...input });
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: input.to,
+      subject: input.subject,
+      react: input.react,
+      ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+    });
+
+    if (error) {
+      console.error('sendEmail failed', error);
+      return false;
+    }
+
+    return true;
   } catch (error) {
     console.error('sendEmail failed', error);
+    return false;
   }
 }
 
@@ -45,8 +74,9 @@ export async function sendEscrowReleasedEmail(to: string, userName: string, amou
 }
 
 export async function sendContactEmail(input: { name: string; email: string; subject: string; message: string }) {
-  await sendEmail({
-    to: 'support@khadamat.com',
+  const sent = await sendEmail({
+    to: process.env.CONTACT_TO_EMAIL ?? 'support@khadamat.com',
+    replyTo: input.email,
     subject: `رسالة تواصل جديدة: ${input.subject}`,
     react: createElement(
       'div',
@@ -59,4 +89,6 @@ export async function sendContactEmail(input: { name: string; email: string; sub
       createElement('p', { style: { whiteSpace: 'pre-wrap' } }, input.message),
     ),
   });
+
+  if (!sent) throw new Error('contact email failed');
 }
