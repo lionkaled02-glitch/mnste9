@@ -50,7 +50,10 @@
     "facebook": "فيسبوك",
     "twitter": "تويتر",
     "linkedin": "لينكدإن",
-    "instagram": "انستجرام"
+    "instagram": "انستجرام",
+    "company": "عن الشركة",
+    "legal": "قانوني",
+    "contactColumn": "تواصل"
   },
   "Common": {
     "login": "تسجيل الدخول",

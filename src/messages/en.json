@@ -50,7 +50,10 @@
     "facebook": "Facebook",
     "twitter": "Twitter",
     "linkedin": "LinkedIn",
-    "instagram": "Instagram"
+    "instagram": "Instagram",
+    "company": "Company",
+    "legal": "Legal",
+    "contactColumn": "Contact"
   },
   "Common": {
     "login": "Login",
