@@ -28,6 +28,10 @@ function numberValue(value: unknown): number {
   return 0;
 }
 
+function toNumeric(value: number): string {
+  return value.toFixed(2);
+}
+
 function sniffImageMime(buffer: Buffer): 'image/jpeg' | 'image/png' | 'image/webp' | null {
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
   if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47 && buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a) return 'image/png';
@@ -727,23 +731,113 @@ export async function deleteProposal(proposalId: number) {
   return { success: true, message: 'تم حذف العرض' };
 }
 
-export async function resolveContractDispute(contractId: number) {
+export async function resolveDisputeAction(input: { contractId: number; resolution: 'client' | 'freelancer' | 'split' }) {
   const admin = await assertAdmin();
   if (!admin) return { success: false, message: 'غير مصرح' };
-  await db.update(contracts).set({ status: 'completed', releasedAt: new Date() }).where(eq(contracts.id, contractId));
-  await createAuditLog({ adminId: admin.id, action: 'resolve_dispute', targetType: 'contract', targetId: contractId });
-  revalidatePath('/admin/contracts');
-  revalidatePath(`/admin/contracts/${contractId}`);
-  return { success: true, message: 'تم حل النزاع' };
+  if (!Number.isSafeInteger(input.contractId) || input.contractId <= 0) return { success: false, message: 'معرّف العقد غير صالح' };
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [contract] = await tx.select().from(contracts).where(eq(contracts.id, input.contractId)).for('update');
+      if (!contract) throw new Error('العقد غير موجود');
+      if (contract.status !== 'disputed') throw new Error('العقد ليس في حالة نزاع');
+
+      const totalAmount = numberValue(contract.amount);
+      const commissionRate = numberValue(contract.commissionRate);
+      if (totalAmount <= 0) throw new Error('مبلغ العقد غير صالح');
+
+      let clientRefund = 0;
+      let freelancerGross = 0;
+      if (input.resolution === 'client') clientRefund = totalAmount;
+      if (input.resolution === 'freelancer') freelancerGross = totalAmount;
+      if (input.resolution === 'split') {
+        clientRefund = +(totalAmount / 2).toFixed(2);
+        freelancerGross = +(totalAmount - clientRefund).toFixed(2);
+      }
+
+      const freelancerCommission = +(freelancerGross * commissionRate).toFixed(2);
+      const freelancerNet = +(freelancerGross - freelancerCommission).toFixed(2);
+
+      await tx.update(wallets).set({
+        pendingBalance: sql`greatest(${wallets.pendingBalance} - ${toNumeric(totalAmount)}::numeric, 0)`,
+        balance: clientRefund > 0 ? sql`${wallets.balance} + ${toNumeric(clientRefund)}::numeric` : wallets.balance,
+        updatedAt: new Date(),
+      }).where(eq(wallets.userId, contract.clientId));
+
+      if (clientRefund > 0) {
+        await tx.insert(transactions).values({
+          userId: contract.clientId,
+          amount: toNumeric(clientRefund),
+          type: 'escrow_release',
+          paymentMethod: null,
+          status: 'completed',
+          referenceId: `DISPUTE-${contract.projectId}`,
+          meta: { contractId: contract.id, projectId: contract.projectId, action: 'dispute_refund', resolution: input.resolution },
+        });
+      }
+
+      if (freelancerNet > 0) {
+        await tx.update(wallets).set({
+          balance: sql`${wallets.balance} + ${toNumeric(freelancerNet)}::numeric`,
+          updatedAt: new Date(),
+        }).where(eq(wallets.userId, contract.freelancerId));
+
+        await tx.insert(transactions).values({
+          userId: contract.freelancerId,
+          amount: toNumeric(freelancerNet),
+          type: 'escrow_release',
+          paymentMethod: null,
+          status: 'completed',
+          referenceId: `DISPUTE-${contract.projectId}`,
+          meta: { contractId: contract.id, projectId: contract.projectId, action: 'dispute_release', resolution: input.resolution, gross: freelancerGross, commission: freelancerCommission },
+        });
+      }
+
+      if (freelancerCommission > 0) {
+        await tx.insert(transactions).values({
+          userId: contract.freelancerId,
+          amount: toNumeric(freelancerCommission),
+          type: 'commission',
+          paymentMethod: null,
+          status: 'completed',
+          referenceId: `DISPUTE-COMMISSION-${contract.projectId}`,
+          meta: { contractId: contract.id, projectId: contract.projectId, rate: commissionRate, resolution: input.resolution },
+        });
+      }
+
+      await tx.update(projects).set({ status: 'completed', updatedAt: new Date() }).where(eq(projects.id, contract.projectId));
+      await tx.update(contracts).set({ status: 'completed', releasedAt: new Date(), updatedAt: new Date() }).where(eq(contracts.id, contract.id));
+
+      return { clientRefund, freelancerGross, freelancerNet, freelancerCommission };
+    });
+
+    await createAuditLog({ adminId: admin.id, action: 'resolve_dispute', targetType: 'contract', targetId: input.contractId, metadata: { resolution: input.resolution, ...result } });
+    revalidatePath('/admin/contracts');
+    revalidatePath(`/admin/contracts/${input.contractId}`);
+    revalidatePath('/admin/wallet');
+    return { success: true, message: 'تم حل النزاع' };
+  } catch (error) {
+    console.error('resolveDisputeAction failed:', error);
+    return { success: false, message: error instanceof Error ? error.message : 'تعذر حل النزاع' };
+  }
+}
+
+export async function resolveContractDispute(contractId: number) {
+  return resolveDisputeAction({ contractId, resolution: 'freelancer' });
+}
+
+export async function deleteReviewAction(reviewId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0) return { success: false, message: 'معرّف التقييم غير صالح' };
+  await db.delete(reviews).where(eq(reviews.id, reviewId));
+  await createAuditLog({ adminId: admin.id, action: 'delete_review', targetType: 'review', targetId: reviewId });
+  revalidatePath('/admin/reviews');
+  return { success: true, message: 'تم حذف التقييم' };
 }
 
 export async function deleteReview(reviewId: number) {
-  const admin = await assertAdmin();
-  if (!admin) return { success: false, message: 'غير مصرح' };
-  await createAuditLog({ adminId: admin.id, action: 'delete_review', targetType: 'review', targetId: reviewId });
-  await db.delete(reviews).where(eq(reviews.id, reviewId));
-  revalidatePath('/admin/reviews');
-  return { success: true, message: 'تم حذف التقييم' };
+  return deleteReviewAction(reviewId);
 }
 
 export async function updateSettingsAction(formData: FormData) {

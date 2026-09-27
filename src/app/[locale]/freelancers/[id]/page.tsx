@@ -111,12 +111,21 @@ export default async function FreelancerDetailPage({ params }: Props) {
                   )}
                 </div>
 
-                <h1 className="mt-4 flex items-center gap-2 text-xl font-bold text-slate-900">
-                  {freelancer.name}
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <h1 className="text-xl font-bold text-slate-900">{freelancer.name}</h1>
+                  {freelancer.role === 'freelancer' && (
+                    <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800">مستقل</span>
+                  )}
+                  {freelancer.role === 'client' && (
+                    <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-800">صاحب عمل</span>
+                  )}
+                  {freelancer.role === 'admin' && (
+                    <span className="rounded-full bg-red-100 px-3 py-1.5 text-xs font-bold text-red-800">مشرف المنصة</span>
+                  )}
                   {freelancer.isKycVerified && (
                     <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-bold text-white">موثّق</span>
                   )}
-                </h1>
+                </div>
                 <p className="mt-1 text-sm text-slate-500">{freelancer.specialty}</p>
                 {freelancer.city && <p className="mt-1 text-xs text-slate-400">{freelancer.city}</p>}
 

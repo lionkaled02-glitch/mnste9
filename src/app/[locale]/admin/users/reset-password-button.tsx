@@ -52,7 +52,7 @@ export function ResetPasswordButton({ userId, userEmail, userName }: { userId: n
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <h2 className="mb-2 text-xl font-bold text-[#1a1a2e]">🔑 {t('resetPassword')}</h2>
             <p className="mb-4 text-sm text-slate-500">المستخدم: <strong>{userName}</strong> <span dir="ltr">({userEmail})</span></p>
-            <div className="mb-4 rounded-xl bg-amber-50 p-3 text-xs leading-6 text-amber-800">⚠️ سيتم إنشاء كلمة مرور جديدة، وإلغاء كل جلسات المستخدم. المستخدم لن يتمكن من الدخول بكلمة المرور القديمة.</div>
+            <div className="mb-4 rounded-xl bg-amber-50 p-3 text-xs leading-6 text-amber-800">⚠️ سيتم إنشاء كلمة مرور جديدة، وإلغاء كل جلسات المستخدم الحالية. انسخ الكلمة الجديدة وأرسلها للمستخدم، أو أرسلها تلقائياً عبر البريد.</div>
             {password ? (
               <>
                 <div className="mb-4">
@@ -63,7 +63,7 @@ export function ResetPasswordButton({ userId, userEmail, userName }: { userId: n
                   </div>
                   <p className="mt-2 text-xs text-red-600">⚠️ احفظها الآن. لن تظهر مرة أخرى.</p>
                 </div>
-                <button type="button" onClick={handleSendEmail} disabled={sending} className="mb-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">{sending ? 'جارٍ الإرسال...' : sent ? '✓ تم الإرسال' : '📧 إرسال على البريد الإلكتروني'}</button>
+                <button type="button" onClick={handleSendEmail} disabled={sending || sent} className="mb-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">{sending ? 'جارٍ الإرسال...' : sent ? '✓ تم الإرسال' : '📧 إرسال على البريد'}</button>
                 <button type="button" onClick={() => { setOpen(false); setPassword(null); }} className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700">إغلاق</button>
               </>
             ) : <p className="text-center text-sm text-slate-500">{isPending ? 'جارٍ التوليد...' : 'جارٍ التوليد...'}</p>}
