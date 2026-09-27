@@ -198,6 +198,7 @@ export async function approveKycAction(formData: FormData): Promise<void> {
   if ('success' in admin) return;
   const id = Number(formData.get('id'));
   if (!Number.isSafeInteger(id)) return;
+  await createAuditLog({ adminId: admin.id, action: 'approve_kyc', targetType: 'kyc', targetId: id });
   const [doc] = await db.update(kycDocuments).set({ status: 'approved', reviewedBy: admin.id, reviewedAt: new Date(), rejectionReason: null }).where(eq(kycDocuments.id, id)).returning({ userId: kycDocuments.userId });
   if (doc) {
     await db.update(users).set({ isKycVerified: true }).where(eq(users.id, doc.userId));
@@ -214,6 +215,7 @@ export async function rejectKycAction(formData: FormData): Promise<void> {
   const id = Number(formData.get('id'));
   const reason = String(formData.get('reason') ?? '').trim() || 'الوثائق غير واضحة أو غير مطابقة';
   if (!Number.isSafeInteger(id)) return;
+  await createAuditLog({ adminId: admin.id, action: 'reject_kyc', targetType: 'kyc', targetId: id, metadata: { reason } });
   const [doc] = await db.update(kycDocuments).set({ status: 'rejected', reviewedBy: admin.id, reviewedAt: new Date(), rejectionReason: reason }).where(eq(kycDocuments.id, id)).returning({ userId: kycDocuments.userId });
   if (doc) {
     await db.update(users).set({ isKycVerified: false }).where(eq(users.id, doc.userId));

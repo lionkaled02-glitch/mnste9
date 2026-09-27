@@ -536,7 +536,8 @@
       "reports": "Reports",
       "activityLog": "Activity Log",
       "settings": "Settings",
-      "security": "Security"
+      "security": "Security",
+      "twoFactor": "2FA"
     },
     "header": {
       "admin": "Admin Panel",
@@ -682,6 +683,25 @@
       "resetPasswordDesc": "A temporary password will be generated and current user sessions will be terminated. Copy it and send it through a secure channel.",
       "close": "Close",
       "generate": "Generate"
+    },
+    "twoFactor": {
+      "title": "Two-factor authentication (2FA)",
+      "subtitle": "Additional protection for your account",
+      "enable": "Enable 2FA",
+      "disable": "Disable 2FA",
+      "status": "Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "scanQr": "Scan the QR code with Google Authenticator",
+      "enterCode": "Enter the 6-digit code",
+      "verify": "Verify",
+      "verified": "Verified successfully",
+      "invalidCode": "Invalid code",
+      "warning": "⚠️ Store the secret safely. You may need it to recover the account.",
+      "backupCodes": "Backup codes"
+    },
+    "rateLimit": {
+      "exceeded": "Rate limit exceeded. Please try again later."
     }
   },
   "notifications": {
@@ -1157,5 +1177,8 @@
       "title": "Terms of Use — Khadamat",
       "description": "Read Khadamat terms of use and user rights and responsibilities."
     }
+  },
+  "auth": {
+    "twoFactor": {}
   }
 }

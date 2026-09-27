@@ -26,16 +26,18 @@
  */
 
 import { eq } from 'drizzle-orm';
+import { cookies, headers } from 'next/headers';
 import { z } from 'zod';
 
 import { db } from '@/db';
-import { users, wallets } from '@/db/schema';
+import { failedLoginAttempts, sessions, users, wallets } from '@/db/schema';
 import {
   clearSessionCookie,
   createSession,
   getCurrentUser,
   hashPassword,
   setSessionCookie,
+  SESSION_COOKIE_NAME,
   verifyPassword,
   type AuthActionState,
 } from '@/lib/auth';
@@ -63,6 +65,25 @@ function zodFieldErrors(error: z.ZodError): Record<string, string[]> {
     (fieldErrors[key] ??= []).push(issue.message);
   }
   return fieldErrors;
+}
+
+
+async function getRequestInfo() {
+  const headersList = await headers();
+  return {
+    ip: headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? headersList.get('x-real-ip') ?? 'unknown',
+    userAgent: headersList.get('user-agent') ?? '',
+  };
+}
+
+async function persistSession(userId: number, token: string, ip: string, userAgent: string) {
+  await db.insert(sessions).values({
+    userId,
+    token,
+    ip,
+    userAgent,
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
 }
 
 /* ============================================================================
@@ -194,6 +215,7 @@ export async function registerUser(data: unknown): Promise<AuthActionState> {
  */
 export async function loginUser(data: unknown): Promise<AuthActionState> {
   const input = normalizeInput(data);
+  const { ip, userAgent } = await getRequestInfo();
 
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) {
@@ -204,38 +226,33 @@ export async function loginUser(data: unknown): Promise<AuthActionState> {
 
   try {
     const [user] = await db
-      .select({ id: users.id, password: users.password })
+      .select({ id: users.id, role: users.role, password: users.password, twoFactorEnabled: users.twoFactorEnabled })
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
 
-    /* مقارنة دائمة (حتى مع غياب المستخدم) لتوحيد زمن الاستجابة ومنع
-       كشف وجود البريد عبر قياس الزمن — التجزئة الوهمية صالحة بصيغة bcrypt */
     const DUMMY_HASH = '$2b$12$dwVXwbzEyHXMLh908UYT2.S0PkDluz9jVEDTbqp3CWVCZLIpjJMSq';
     const passwordHash = user?.password ?? DUMMY_HASH;
     const valid = await verifyPassword(password, passwordHash);
 
     if (!user || !valid) {
-      return {
-        success: false,
-        message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
-      };
+      await db.insert(failedLoginAttempts).values({ email, ip, userAgent, reason: !user ? 'user_not_found' : 'wrong_password' });
+      return { success: false, message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
+    }
+
+    if (user.role === 'admin' && user.twoFactorEnabled) {
+      return { success: true, message: 'أدخل رمز التحقق الثنائي', redirectTo: `/login/verify-2fa?email=${encodeURIComponent(email)}` };
     }
 
     const token = await createSession(user.id);
     await setSessionCookie(token);
+    await db.update(users).set({ lastLoginAt: new Date(), lastLoginIp: ip }).where(eq(users.id, user.id));
+    await persistSession(user.id, token, ip, userAgent);
 
-    return {
-      success: true,
-      message: 'تم تسجيل الدخول بنجاح',
-      redirectTo: '/dashboard',
-    };
+    return { success: true, message: 'تم تسجيل الدخول بنجاح', redirectTo: user.role === 'admin' ? '/admin' : '/dashboard' };
   } catch (error) {
     console.error('loginUser failed:', error);
-    return {
-      success: false,
-      message: 'حدث خطأ غير متوقع أثناء تسجيل الدخول — حاول مرة أخرى',
-    };
+    return { success: false, message: 'حدث خطأ غير متوقع أثناء تسجيل الدخول — حاول مرة أخرى' };
   }
 }
 
@@ -244,12 +261,11 @@ export async function loginUser(data: unknown): Promise<AuthActionState> {
  * ========================================================================== */
 
 export async function logoutUser(): Promise<AuthActionState> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  if (token) await db.delete(sessions).where(eq(sessions.token, token));
   await clearSessionCookie();
-  return {
-    success: true,
-    message: 'تم تسجيل الخروج بنجاح',
-    redirectTo: '/login',
-  };
+  return { success: true, message: 'تم تسجيل الخروج بنجاح', redirectTo: '/login' };
 }
 
 /* ============================================================================
