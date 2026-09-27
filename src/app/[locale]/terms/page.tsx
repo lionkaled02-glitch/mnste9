@@ -1,22 +1,24 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
+import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
+
 import { Link } from '@/i18n/navigation';
 
 type LegalSection = { title: string; body: string };
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('terms');
-  return {
-    title: t('metaTitle'),
-    description: t('metaDescription'),
-    openGraph: {
-      title: t('metaTitle'),
-      description: t('metaDescription'),
-      type: 'website',
-      url: 'https://khadamat.com/terms',
-    },
-  };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const normalizedLocale = normalizeLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'seo.terms' });
+
+  return buildMetadata({
+    title: t('title'),
+    description: t('description'),
+    path: '/terms',
+    locale: normalizedLocale,
+    keywords: ['شروط الاستخدام', 'قانوني', 'خدمات'],
+  });
 }
 
 export default async function TermsPage() {

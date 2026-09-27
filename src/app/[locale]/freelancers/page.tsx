@@ -11,6 +11,7 @@ import { Link } from '@/i18n/navigation';
 import { getWishlistItemIdSet } from '@/app/actions/wishlist';
 import { FavoriteButton } from '@/components/favorite-button';
 import { getCurrentUser } from '@/lib/auth';
+import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
 import {
   FREELANCER_SORT_OPTIONS,
   listFreelancers,
@@ -21,15 +22,27 @@ import {
 } from '@/lib/services/freelancers';
 import { parseCategoryParam, PROJECT_CATEGORIES } from '@/lib/services/project-meta';
 import { formatDate } from '@/lib/utils';
-
-export const metadata: Metadata = {
-  title: 'تصفح المستقلين',
-};
+import { getTranslations } from 'next-intl/server';
 
 export const dynamic = 'force-dynamic';
 
 interface FreelancersPageProps {
+  params: Promise<{ locale: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export async function generateMetadata({ params }: FreelancersPageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const normalizedLocale = normalizeLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'seo.freelancers' });
+
+  return buildMetadata({
+    title: t('title'),
+    description: t('description'),
+    path: '/freelancers',
+    locale: normalizedLocale,
+    keywords: ['مستقلين', 'توظيف مستقلين', 'برمجة', 'تصميم', 'freelancers', 'خدمات'],
+  });
 }
 
 function firstParam(searchParams: Record<string, string | string[] | undefined>, key: string): string | undefined {

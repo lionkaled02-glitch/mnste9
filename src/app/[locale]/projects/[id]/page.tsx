@@ -14,6 +14,7 @@
 
 import type { Metadata } from 'next';
 import { Link } from '@/i18n/navigation';
+import { JsonLd } from '@/components/seo/json-ld';
 import { notFound } from 'next/navigation';
 import { getWishlistItemIdSet } from '@/app/actions/wishlist';
 import { getCurrentUser } from '@/lib/auth';
@@ -28,6 +29,8 @@ import {
   stripCategoryTag,
   timeAgo,
 } from '@/lib/services/project-meta';
+import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
+import { breadcrumbSchema, jobPostingSchema } from '@/lib/seo/structured-data';
 import { getProjectProposals, getProjectWithClient, hasUserProposed } from '@/lib/services/projects';
 import { CopyLinkButton } from '@/components/copy-link-button';
 import { FavoriteButton } from '@/components/favorite-button';
@@ -37,7 +40,7 @@ import { ProposalsList } from '@/components/projects/ProposalsList';
 export const dynamic = 'force-dynamic';
 
 interface ProjectDetailsPageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ locale: string; id: string }>;
 }
 
 function parseProjectId(raw: string): number | null {
@@ -47,14 +50,33 @@ function parseProjectId(raw: string): number | null {
 }
 
 export async function generateMetadata({ params }: ProjectDetailsPageProps): Promise<Metadata> {
-  const { id } = await params;
+  const { id, locale } = await params;
+  const normalizedLocale = normalizeLocale(locale);
   const projectId = parseProjectId(id);
-  if (!projectId) return { title: 'تفاصيل المشروع | خدمات' };
+  if (!projectId) {
+    return buildMetadata({
+      title: normalizedLocale === 'ar' ? 'تفاصيل المشروع | خدمات' : 'Project Details | Khadamat',
+      path: `/projects/${id}`,
+      locale: normalizedLocale,
+    });
+  }
+
   const project = await getProjectWithClient(projectId);
-  return {
-    title: project ? `${project.title} | خدمات` : 'تفاصيل المشروع | خدمات',
-    description: project ? stripCategoryTag(project.description).slice(0, 160) : undefined,
-  };
+  const title = project
+    ? `${project.title} | خدمات`
+    : normalizedLocale === 'ar'
+      ? 'تفاصيل المشروع | خدمات'
+      : 'Project Details | Khadamat';
+  const description = project ? stripCategoryTag(project.description).slice(0, 160) : undefined;
+
+  return buildMetadata({
+    title,
+    description,
+    path: `/projects/${id}`,
+    locale: normalizedLocale,
+    type: 'article',
+    keywords: project ? [project.title, 'مشروع', 'عمل حر', 'خدمات'] : ['مشروع', 'خدمات'],
+  });
 }
 
 function Notice({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'success' | 'warning' }) {
@@ -63,15 +85,11 @@ function Notice({ children, tone = 'default' }: { children: React.ReactNode; ton
     success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
     warning: 'border-amber-200 bg-amber-50 text-amber-800',
   };
-  return (
-    <div className={`rounded-[10px] border px-4 py-3 text-[13px] leading-6 ${styles[tone]}`}>
-      {children}
-    </div>
-  );
+  return <div className={`rounded-[10px] border px-4 py-3 text-[13px] leading-6 ${styles[tone]}`}>{children}</div>;
 }
 
 export default async function ProjectDetailsPage({ params }: ProjectDetailsPageProps) {
-  const { id } = await params;
+  const { id, locale } = await params;
   const projectId = parseProjectId(id);
   if (!projectId) notFound();
 
@@ -89,10 +107,24 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
   const categoryLabel = deriveCategoryLabel(`${project.title} ${project.description}`);
   const skills = extractSkills(`${project.title} ${project.description}`, 5);
   const cleanDesc = stripCategoryTag(project.description);
+  const normalizedLocale = normalizeLocale(locale);
+  const homeName = normalizedLocale === 'ar' ? 'الرئيسية' : 'Home';
+  const projectsName = normalizedLocale === 'ar' ? 'المشاريع' : 'Projects';
   const clientInitial = project.clientName.trim().charAt(0) || 'م';
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7]">
+    <>
+      <JsonLd
+        data={[
+          jobPostingSchema({ ...project, description: cleanDesc }),
+          breadcrumbSchema([
+            { name: homeName, url: `/${normalizedLocale}` },
+            { name: projectsName, url: `/${normalizedLocale}/projects` },
+            { name: project.title, url: `/${normalizedLocale}/projects/${project.id}` },
+          ]),
+        ]}
+      />
+      <div className="min-h-screen bg-[#f4f5f7]">
       {/* Breadcrumb */}
       <div className="border-b border-gray-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-3">
@@ -361,6 +393,7 @@ export default async function ProjectDetailsPage({ params }: ProjectDetailsPageP
           </Link>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

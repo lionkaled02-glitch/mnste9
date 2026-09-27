@@ -1,22 +1,24 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
+import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
+
 import { ContactForm } from './contact-form';
 
 type ContactInfo = { icon: string; label: string; value: string; dir?: 'ltr' | 'rtl' };
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('contact');
-  return {
-    title: t('metaTitle'),
-    description: t('metaDescription'),
-    openGraph: {
-      title: t('metaTitle'),
-      description: t('metaDescription'),
-      type: 'website',
-      url: 'https://khadamat.com/contact',
-    },
-  };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const normalizedLocale = normalizeLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'seo.contact' });
+
+  return buildMetadata({
+    title: t('title'),
+    description: t('description'),
+    path: '/contact',
+    locale: normalizedLocale,
+    keywords: ['اتصل بنا', 'دعم', 'خدمات'],
+  });
 }
 
 export default async function ContactPage() {

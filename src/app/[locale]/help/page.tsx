@@ -1,17 +1,24 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+
 import { Link } from '@/i18n/navigation';
 
 import { HELP_ARTICLES } from '@/lib/help-content';
+import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
-  title: 'مركز المساعدة | خدمات',
-  description: 'مقالات إرشادية مرتبة تساعدك على استخدام منصة خدمات بثقة.',
-  openGraph: {
-    title: 'مركز المساعدة | خدمات',
-    description: 'مقالات إرشادية مرتبة تساعدك على استخدام منصة خدمات بثقة.',
-    type: 'website',
-  },
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const normalizedLocale = normalizeLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'seo.help' });
+
+  return buildMetadata({
+    title: t('title'),
+    description: t('description'),
+    path: '/help',
+    locale: normalizedLocale,
+    keywords: ['مركز المساعدة', 'دعم', 'ضمان الحقوق', 'خدمات'],
+  });
+}
 
 const CATEGORY_LABELS = [
   { id: 'freelancers', label: 'للمستقلين' },

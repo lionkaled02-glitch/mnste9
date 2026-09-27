@@ -958,5 +958,43 @@
     "deleted": "Deleted successfully",
     "error": "Something went wrong, please try again later",
     "copied": "Copied"
+  },
+  "seo": {
+    "home": {
+      "title": "Khadamat — The Leading Arab Freelance Platform",
+      "description": "Hire the best Arab freelancers or start freelancing today."
+    },
+    "projects": {
+      "title": "Browse Projects — Khadamat",
+      "description": "Thousands of projects are waiting. Browse, submit proposals, and start working."
+    },
+    "freelancers": {
+      "title": "Browse Freelancers — Khadamat",
+      "description": "Top Arab freelancers in programming, design, marketing, writing, and more."
+    },
+    "about": {
+      "title": "About Us — Khadamat",
+      "description": "Learn about Khadamat, our vision, and our mission to build a secure Arab freelance marketplace."
+    },
+    "faq": {
+      "title": "FAQ — Khadamat",
+      "description": "Clear answers about accounts, payments, verification, contracts, and support on Khadamat."
+    },
+    "help": {
+      "title": "Help Center — Khadamat",
+      "description": "Helpful guides to use Khadamat confidently and professionally."
+    },
+    "contact": {
+      "title": "Contact Us — Khadamat",
+      "description": "Contact the Khadamat team for support with accounts, projects, and payments."
+    },
+    "privacy": {
+      "title": "Privacy Policy — Khadamat",
+      "description": "Learn how Khadamat collects, uses, and protects your data."
+    },
+    "terms": {
+      "title": "Terms of Use — Khadamat",
+      "description": "Read Khadamat terms of use and user rights and responsibilities."
+    }
   }
 }

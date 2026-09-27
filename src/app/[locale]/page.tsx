@@ -14,10 +14,31 @@
  * ============================================================================
  */
 
-import { Link } from '@/i18n/navigation';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
+import { Link } from '@/i18n/navigation';
+import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
+
 export const dynamic = 'force-dynamic';
+
+interface HomePageProps {
+  params: Promise<{ locale: string }>;
+}
+
+export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const normalizedLocale = normalizeLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'seo.home' });
+
+  return buildMetadata({
+    title: t('title'),
+    description: t('description'),
+    path: '',
+    locale: normalizedLocale,
+    keywords: ['عمل حر', 'مستقلين', 'مشاريع', 'freelance', 'Yemen', 'خدمات'],
+  });
+}
 
 /** إظهار قسم «تقنيات الحماية» (Escrow & Security) في الصفحة الرئيسية — مخفي حالياً */
 const SHOW_SECURITY_SECTION = false;

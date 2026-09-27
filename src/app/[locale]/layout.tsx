@@ -3,18 +3,34 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ToastProvider } from "@/components/ui/toast";
 import { routing } from "@/i18n/routing";
+import { SITE_URL } from "@/lib/seo/metadata";
+import { organizationSchema, websiteSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "خدمات — منصة العمل الحر العربية",
     template: "%s | خدمات",
   },
   description:
     "منصة خدمات العربية — تجمع أصحاب الأعمال والمستقلين في بيئة آمنة بضمان مالي وتوثيق هوية.",
+  keywords: ["خدمات", "عمل حر", "مستقلين", "مشاريع", "توظيف مستقلين", "freelance", "Yemen"],
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "خدمات — منصة العمل الحر العربية",
+    description: "منصة خدمات العربية — تجمع أصحاب الأعمال والمستقلين في بيئة آمنة بضمان مالي وتوثيق هوية.",
+    type: "website",
+    siteName: "خدمات",
+  },
 };
 
 export function generateStaticParams() {
@@ -43,6 +59,7 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider messages={messages} locale={locale}>
+      <JsonLd data={[organizationSchema(), websiteSchema()]} />
       <ToastProvider>
         <div dir={dir} className="flex min-h-screen flex-col">
           <SiteHeader />

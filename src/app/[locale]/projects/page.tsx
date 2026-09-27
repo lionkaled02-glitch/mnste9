@@ -28,17 +28,29 @@ import {
   PROJECT_CATEGORIES,
   STATUS_FILTERS,
 } from '@/lib/services/project-meta';
+import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
 import { listProjectsPaginated } from '@/lib/services/projects';
-
-export const metadata: Metadata = {
-  title: 'تصفح المشاريع | خدمات',
-  description: 'تصفح أحدث المشاريع المفتوحة وقدم عروضك كمستقل محترف في منصة خدمات',
-};
+import { getTranslations } from 'next-intl/server';
 
 export const dynamic = 'force-dynamic';
 
 interface ProjectsPageProps {
+  params: Promise<{ locale: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export async function generateMetadata({ params }: ProjectsPageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const normalizedLocale = normalizeLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'seo.projects' });
+
+  return buildMetadata({
+    title: t('title'),
+    description: t('description'),
+    path: '/projects',
+    locale: normalizedLocale,
+    keywords: ['مشاريع', 'عمل حر', 'وظائف عن بعد', 'freelance projects', 'خدمات'],
+  });
 }
 
 function firstParam(

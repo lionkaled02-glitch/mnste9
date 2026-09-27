@@ -1,23 +1,25 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
+import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
+
 import { Link } from '@/i18n/navigation';
 
 type Card = { icon: string; title: string; description: string };
 type Stat = { value: string; label: string };
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('about');
-  return {
-    title: t('metaTitle'),
-    description: t('metaDescription'),
-    openGraph: {
-      title: t('metaTitle'),
-      description: t('metaDescription'),
-      type: 'website',
-      url: 'https://khadamat.com/about',
-    },
-  };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const normalizedLocale = normalizeLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'seo.about' });
+
+  return buildMetadata({
+    title: t('title'),
+    description: t('description'),
+    path: '/about',
+    locale: normalizedLocale,
+    keywords: ['من نحن', 'خدمات', 'رؤية', 'عمل حر'],
+  });
 }
 
 export default async function AboutPage() {
