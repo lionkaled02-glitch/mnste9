@@ -11,6 +11,8 @@
  *      (notifications, conversations, messages, reviews, wishlist, platform_settings)
  *    database/migrations/2026_09_26_000007_add_kyc_portfolio_fields.sql
  *      (kyc dynamic fields + portfolio images/attachments)
+ *    database/migrations/2026_09_28_000008_add_security_tables.sql
+ *      (sessions, failed_login_attempts, audit_logs, rate_limits, security user fields)
  * ============================================================================
  */
 
@@ -100,6 +102,11 @@ export const users = pgTable(
     avatarUrl: varchar('avatar_url', { length: 500 }),
     notifyEmail: boolean('notify_email').notNull().default(true),
     notifySms: boolean('notify_sms').notNull().default(true),
+    // الحماية
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    lastLoginIp: varchar('last_login_ip', { length: 45 }),
+    twoFactorSecret: varchar('two_factor_secret', { length: 255 }),
+    twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
   },
   (t) => [
     unique('uq_users_email').on(t.email),
@@ -124,13 +131,9 @@ export const portfolioItems = pgTable(
     title: varchar('title', { length: 200 }).notNull(),
     description: text('description'),
     externalUrl: varchar('external_url', { length: 500 }),
-    // صورة غلاف واحدة (للتوافق مع الكود القديم)
     imageUrl: varchar('image_url', { length: 500 }),
-    // V2: مصفوفة مسارات الصور (3-10 صور)
     images: jsonb('images').$type<string[]>(),
-    // V2: صورة الغلاف (الصورة الأولى)
     coverImageUrl: varchar('cover_image_url', { length: 500 }),
-    // V2: ملف مرفق اختياري (PDF / ZIP / DOCX)
     attachmentUrl: varchar('attachment_url', { length: 500 }),
     attachmentName: varchar('attachment_name', { length: 255 }),
     ...timestamps,
@@ -287,7 +290,6 @@ export const kycDocuments = pgTable(
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
     documentType: varchar('document_type', { length: 50 }).notNull(),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
-    // V2: حقول ديناميكية حسب نوع الوثيقة
     fullName: varchar('full_name', { length: 200 }),
     documentNumber: varchar('document_number', { length: 100 }),
     issueDate: date('issue_date'),
@@ -550,6 +552,103 @@ export const platformSettings = pgTable(
   (t) => [unique('uq_platform_settings_key').on(t.key)],
 );
 
+/* ---------------------------------------------------------------------------
+ * sessions — الجلسات النشطة
+ * ------------------------------------------------------------------------- */
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: identityId('id'),
+    userId: bigint('user_id', { mode: 'number' })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    token: varchar('token', { length: 255 }).notNull(),
+    ip: varchar('ip', { length: 45 }),
+    userAgent: text('user_agent'),
+    lastActiveAt: timestamp('last_active_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique('uq_sessions_token').on(t.token),
+    index('idx_sessions_user_id').on(t.userId),
+    index('idx_sessions_expires_at').on(t.expiresAt),
+  ],
+);
+
+/* ---------------------------------------------------------------------------
+ * failed_login_attempts — محاولات دخول فاشلة
+ * ------------------------------------------------------------------------- */
+export const failedLoginAttempts = pgTable(
+  'failed_login_attempts',
+  {
+    id: identityId('id'),
+    email: varchar('email', { length: 255 }).notNull(),
+    ip: varchar('ip', { length: 45 }).notNull(),
+    userAgent: text('user_agent'),
+    reason: varchar('reason', { length: 50 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('idx_failed_login_email').on(t.email),
+    index('idx_failed_login_ip').on(t.ip),
+    index('idx_failed_login_created_at').on(t.createdAt),
+  ],
+);
+
+/* ---------------------------------------------------------------------------
+ * audit_logs — سجل أنشطة المشرفين
+ * ------------------------------------------------------------------------- */
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: identityId('id'),
+    adminId: bigint('admin_id', { mode: 'number' })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    action: varchar('action', { length: 100 }).notNull(),
+    targetType: varchar('target_type', { length: 50 }),
+    targetId: bigint('target_id', { mode: 'number' }),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+    ip: varchar('ip', { length: 45 }),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('idx_audit_logs_admin_id').on(t.adminId),
+    index('idx_audit_logs_action').on(t.action),
+    index('idx_audit_logs_created_at').on(t.createdAt),
+  ],
+);
+
+/* ---------------------------------------------------------------------------
+ * rate_limits — تحديد المعدل
+ * ------------------------------------------------------------------------- */
+export const rateLimits = pgTable(
+  'rate_limits',
+  {
+    id: identityId('id'),
+    key: varchar('key', { length: 255 }).notNull(),
+    attempts: integer('attempts').notNull().default(1),
+    windowStart: timestamp('window_start', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    blockedUntil: timestamp('blocked_until', { withTimezone: true }),
+  },
+  (t) => [
+    unique('uq_rate_limits_key').on(t.key),
+    index('idx_rate_limits_blocked_until').on(t.blockedUntil),
+  ],
+);
+
 /* ============================================================================
  * 3) العلاقات (Relations)
  * ========================================================================== */
@@ -573,6 +672,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   reviewsGiven: many(reviews, { relationName: 'reviewer' }),
   reviewsReceived: many(reviews, { relationName: 'reviewed' }),
   wishlistItems: many(wishlist),
+  sessions: many(sessions),
+  auditLogs: many(auditLogs),
 }));
 
 export const portfolioItemsRelations = relations(portfolioItems, ({ one }) => ({
@@ -709,6 +810,20 @@ export const wishlistRelations = relations(wishlist, ({ one }) => ({
 
 export const platformSettingsRelations = relations(platformSettings, () => ({}));
 
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  admin: one(users, {
+    fields: [auditLogs.adminId],
+    references: [users.id],
+  }),
+}));
+
 /* ============================================================================
  * 4) استخراج الأنواع (Type Inference)
  * ========================================================================== */
@@ -757,3 +872,15 @@ export type NewWishlistItem = typeof wishlist.$inferInsert;
 
 export type PlatformSetting = typeof platformSettings.$inferSelect;
 export type NewPlatformSetting = typeof platformSettings.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+
+export type FailedLoginAttempt = typeof failedLoginAttempts.$inferSelect;
+export type NewFailedLoginAttempt = typeof failedLoginAttempts.$inferInsert;
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;
+
+export type RateLimit = typeof rateLimits.$inferSelect;
+export type NewRateLimit = typeof rateLimits.$inferInsert;
