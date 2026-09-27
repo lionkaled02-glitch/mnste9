@@ -1,32 +1,38 @@
 /**
  * ============================================================================
- *  خدمات — صفحة تصفح المستقلين (/freelancers) — المرحلة أ
- * ============================================================================
- *  Header/Footer من layout.tsx
+ *  خدمات — صفحة تصفح المستقلين (/freelancers) — بحث وفلترة متقدمة
  * ============================================================================
  */
 
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import { Link } from '@/i18n/navigation';
 
-import { FavoriteButton } from '@/components/favorite-button';
 import { getWishlistItemIdSet } from '@/app/actions/wishlist';
+import { FavoriteButton } from '@/components/favorite-button';
 import { getCurrentUser } from '@/lib/auth';
-import { listFreelancers } from '@/lib/services/freelancers';
+import {
+  FREELANCER_SORT_OPTIONS,
+  listFreelancers,
+  parseFreelancerRateParam,
+  parseFreelancerSortParam,
+  parseFreelancerTextParam,
+  parseFreelancerVerifiedParam,
+} from '@/lib/services/freelancers';
+import { parseCategoryParam, PROJECT_CATEGORIES } from '@/lib/services/project-meta';
 import { formatDate } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'تصفح المستقلين',
 };
 
+export const dynamic = 'force-dynamic';
+
 interface FreelancersPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function firstParam(
-  searchParams: Record<string, string | string[] | undefined>,
-  key: string,
-): string | undefined {
+function firstParam(searchParams: Record<string, string | string[] | undefined>, key: string): string | undefined {
   const value = searchParams[key];
   return Array.isArray(value) ? value[0] : value;
 }
@@ -39,6 +45,10 @@ function formatFreelancerCount(count: number): string {
   return `${count} مستقلاً`;
 }
 
+function ActiveChip({ children }: { children: ReactNode }) {
+  return <span className="rounded-full border border-[#2386c8]/20 bg-[#2386c8]/10 px-3 py-1 text-xs font-bold text-[#2386c8]">{children}</span>;
+}
+
 function FreelancerCard({
   id,
   name,
@@ -46,6 +56,10 @@ function FreelancerCard({
   isKycVerified,
   createdAt,
   avatarUrl,
+  city,
+  skills,
+  bio,
+  hourlyRate,
   isLoggedIn,
   isWishlisted,
 }: {
@@ -55,60 +69,68 @@ function FreelancerCard({
   isKycVerified: boolean;
   createdAt: Date;
   avatarUrl: string | null;
+  city: string | null;
+  skills: string | null;
+  bio: string | null;
+  hourlyRate: string | null;
   isLoggedIn: boolean;
   isWishlisted: boolean;
 }) {
   const initial = name.trim().charAt(0) || 'م';
+  const skillItems = (skills ?? '').split(',').map((skill) => skill.trim()).filter(Boolean).slice(0, 4);
 
   return (
-    <article className="relative flex flex-col items-center rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm transition hover:shadow">
-      <div className="absolute left-4 top-4">
+    <article className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#2386c8]/30 hover:shadow-lg">
+      <div className="absolute left-4 top-4 z-10">
         <FavoriteButton type="freelancer" id={id} isLoggedIn={isLoggedIn} initialFavorited={isWishlisted} />
       </div>
 
-      <div className="relative">
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt={name} loading="lazy" className="h-16 w-16 rounded-full object-cover ring-2 ring-emerald-50" />
-        ) : (
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 text-xl font-bold text-emerald-800">
-            {initial}
-          </span>
-        )}
-        {isKycVerified && (
-          <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white shadow ring-2 ring-white">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75 7.5 15 15 9.75" />
-            </svg>
-          </span>
-        )}
+      <div className="flex items-start gap-4">
+        <div className="relative shrink-0">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt={name} loading="lazy" className="h-16 w-16 rounded-2xl object-cover ring-2 ring-[#2386c8]/10" />
+          ) : (
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#e0f2fe] to-[#2386c8]/20 text-xl font-extrabold text-[#2386c8]">
+              {initial}
+            </span>
+          )}
+          {isKycVerified && (
+            <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white shadow ring-2 ring-white">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75 7.5 15 15 9.75" />
+              </svg>
+            </span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1 pe-10">
+          <h2 className="truncate text-lg font-extrabold text-slate-950">{name}</h2>
+          <p className="mt-1 text-sm font-bold text-[#2386c8]">{specialty}</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            <span className={isKycVerified ? 'rounded-full bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700' : 'rounded-full bg-slate-100 px-2.5 py-1 text-slate-600'}>
+              {isKycVerified ? 'موثّق ✓' : 'غير موثّق'}
+            </span>
+            {city && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{city}</span>}
+            {hourlyRate && <span className="rounded-full bg-[#2386c8]/10 px-2.5 py-1 font-bold text-[#2386c8]">${hourlyRate}/ساعة</span>}
+          </div>
+        </div>
       </div>
 
-      <h2 className="mt-4 flex items-center gap-1.5 font-bold text-gray-900">
-        {name}
-        {isKycVerified && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">موثّق</span>}
-      </h2>
-      <p className="mt-1 text-sm text-gray-500">{specialty}</p>
+      {bio && <p className="mt-4 line-clamp-2 min-h-12 text-sm leading-6 text-slate-500">{bio}</p>}
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
-        <span
-          className={
-            isKycVerified
-              ? 'rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800'
-              : 'rounded-full bg-gray-100 px-3 py-1 text-gray-600'
-          }
-        >
-          {isKycVerified ? 'هوية موثّقة ✓' : 'غير موثّق'}
-        </span>
-        <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-600">عضو منذ {formatDate(createdAt)}</span>
+      {skillItems.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {skillItems.map((skill) => <span key={skill} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">{skill}</span>)}
+        </div>
+      )}
+
+      <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+        <span className="text-xs text-slate-400">عضو منذ {formatDate(createdAt)}</span>
+        <Link href={`/freelancers/${id}`} className="rounded-xl bg-[#2386c8] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#1a6da8]">
+          عرض الملف
+        </Link>
       </div>
-
-      <Link
-        href={`/freelancers/${id}`}
-        className="mt-5 w-full rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
-      >
-        عرض الملف
-      </Link>
     </article>
   );
 }
@@ -116,81 +138,143 @@ function FreelancerCard({
 export default async function FreelancersPage({ searchParams }: FreelancersPageProps) {
   const resolvedSearchParams = await searchParams;
 
-  const rawSearch = firstParam(resolvedSearchParams, 'q')?.trim();
-  const search = rawSearch || undefined;
+  const search = parseFreelancerTextParam(firstParam(resolvedSearchParams, 'q'));
+  const specialty = parseCategoryParam(firstParam(resolvedSearchParams, 'specialty'));
+  const verified = parseFreelancerVerifiedParam(firstParam(resolvedSearchParams, 'verified'));
+  const city = parseFreelancerTextParam(firstParam(resolvedSearchParams, 'city'), 60);
+  const minRate = parseFreelancerRateParam(firstParam(resolvedSearchParams, 'minRate'));
+  const maxRate = parseFreelancerRateParam(firstParam(resolvedSearchParams, 'maxRate'));
+  const sort = parseFreelancerSortParam(firstParam(resolvedSearchParams, 'sort'));
 
   const [freelancers, currentUser, wishlistedFreelancers] = await Promise.all([
-    listFreelancers({ search }),
+    listFreelancers({ search, specialty, verified, city, minRate, maxRate, sort }),
     getCurrentUser(),
     getWishlistItemIdSet('freelancer'),
   ]);
 
   const isLoggedIn = Boolean(currentUser);
+  const specialtyLabel = specialty ? PROJECT_CATEGORIES.find((category) => category.slug === specialty)?.label : undefined;
+  const hasFilters = Boolean(search || specialty || verified || city || minRate !== undefined || maxRate !== undefined || sort !== 'newest');
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8">
-      <h1 className="text-2xl font-bold tracking-tight text-gray-900">تصفح المستقلين</h1>
-      <p className="mt-1 text-sm text-gray-500">ابحث عن المستقل المناسب لمشروعك القادم</p>
+    <div className="min-h-screen bg-slate-50">
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-8">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-bold text-[#2386c8]">منصة خدمات</p>
+              <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950">تصفح المستقلين</h1>
+              <p className="mt-2 text-sm text-slate-500">ابحث، صفِّ، واختر المستقل الأنسب لمشروعك القادم.</p>
+            </div>
+            <div className="rounded-2xl border border-[#2386c8]/20 bg-[#2386c8]/5 px-5 py-3 text-sm font-bold text-[#2386c8]">
+              {formatFreelancerCount(freelancers.length)} مطابق
+            </div>
+          </div>
 
-      <form action="/freelancers" method="get" className="mt-6 flex gap-2">
-        <input
-          type="search"
-          name="q"
-          defaultValue={search ?? ''}
-          placeholder="ابحث بالاسم…"
-          aria-label="البحث عن مستقل بالاسم"
-          className="w-full rounded-full border border-gray-200 bg-white px-4 py-2.5 text-gray-900 placeholder-gray-400 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-        />
-        <button
-          type="submit"
-          className="shrink-0 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700"
-        >
-          بحث
-        </button>
-      </form>
+          {hasFilters && (
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              {search && <ActiveChip>بحث: {search}</ActiveChip>}
+              {specialtyLabel && <ActiveChip>تخصص: {specialtyLabel}</ActiveChip>}
+              {verified && <ActiveChip>{verified === 'verified' ? 'موثقون فقط' : 'غير موثقين'}</ActiveChip>}
+              {city && <ActiveChip>مدينة: {city}</ActiveChip>}
+              {(minRate !== undefined || maxRate !== undefined) && <ActiveChip>السعر: {minRate ?? 0}$ - {maxRate ?? '∞'}$</ActiveChip>}
+              {sort !== 'newest' && <ActiveChip>ترتيب: {FREELANCER_SORT_OPTIONS.find((option) => option.value === sort)?.label}</ActiveChip>}
+              <Link href="/freelancers" className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-black">مسح الفلاتر</Link>
+            </div>
+          )}
+        </div>
+      </section>
 
-      {search && (
-        <p className="mt-4 text-sm text-gray-500">
-          نتائج البحث عن «{search}»: {formatFreelancerCount(freelancers.length)}
-        </p>
-      )}
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-12">
+        <aside className="lg:col-span-3">
+          <form className="sticky top-20 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" method="get">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-extrabold text-slate-950">فلترة المستقلين</h2>
+              {hasFilters && <Link href="/freelancers" className="text-xs font-bold text-[#2386c8]">مسح</Link>}
+            </div>
 
-      <div className="mt-6">
-        {freelancers.length === 0 ? (
-          search ? (
-            <div className="flex flex-col items-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
-              <p className="text-lg font-medium text-gray-600">لا نتائج مطابقة لبحثك</p>
-              <p className="mt-2 text-sm text-gray-400">جرّب اسماً آخر أو تصفّح جميع المستقلين</p>
-              <Link
-                href="/freelancers"
-                className="mt-6 rounded-full border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:border-emerald-600 hover:text-emerald-700"
-              >
-                إزالة البحث
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-600">بحث شامل</label>
+                <input name="q" defaultValue={search ?? ''} placeholder="اسم، مهارة، مدينة…" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/10" />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-600">التخصص</label>
+                <select name="specialty" defaultValue={specialty ?? ''} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/10">
+                  <option value="">كل التخصصات</option>
+                  {PROJECT_CATEGORIES.slice(0, 8).map((category) => <option key={category.slug} value={category.slug}>{category.label}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-600">حالة التوثيق</label>
+                <select name="verified" defaultValue={verified ?? ''} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/10">
+                  <option value="">الكل</option>
+                  <option value="verified">موثق فقط</option>
+                  <option value="unverified">غير موثق</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-600">المدينة</label>
+                <input name="city" defaultValue={city ?? ''} placeholder="مثال: صنعاء" className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/10" />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-600">السعر بالساعة</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input name="minRate" type="number" min={0} defaultValue={minRate ?? ''} placeholder="من" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/10" />
+                  <input name="maxRate" type="number" min={0} defaultValue={maxRate ?? ''} placeholder="إلى" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/10" />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-600">الترتيب</label>
+                <select name="sort" defaultValue={sort} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/10">
+                  {FREELANCER_SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" className="mt-5 w-full rounded-xl bg-[#2386c8] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#1a6da8]">
+              تطبيق الفلاتر
+            </button>
+          </form>
+        </aside>
+
+        <main className="lg:col-span-9">
+          {freelancers.length === 0 ? (
+            <div className="flex flex-col items-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#2386c8]/10 text-3xl">🔎</div>
+              <p className="mt-4 text-lg font-extrabold text-slate-700">لا توجد نتائج مطابقة</p>
+              <p className="mt-2 max-w-md text-sm leading-7 text-slate-500">جرّب تخفيف الفلاتر أو البحث بكلمة مختلفة للوصول إلى مستقلين أكثر.</p>
+              <Link href="/freelancers" className="mt-6 rounded-xl border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 transition hover:border-[#2386c8] hover:text-[#2386c8]">
+                إزالة الفلاتر
               </Link>
             </div>
           ) : (
-            <div className="flex flex-col items-center rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
-              <p className="text-lg font-medium text-gray-600">لا يوجد مستقلون حالياً</p>
-              <p className="mt-2 text-sm text-gray-400">ستظهر هنا قائمة المستقلين بعد انضمامهم إلى المنصة</p>
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+              {freelancers.map((freelancer) => (
+                <FreelancerCard
+                  key={freelancer.id}
+                  id={freelancer.id}
+                  name={freelancer.name}
+                  specialty={freelancer.specialty}
+                  isKycVerified={freelancer.isKycVerified}
+                  createdAt={freelancer.createdAt}
+                  avatarUrl={freelancer.avatarUrl}
+                  city={freelancer.city}
+                  skills={freelancer.skills}
+                  bio={freelancer.bio}
+                  hourlyRate={freelancer.hourlyRate}
+                  isLoggedIn={isLoggedIn}
+                  isWishlisted={wishlistedFreelancers.has(freelancer.id)}
+                />
+              ))}
             </div>
-          )
-        ) : (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {freelancers.map((freelancer) => (
-              <FreelancerCard
-                key={freelancer.id}
-                id={freelancer.id}
-                name={freelancer.name}
-                specialty={freelancer.specialty}
-                isKycVerified={freelancer.isKycVerified}
-                createdAt={freelancer.createdAt}
-                avatarUrl={freelancer.avatarUrl}
-                isLoggedIn={isLoggedIn}
-                isWishlisted={wishlistedFreelancers.has(freelancer.id)}
-              />
-            ))}
-          </div>
-        )}
+          )}
+        </main>
       </div>
     </div>
   );

@@ -25,6 +25,8 @@ import {
   parseQParam,
   parseNumberParam,
   parsePageParam,
+  PROJECT_CATEGORIES,
+  STATUS_FILTERS,
 } from '@/lib/services/project-meta';
 import { listProjectsPaginated } from '@/lib/services/projects';
 
@@ -77,6 +79,8 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     getWishlistItemIdSet('project'),
   ]);
   const isLoggedIn = Boolean(currentUser);
+  const categoryLabel = category ? PROJECT_CATEGORIES.find((item) => item.slug === category)?.label : undefined;
+  const statusLabel = status ? STATUS_FILTERS.find((item) => item.value === status)?.label : undefined;
 
   const hasActiveFilters = Boolean(q || category || budgetLegacy || budgetMin !== undefined || budgetMax !== undefined || status);
 
@@ -121,12 +125,12 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
               )}
               {category && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f4f5f7] border border-gray-200 px-3 py-1 text-[12px] font-medium text-[#444]">
-                  قسم: {category}
+                  قسم: {categoryLabel ?? category}
                 </span>
               )}
               {status && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f4f5f7] border border-gray-200 px-3 py-1 text-[12px] font-medium text-[#444]">
-                  حالة: {status}
+                  حالة: {statusLabel ?? status}
                 </span>
               )}
               {(budgetMin !== undefined || budgetMax !== undefined) && (
