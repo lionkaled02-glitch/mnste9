@@ -269,17 +269,36 @@ export async function getAdminContractDetails(id: number) {
   return { contract: row, projectTitle: project?.title ?? 'مشروع', users: userRows };
 }
 
-export async function getAdminWallet() {
+export async function getAdminWallet(params: { status?: string; type?: string; q?: string } = {}) {
+  const filters = [];
+  if (params.status && ['pending', 'completed', 'failed', 'refunded'].includes(params.status)) filters.push(eq(transactions.status, params.status as 'pending' | 'completed' | 'failed' | 'refunded'));
+  const requestedType = params.type === 'escrow_hold' ? 'escrow_lock' : params.type;
+  if (requestedType && ['deposit', 'withdrawal', 'escrow_lock', 'escrow_release', 'commission'].includes(requestedType)) filters.push(eq(transactions.type, requestedType as 'deposit' | 'withdrawal' | 'escrow_lock' | 'escrow_release' | 'commission'));
+  if (params.q?.trim()) {
+    const q = `%${params.q.trim()}%`;
+    filters.push(or(ilike(users.name, q), ilike(users.email, q))!);
+  }
+
   const [walletRows, transactionRows] = await Promise.all([
     db.select({ id: wallets.id, userId: wallets.userId, userName: users.name, balance: wallets.balance, pendingBalance: wallets.pendingBalance, updatedAt: wallets.updatedAt }).from(wallets).leftJoin(users, eq(users.id, wallets.userId)).orderBy(desc(wallets.updatedAt)).limit(100),
-    db.select({ id: transactions.id, userId: transactions.userId, amount: transactions.amount, type: transactions.type, status: transactions.status, createdAt: transactions.createdAt }).from(transactions).orderBy(desc(transactions.createdAt)).limit(20),
+    db
+      .select({ id: transactions.id, userId: transactions.userId, userName: users.name, userEmail: users.email, amount: transactions.amount, type: transactions.type, paymentMethod: transactions.paymentMethod, status: transactions.status, referenceId: transactions.referenceId, createdAt: transactions.createdAt })
+      .from(transactions)
+      .leftJoin(users, eq(users.id, transactions.userId))
+      .where(filters.length ? and(...filters) : undefined)
+      .orderBy(desc(transactions.createdAt))
+      .limit(100),
   ]);
   return { wallets: walletRows, transactions: transactionRows };
 }
 
 export async function getAdminWithdrawals(status = 'pending') {
-  const safeStatus = (['pending', 'completed', 'failed', 'refunded'].includes(status) ? status : 'pending') as 'pending' | 'completed' | 'failed' | 'refunded';
-  return db.select({ id: transactions.id, userId: transactions.userId, userName: users.name, amount: transactions.amount, paymentMethod: transactions.paymentMethod, status: transactions.status, referenceId: transactions.referenceId, createdAt: transactions.createdAt }).from(transactions).leftJoin(users, eq(users.id, transactions.userId)).where(and(eq(transactions.type, 'withdrawal'), eq(transactions.status, safeStatus))).orderBy(desc(transactions.createdAt));
+  const filters = [eq(transactions.type, 'withdrawal')];
+  if (status !== 'all') {
+    const safeStatus = (['pending', 'completed', 'failed', 'refunded'].includes(status) ? status : 'pending') as 'pending' | 'completed' | 'failed' | 'refunded';
+    filters.push(eq(transactions.status, safeStatus));
+  }
+  return db.select({ id: transactions.id, userId: transactions.userId, userName: users.name, amount: transactions.amount, paymentMethod: transactions.paymentMethod, status: transactions.status, referenceId: transactions.referenceId, createdAt: transactions.createdAt }).from(transactions).leftJoin(users, eq(users.id, transactions.userId)).where(and(...filters)).orderBy(desc(transactions.createdAt));
 }
 
 export async function getAdminReviews() {
@@ -676,31 +695,80 @@ export async function deleteUser(userId: number) {
   return { success: true, message: 'تم حذف الحساب' };
 }
 
-export async function approveWithdrawal(withdrawalId: number) {
+export async function approveDepositAction(transactionId: number) {
   const admin = await assertAdmin();
   if (!admin) return { success: false, message: 'غير مصرح' };
-  const [tx] = await db.select().from(transactions).where(eq(transactions.id, withdrawalId)).limit(1);
-  if (!tx || tx.type !== 'withdrawal') return { success: false, message: 'طلب السحب غير موجود' };
-  if (tx.status !== 'pending') return { success: false, message: 'تمت معالجة الطلب مسبقاً' };
-  await db.update(transactions).set({ status: 'completed', meta: { ...(tx.meta ?? {}), approvedBy: admin.id, approvedAt: new Date().toISOString() } }).where(eq(transactions.id, withdrawalId));
-  await db.update(wallets).set({ balance: sql`greatest(${wallets.balance} - ${tx.amount}, 0)`, pendingBalance: sql`greatest(${wallets.pendingBalance} - ${tx.amount}, 0)` }).where(eq(wallets.userId, tx.userId));
-  await createAuditLog({ adminId: admin.id, action: 'approve_withdrawal', targetType: 'transaction', targetId: withdrawalId });
+  const [transaction] = await db.select().from(transactions).where(eq(transactions.id, transactionId)).limit(1);
+  if (!transaction || transaction.type !== 'deposit' || transaction.status !== 'pending') return { success: false, message: 'المعاملة غير صالحة' };
+
+  await db.transaction(async (tx) => {
+    await tx.update(transactions).set({ status: 'completed', updatedAt: new Date(), meta: { ...(transaction.meta ?? {}), approvedBy: admin.id, approvedAt: new Date().toISOString() } }).where(eq(transactions.id, transactionId));
+    await tx.update(wallets).set({ balance: sql`${wallets.balance} + ${transaction.amount}::numeric`, updatedAt: new Date() }).where(eq(wallets.userId, transaction.userId));
+  });
+
+  await createNotification({ userId: transaction.userId, title: 'تم قبول إيداعك ✅', message: `تم إضافة $${transaction.amount} إلى محفظتك.`, type: 'success', link: '/dashboard/wallet' });
+  await createAuditLog({ adminId: admin.id, action: 'approve_deposit', targetType: 'transaction', targetId: transactionId });
+  revalidatePath('/admin/wallet');
+  revalidatePath('/dashboard/wallet');
+  return { success: true, message: 'تمت الموافقة على الإيداع' };
+}
+
+export async function rejectDepositAction(transactionId: number, reason: string) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  const [transaction] = await db.select().from(transactions).where(eq(transactions.id, transactionId)).limit(1);
+  if (!transaction || transaction.type !== 'deposit' || transaction.status !== 'pending') return { success: false, message: 'المعاملة غير صالحة' };
+  const rejectionReason = reason.trim() || 'لم يتم تحديد سبب';
+
+  await db.update(transactions).set({ status: 'failed', meta: { ...(transaction.meta ?? {}), rejectedBy: admin.id, rejectedAt: new Date().toISOString(), rejectionReason }, updatedAt: new Date() }).where(eq(transactions.id, transactionId));
+  await createNotification({ userId: transaction.userId, title: 'تم رفض إيداعك', message: `السبب: ${rejectionReason}`, type: 'error', link: '/dashboard/wallet' });
+  await createAuditLog({ adminId: admin.id, action: 'reject_deposit', targetType: 'transaction', targetId: transactionId, metadata: { reason: rejectionReason } });
+  revalidatePath('/admin/wallet');
+  revalidatePath('/dashboard/wallet');
+  return { success: true, message: 'تم رفض الإيداع' };
+}
+
+export async function approveWithdrawalAction(transactionId: number) {
+  const admin = await assertAdmin();
+  if (!admin) return { success: false, message: 'غير مصرح' };
+  const [transaction] = await db.select().from(transactions).where(eq(transactions.id, transactionId)).limit(1);
+  if (!transaction || transaction.type !== 'withdrawal' || transaction.status !== 'pending') return { success: false, message: 'المعاملة غير صالحة' };
+
+  await db.transaction(async (tx) => {
+    await tx.update(transactions).set({ status: 'completed', updatedAt: new Date(), meta: { ...(transaction.meta ?? {}), approvedBy: admin.id, approvedAt: new Date().toISOString() } }).where(eq(transactions.id, transactionId));
+    await tx.update(wallets).set({ balance: sql`greatest(${wallets.balance} - ${transaction.amount}::numeric, 0)`, updatedAt: new Date() }).where(eq(wallets.userId, transaction.userId));
+  });
+
+  await createNotification({ userId: transaction.userId, title: 'تمت الموافقة على سحبك ✅', message: `سيتم تحويل $${transaction.amount} إلى حسابك.`, type: 'success', link: '/dashboard/wallet' });
+  await createAuditLog({ adminId: admin.id, action: 'approve_withdrawal', targetType: 'transaction', targetId: transactionId });
   revalidatePath('/admin/withdrawals');
   revalidatePath('/admin/wallet');
+  revalidatePath('/dashboard/wallet');
   return { success: true, message: 'تمت الموافقة على السحب' };
 }
 
-export async function rejectWithdrawal(withdrawalId: number, reason: string) {
+export async function rejectWithdrawalAction(transactionId: number, reason: string) {
   const admin = await assertAdmin();
   if (!admin) return { success: false, message: 'غير مصرح' };
-  const [tx] = await db.select().from(transactions).where(eq(transactions.id, withdrawalId)).limit(1);
-  if (!tx || tx.type !== 'withdrawal') return { success: false, message: 'طلب السحب غير موجود' };
-  await db.update(transactions).set({ status: 'failed', meta: { ...(tx.meta ?? {}), rejectedBy: admin.id, rejectedAt: new Date().toISOString(), rejectionReason: reason || 'لم يتم تحديد سبب' } }).where(eq(transactions.id, withdrawalId));
-  await db.update(wallets).set({ pendingBalance: sql`greatest(${wallets.pendingBalance} - ${tx.amount}, 0)` }).where(eq(wallets.userId, tx.userId));
-  await createAuditLog({ adminId: admin.id, action: 'reject_withdrawal', targetType: 'transaction', targetId: withdrawalId, metadata: { reason } });
+  const [transaction] = await db.select().from(transactions).where(eq(transactions.id, transactionId)).limit(1);
+  if (!transaction || transaction.type !== 'withdrawal' || transaction.status !== 'pending') return { success: false, message: 'المعاملة غير صالحة' };
+  const rejectionReason = reason.trim() || 'لم يتم تحديد سبب';
+
+  await db.update(transactions).set({ status: 'failed', meta: { ...(transaction.meta ?? {}), rejectedBy: admin.id, rejectedAt: new Date().toISOString(), rejectionReason }, updatedAt: new Date() }).where(eq(transactions.id, transactionId));
+  await createNotification({ userId: transaction.userId, title: 'تم رفض طلب السحب', message: `السبب: ${rejectionReason}`, type: 'error', link: '/dashboard/wallet' });
+  await createAuditLog({ adminId: admin.id, action: 'reject_withdrawal', targetType: 'transaction', targetId: transactionId, metadata: { reason: rejectionReason } });
   revalidatePath('/admin/withdrawals');
   revalidatePath('/admin/wallet');
+  revalidatePath('/dashboard/wallet');
   return { success: true, message: 'تم رفض السحب' };
+}
+
+export async function approveWithdrawal(withdrawalId: number) {
+  return approveWithdrawalAction(withdrawalId);
+}
+
+export async function rejectWithdrawal(withdrawalId: number, reason: string) {
+  return rejectWithdrawalAction(withdrawalId, reason);
 }
 
 export async function deleteProject(projectId: number) {
