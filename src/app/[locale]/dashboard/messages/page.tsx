@@ -10,7 +10,7 @@ import type { Metadata } from 'next';
 import { Link } from '@/i18n/navigation';
 
 import { getCurrentUser } from '@/lib/auth';
-import { getConversations, getConversationById, getMessages } from '@/lib/services/messages';
+import { getConversations, getConversationById, getMessages, getOrCreateConversation } from '@/lib/services/messages';
 import { ConversationList } from '@/components/messages/conversation-list';
 import { ChatWindow } from '@/components/messages/chat-window';
 
@@ -46,8 +46,28 @@ export default async function MessagesPage({ searchParams }: Props) {
 
   const resolved = await searchParams;
   const rawId = firstParam(resolved, 'conversationId') || firstParam(resolved, 'id');
+  const rawUserId = firstParam(resolved, 'user');
+  const rawProjectId = firstParam(resolved, 'projectId');
+
   const activeId = rawId ? Number(rawId) : null;
-  const validActiveId = activeId && Number.isSafeInteger(activeId) && activeId > 0 ? activeId : null;
+  const userId = rawUserId ? Number(rawUserId) : null;
+  const projectId = rawProjectId ? Number(rawProjectId) : null;
+
+  let validActiveId = activeId && Number.isSafeInteger(activeId) && activeId > 0 ? activeId : null;
+  const validUserId = userId && Number.isSafeInteger(userId) && userId > 0 ? userId : null;
+  const validProjectId = projectId && Number.isSafeInteger(projectId) && projectId > 0 ? projectId : null;
+
+  if (!validActiveId && validUserId && validUserId !== currentUser.id) {
+    try {
+      validActiveId = await getOrCreateConversation({
+        currentUserId: currentUser.id,
+        otherUserId: validUserId,
+        projectId: validProjectId,
+      });
+    } catch (error) {
+      console.error('messages: failed to create conversation from user query', error);
+    }
+  }
 
   const conversations = await getConversations(currentUser.id);
 

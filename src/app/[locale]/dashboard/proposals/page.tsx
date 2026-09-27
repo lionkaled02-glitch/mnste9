@@ -67,7 +67,7 @@ function ProposalRow({ proposal, currentUserId }: { proposal: DashboardProposalI
           {isOwner ? (
             <>
               <span>من المستقل:</span>
-              <Link href={`/freelancers/${proposal.counterpartId}`} className="font-semibold text-slate-700 hover:text-[#2386c8] hover:underline">{proposal.counterpartName}</Link>
+              <span className="font-semibold text-slate-700">{proposal.counterpartName}</span>
               {proposal.counterpartKycVerified && <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">KYC ✓</span>}
             </>
           ) : (
