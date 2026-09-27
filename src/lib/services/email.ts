@@ -1,3 +1,4 @@
+import { createElement } from 'react';
 import { Resend } from 'resend';
 
 import { EscrowReleasedEmail } from '@/lib/email/templates/escrow-released';
@@ -41,4 +42,21 @@ export async function sendNewMessageEmail(to: string, userName: string, senderNa
 
 export async function sendEscrowReleasedEmail(to: string, userName: string, amount: string | number, projectTitle: string) {
   await sendEmail({ to, subject: 'تم تحرير دفعة الضمان ✅', react: EscrowReleasedEmail({ userName, amount, projectTitle }) });
+}
+
+export async function sendContactEmail(input: { name: string; email: string; subject: string; message: string }) {
+  await sendEmail({
+    to: 'support@khadamat.com',
+    subject: `رسالة تواصل جديدة: ${input.subject}`,
+    react: createElement(
+      'div',
+      { style: { fontFamily: 'Arial, sans-serif', direction: 'rtl', lineHeight: 1.8, color: '#222' } },
+      createElement('h1', { style: { color: '#2386c8' } }, 'رسالة تواصل جديدة من خدمات'),
+      createElement('p', null, `الاسم: ${input.name}`),
+      createElement('p', null, `البريد: ${input.email}`),
+      createElement('p', null, `الموضوع: ${input.subject}`),
+      createElement('hr'),
+      createElement('p', { style: { whiteSpace: 'pre-wrap' } }, input.message),
+    ),
+  });
 }

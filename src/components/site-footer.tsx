@@ -68,22 +68,32 @@ export async function SiteFooter() {
             <ul className="mt-4 space-y-2.5">
               <li>
                 <Link href="/projects" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  تصفح المشاريع
+                  {t('browseProjects')}
                 </Link>
               </li>
               <li>
                 <Link href="/freelancers" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  تصفح المستقلين
+                  {t('freelancers')}
                 </Link>
               </li>
               <li>
                 <Link href="/projects/new" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  أضف مشروع
+                  {t('addProject')}
                 </Link>
               </li>
               <li>
                 <Link href="/about" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  عن منصة خدمات
+                  {t('aboutUs')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/faq" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  {t('faq')}
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  {t('contact')}
                 </Link>
               </li>
             </ul>
@@ -94,33 +104,33 @@ export async function SiteFooter() {
             <h3 className="text-[13px] font-bold text-[#222]">المساعدة والدعم</h3>
             <ul className="mt-4 space-y-2.5">
               <li>
-                <Link href="/help" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  الأسئلة الشائعة
+                <Link href="/faq" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  {t('faq')}
                 </Link>
               </li>
               <li>
                 <Link href="/help#guarantee" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  ضمان حقوقك
+                  {t('guarantee')}
                 </Link>
               </li>
               <li>
-                <Link href="/help#terms" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  شروط الاستخدام
+                <Link href="/terms" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  {t('terms')}
                 </Link>
               </li>
               <li>
-                <Link href="/help#privacy" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  سياسة الخصوصية
+                <Link href="/privacy" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  {t('privacy')}
                 </Link>
               </li>
               <li>
-                <Link href="/help#support" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  الدعم الفني
+                <Link href="/contact" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
+                  {t('support')}
                 </Link>
               </li>
               <li>
                 <Link href="/dashboard/wallet" className="text-[13px] text-[#666] transition hover:text-[#2386c8]">
-                  المحفظة والمدفوعات
+                  {t('wallet')}
                 </Link>
               </li>
             </ul>

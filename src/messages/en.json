@@ -526,5 +526,405 @@
     "markAllAsRead": "Mark all as read",
     "viewAll": "View all notifications",
     "loading": "Loading…"
+  },
+  "about": {
+    "metaTitle": "About Us | Khadamat",
+    "metaDescription": "Khadamat is the leading Arabic platform connecting clients with professional freelancers.",
+    "title": "About Us",
+    "heroDescription": "Khadamat is the leading Arabic platform connecting clients with professional freelancers.",
+    "vision": "Our Vision",
+    "visionText": "To become the leading Arabic freelance platform and empower every Arab professional to work from anywhere in the world.",
+    "mission": "Our Mission",
+    "missionText": "To connect clients with the best Arab freelancers and protect both parties through a secure escrow system.",
+    "values": "Our Values",
+    "valuesEyebrow": "What drives us?",
+    "valuesItems": [
+      {
+        "icon": "🔍",
+        "title": "Transparency",
+        "description": "We keep fees, milestones, and payment status clear with no hidden charges."
+      },
+      {
+        "icon": "🛡️",
+        "title": "Security",
+        "description": "We protect accounts and payments through verification, monitoring, and secure workflows."
+      },
+      {
+        "icon": "⭐",
+        "title": "Professionalism",
+        "description": "We promote quality through verified profiles, real reviews, and structured collaboration."
+      },
+      {
+        "icon": "💡",
+        "title": "Innovation",
+        "description": "We build modern tools that make Arabic freelancing easier and more reliable."
+      }
+    ],
+    "numbers": "Our Numbers",
+    "statsItems": [
+      {
+        "value": "+12,500",
+        "label": "Freelancers"
+      },
+      {
+        "value": "+8,900",
+        "label": "Projects"
+      },
+      {
+        "value": "98%",
+        "label": "Client satisfaction"
+      },
+      {
+        "value": "24/7",
+        "label": "Support"
+      }
+    ],
+    "whyEyebrow": "Why Khadamat?",
+    "whyTitle": "Everything you need to freelance with confidence",
+    "whyItems": [
+      {
+        "icon": "💰",
+        "title": "Escrow Guarantee",
+        "description": "Project funds stay protected until work is delivered and approved."
+      },
+      {
+        "icon": "🪪",
+        "title": "KYC Verification",
+        "description": "We increase trust by verifying freelancer identities before work."
+      },
+      {
+        "icon": "🔒",
+        "title": "Secure Payments",
+        "description": "Trusted payment channels and safeguards reduce risk for both parties."
+      },
+      {
+        "icon": "🕒",
+        "title": "24/7 Support",
+        "description": "Our support team is ready to help and resolve issues at any time."
+      },
+      {
+        "icon": "✅",
+        "title": "Verified Freelancers",
+        "description": "Work with professionals who have clear profiles and proven experience."
+      },
+      {
+        "icon": "🌍",
+        "title": "Arabic Community",
+        "description": "A platform built for local and regional market needs."
+      }
+    ],
+    "ctaTitle": "Join us today",
+    "ctaDescription": "Start your journey on Khadamat, whether you are a client seeking professional delivery or a freelancer seeking real opportunities.",
+    "ctaButton": "Create an account"
+  },
+  "faq": {
+    "metaTitle": "FAQ | Khadamat",
+    "metaDescription": "Clear answers to common questions about accounts, payments, KYC, contracts, and support on Khadamat.",
+    "title": "Frequently Asked Questions",
+    "subtitle": "Everything you need to use Khadamat confidently and easily.",
+    "searchPlaceholder": "Search questions...",
+    "all": "All",
+    "categories": {
+      "account": "Account",
+      "payment": "Payment",
+      "kyc": "KYC",
+      "contracts": "Contracts",
+      "support": "Support"
+    },
+    "noResults": "No matching results",
+    "ctaTitle": "Didn't find an answer?",
+    "ctaDescription": "Contact our support team and we will help you as soon as possible.",
+    "ctaButton": "Contact support",
+    "items": [
+      {
+        "id": "account",
+        "name": "Account",
+        "icon": "👤",
+        "items": [
+          {
+            "question": "How do I create an account on Khadamat?",
+            "answer": "Create an account from the registration page by entering your name, email, password, and choosing the account type that fits you as a client or freelancer."
+          },
+          {
+            "question": "Can I use the same account as a client and freelancer?",
+            "answer": "Yes. You can manage your profile and use platform features according to available permissions. Additional details may be required when working as a freelancer."
+          },
+          {
+            "question": "How can I edit my personal information?",
+            "answer": "After logging in, go to the dashboard and profile page to update your name, photo, city, skills, and bio."
+          },
+          {
+            "question": "What should I do if I forget my password?",
+            "answer": "Use the password recovery option on the login page and follow the instructions sent to your email."
+          },
+          {
+            "question": "Can I close my account?",
+            "answer": "You can request account closure through support, provided active contracts, payments, and disputes are settled first."
+          }
+        ]
+      },
+      {
+        "id": "payment",
+        "name": "Payment",
+        "icon": "💳",
+        "items": [
+          {
+            "question": "How does escrow work?",
+            "answer": "When a proposal is accepted, the project amount is held in Khadamat escrow and released to the freelancer only after delivery and client approval."
+          },
+          {
+            "question": "What payment methods are available?",
+            "answer": "Khadamat supports local and international payment methods depending on availability, including wallets, transfers, and approved electronic options."
+          },
+          {
+            "question": "Are there commissions on projects?",
+            "answer": "The platform may apply a clear service fee shown in payment details before confirmation. We do not add hidden fees."
+          },
+          {
+            "question": "When does a freelancer receive earnings?",
+            "answer": "Freelancers receive earnings after delivery approval and escrow release, then they can request withdrawal using available methods."
+          },
+          {
+            "question": "What happens if a project is cancelled?",
+            "answer": "The process depends on project status and completion level. Funds may be returned to the client or distributed according to dispute resolution."
+          }
+        ]
+      },
+      {
+        "id": "kyc",
+        "name": "KYC",
+        "icon": "🪪",
+        "items": [
+          {
+            "question": "Why do I need identity verification?",
+            "answer": "Verification builds trust, reduces fraud, and protects clients and freelancers across the platform."
+          },
+          {
+            "question": "What documents are required for KYC?",
+            "answer": "We may request a valid identity document, a selfie, or additional information for security and compliance checks."
+          },
+          {
+            "question": "How long does KYC review take?",
+            "answer": "Reviews are usually completed quickly, but timing may vary depending on document clarity and request volume."
+          },
+          {
+            "question": "What if my KYC request is rejected?",
+            "answer": "You will see rejection reasons when available, then you can correct details or upload clearer documents and submit again."
+          }
+        ]
+      },
+      {
+        "id": "contracts",
+        "name": "Contracts",
+        "icon": "📄",
+        "items": [
+          {
+            "question": "How does a contract start?",
+            "answer": "A contract starts after a project is posted, a proposal is submitted and accepted, and payment is confirmed in escrow."
+          },
+          {
+            "question": "Can the work scope be changed after starting?",
+            "answer": "Both parties may agree to change scope or duration. Any changes should be documented in platform messages."
+          },
+          {
+            "question": "How is work delivered?",
+            "answer": "The freelancer submits delivery from the contract page with files or links. The client reviews and either accepts or requests changes."
+          },
+          {
+            "question": "What happens if a dispute occurs?",
+            "answer": "A dispute can be opened so the Khadamat team reviews messages, deliveries, and agreements before making a fair decision."
+          },
+          {
+            "question": "Can a contract be ended early?",
+            "answer": "Yes, in cases of mutual agreement or work failure. Payments are handled based on progress and platform rules."
+          }
+        ]
+      },
+      {
+        "id": "support",
+        "name": "Support",
+        "icon": "🎧",
+        "items": [
+          {
+            "question": "How do I contact support?",
+            "answer": "Use the contact page or dashboard support links, explain the issue clearly, and attach relevant details."
+          },
+          {
+            "question": "What are support working hours?",
+            "answer": "Support receives requests 24/7. Response speed may vary depending on case priority."
+          },
+          {
+            "question": "Do you help clients choose freelancers?",
+            "answer": "Support can guide you on posting projects and filtering proposals, but the final hiring decision remains with the client."
+          }
+        ]
+      }
+    ]
+  },
+  "privacy": {
+    "metaTitle": "Privacy Policy | Khadamat",
+    "metaDescription": "Learn how Khadamat collects, uses, and protects your data.",
+    "title": "Privacy Policy",
+    "subtitle": "We are committed to protecting your privacy and explaining how your data is handled clearly and transparently.",
+    "lastUpdated": "Last updated: September 27, 2026",
+    "tocTitle": "Policy contents",
+    "contactTitle": "Have a privacy question?",
+    "contactText": "If you want to exercise your rights or ask about how your data is processed, contact us through the contact page.",
+    "contactButton": "Contact us",
+    "sections": [
+      {
+        "title": "Introduction",
+        "body": "This Privacy Policy explains how Khadamat, available at khadamat.com, collects, uses, and protects personal data when you use our services. By using the platform, you acknowledge that you have read and understood this policy."
+      },
+      {
+        "title": "Data we collect",
+        "body": "We may collect account data such as name, email, phone number, and city; professional profile data such as skills and bio; identity verification data when required; and project, proposal, contract, payment, and technical usage records."
+      },
+      {
+        "title": "How we use data",
+        "body": "We use your data to create accounts, operate services, manage projects and contracts, process payments, improve user experience, prevent fraud, comply with legal requirements, and send service-related notifications."
+      },
+      {
+        "title": "Data protection",
+        "body": "We apply appropriate administrative and technical safeguards such as access controls, encryption where suitable, monitoring sensitive activity, and limiting data access to staff or systems that need it to provide the service."
+      },
+      {
+        "title": "Data sharing",
+        "body": "We do not sell your personal data. We may share limited data with trusted providers such as email, payment, hosting, analytics, or legal parties where required by law or to protect the platform and users."
+      },
+      {
+        "title": "Your rights",
+        "body": "You may request access, correction, deletion, or restriction of your data where applicable. We may need to retain some data for legal compliance, dispute resolution, fraud prevention, or financial rights protection."
+      },
+      {
+        "title": "Cookies",
+        "body": "We may use cookies and similar technologies to maintain sessions, improve performance, measure usage, and personalize experience. Browser settings can control cookies, though some features may be affected."
+      },
+      {
+        "title": "Data retention",
+        "body": "We retain data while your account is active or as needed to provide services, meet legal obligations, resolve disputes, prevent fraud, or enforce agreements."
+      },
+      {
+        "title": "Updates",
+        "body": "We may update this policy from time to time. The updated version will be posted on this page, and we may notify you of material changes affecting your rights or data use."
+      },
+      {
+        "title": "Contact",
+        "body": "For privacy or data protection questions, contact us at support@khadamat.com or through the contact page."
+      }
+    ]
+  },
+  "terms": {
+    "metaTitle": "Terms of Use | Khadamat",
+    "metaDescription": "Read Khadamat terms covering accounts, payments, contracts, intellectual property, liability, and disputes.",
+    "title": "Terms of Use",
+    "subtitle": "These terms govern your relationship with Khadamat and explain the rights and obligations of all users.",
+    "lastUpdated": "Last updated: September 27, 2026",
+    "tocTitle": "Terms contents",
+    "contactTitle": "Need clarification?",
+    "contactText": "If you have a question about these terms or how they apply to your case, contact support.",
+    "contactButton": "Contact us",
+    "sections": [
+      {
+        "title": "Introduction",
+        "body": "Welcome to Khadamat. By using khadamat.com or any of our services, you agree to comply with these terms and related policies."
+      },
+      {
+        "title": "Acceptance of terms",
+        "body": "If you do not agree to these terms, you must not use the platform. Continued use after updates are posted constitutes acceptance of the updated version."
+      },
+      {
+        "title": "Account",
+        "body": "You are responsible for accurate account information and keeping login details confidential. You must not impersonate others or use misleading information. Identity verification may be required for certain services or permissions."
+      },
+      {
+        "title": "Permitted use",
+        "body": "You agree to use the platform for lawful and professional purposes only. Fraudulent, abusive, rights-infringing content or attempts to bypass payment systems or communicate outside the platform to avoid fees or protections are prohibited."
+      },
+      {
+        "title": "Payments and fees",
+        "body": "Payments are processed through escrow and available payment methods. The platform may apply service fees clearly displayed before completion. Releases depend on delivery approval or dispute decisions."
+      },
+      {
+        "title": "Intellectual property",
+        "body": "Freelancers retain rights to their work until agreed payment is received unless otherwise agreed in writing. After payment, the client receives the rights agreed within the project scope."
+      },
+      {
+        "title": "Liability",
+        "body": "We aim to provide a secure and reliable platform, but we do not guarantee work outcomes or uninterrupted availability. Users remain responsible for their decisions, agreements, and content."
+      },
+      {
+        "title": "Disputes",
+        "body": "When a disagreement occurs, both parties should first attempt an amicable resolution. If that fails, a dispute may be opened for Khadamat to review available evidence and make a fair decision where possible."
+      },
+      {
+        "title": "Termination",
+        "body": "We may suspend or terminate accounts for violations, suspected fraud, or misuse. Users may request account closure after active obligations are settled."
+      },
+      {
+        "title": "Governing law",
+        "body": "These terms are governed by applicable laws and regulations in the platform's operating scope, considering consumer protection and e-commerce rules where applicable."
+      },
+      {
+        "title": "Updates",
+        "body": "We may amend these terms to improve services or comply with legal requirements. The updated version will be posted here and continued use means acceptance."
+      },
+      {
+        "title": "Contact",
+        "body": "For questions about these terms or legal notices, contact support@khadamat.com or use the contact page."
+      }
+    ]
+  },
+  "contact": {
+    "metaTitle": "Contact Us | Khadamat",
+    "metaDescription": "Contact the Khadamat team for support with accounts, projects, payments, or verification.",
+    "title": "Contact Us",
+    "subtitle": "Our team is ready to help you.",
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "subject": "Subject",
+      "message": "Message",
+      "submit": "Send",
+      "submitting": "Sending...",
+      "success": "✓ Your message has been sent. We will contact you soon.",
+      "invalid": "Invalid data. Please review the fields.",
+      "error": "Sending failed. Please try again later."
+    },
+    "info": {
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "hours": "Working hours"
+    },
+    "infoEyebrow": "Contact information",
+    "infoTitle": "We are close to you",
+    "infoDescription": "Choose the right channel and we will respond as soon as possible.",
+    "infoItems": [
+      {
+        "icon": "📧",
+        "label": "Email",
+        "value": "support@khadamat.com",
+        "dir": "ltr"
+      },
+      {
+        "icon": "📱",
+        "label": "Phone",
+        "value": "+967 77X XXX XXX",
+        "dir": "ltr"
+      },
+      {
+        "icon": "📍",
+        "label": "Address",
+        "value": "Aden, Yemen"
+      },
+      {
+        "icon": "🕒",
+        "label": "Working hours",
+        "value": "24/7"
+      }
+    ],
+    "promiseTitle": "Our promise",
+    "promiseText": "We treat every message seriously and provide clear answers that help you work confidently on Khadamat."
   }
 }
