@@ -43,6 +43,7 @@ import {
 } from '@/lib/services/escrow.service';
 import { sendEscrowReleasedEmail, sendProposalAcceptedEmail } from '@/lib/services/email';
 import { createNotification } from '@/lib/services/notifications';
+import { sendPushToUser } from '@/lib/services/push';
 
 /* ============================================================================
  * أدوات داخلية
@@ -253,6 +254,12 @@ export async function createContract(
       type: 'success',
       link: `/dashboard/contracts/${result.id}`,
     });
+    await sendPushToUser(proposal.freelancerId, {
+      title: 'تم قبول عرضك ✅',
+      body: `تم قبول عرضك على "${proposal.projectTitle}"`,
+      url: `/ar/dashboard/contracts/${result.id}`,
+      tag: `contract-${result.id}`,
+    });
     await Promise.all(
       rejectedProposalOwners
         .filter((owner) => owner.freelancerId !== proposal.freelancerId)
@@ -358,6 +365,12 @@ export async function releasePayment(
       message: `تم تحرير $${netAmount.toFixed(2)} إلى محفظتك.`,
       type: 'success',
       link: '/dashboard/wallet',
+    });
+    await sendPushToUser(contract.freelancerId, {
+      title: 'تم تحرير دفعة الضمان ✅',
+      body: `تم تحرير $${netAmount.toFixed(2)} إلى محفظتك.`,
+      url: '/ar/dashboard/wallet',
+      tag: `payment-${contract.id}`,
     });
     if (freelancer) await sendEscrowReleasedEmail(freelancer.email, freelancer.name, netAmount.toFixed(2), project?.title ?? 'مشروع');
 

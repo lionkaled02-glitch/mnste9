@@ -748,7 +748,20 @@
     "empty": "No notifications",
     "markAllAsRead": "Mark all as read",
     "viewAll": "View all notifications",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "push": {
+      "title": "🔔 Mobile notifications",
+      "subtitle": "Receive alerts instantly on your device.",
+      "enabled": "Notifications are enabled on this device.",
+      "disabled": "Enable notifications to receive alerts instantly.",
+      "enable": "Enable notifications",
+      "disable": "Disable notifications",
+      "loading": "...",
+      "notSupported": "Your browser does not support notifications. Try Chrome or Firefox.",
+      "permissionDenied": "You did not allow notifications. You can enable them from browser settings.",
+      "notConfigured": "Notification settings are incomplete.",
+      "error": "Something went wrong. Please try again later."
+    }
   },
   "about": {
     "metaTitle": "About Us | Khadamat",

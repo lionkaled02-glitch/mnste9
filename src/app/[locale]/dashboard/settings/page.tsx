@@ -20,6 +20,7 @@ import { Link } from '@/i18n/navigation';
 import { eq } from 'drizzle-orm';
 
 import { notificationPreferenceAction } from '@/app/actions/profile';
+import { EnablePushButton } from '@/components/notifications/enable-push-button';
 import { db } from '@/db';
 import { users } from '@/db/schema';
 import { getCurrentUser } from '@/lib/auth';
@@ -403,7 +404,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
       {/* ==================== تبويب الإشعارات ==================== */}
       {activeTab === 'notifications' && (
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="space-y-6">
+          <EnablePushButton />
+          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">تفضيلات الإشعارات</h2>
           <p className="mt-1 text-sm text-slate-500">
             اختر قنوات استقبال تحديثات العروض والمعاملات المهمة.
@@ -469,7 +472,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               }
             />
           </div>
-        </section>
+          </section>
+        </div>
       )}
     </div>
   );
