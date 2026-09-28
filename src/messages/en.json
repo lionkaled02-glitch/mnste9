@@ -1233,5 +1233,11 @@
       "thanksYes": "🎉 Thanks! We are glad it was helpful.",
       "thanksNo": "📝 Thanks for your feedback. We will improve this article."
     }
+  },
+  "contracts": {
+    "deliveryFiles": {
+      "title": "Delivery files",
+      "download": "Download"
+    }
   }
 }
