@@ -5,6 +5,7 @@
 import type { Metadata } from 'next';
 import { Link } from '@/i18n/navigation';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 
 import { getCurrentUser } from '@/lib/auth';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -68,6 +69,9 @@ export default async function ContractDetailsPage({ params }: Props) {
 
   const contract = await getContractById(contractId);
   if (!contract) notFound();
+
+  const tDelivery = await getTranslations('contracts.deliveryFiles');
+  const deliveryFiles = contract.status === 'pending_delivery' || contract.status === 'completed' ? contract.deliveryFiles : [];
 
   const isClient = currentUser.id === contract.clientId;
   const isFreelancer = currentUser.id === contract.freelancerId;
@@ -144,6 +148,27 @@ export default async function ContractDetailsPage({ params }: Props) {
           </section>
 
           {canDeliver && <DeliveryForm contractId={contract.id} />}
+          {deliveryFiles.length > 0 && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-[#222]">📦 {tDelivery('title')}</h2>
+              <ul className="mt-4 space-y-2">
+                {deliveryFiles.map((file, index) => (
+                  <li key={`${file.url}-${index}`} className="flex flex-col gap-3 rounded-lg bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-sm font-semibold text-[#222]">{file.name}</span>
+                    <a
+                      href={file.url}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded-lg bg-[#2386c8] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#1a6da8]"
+                    >
+                      {tDelivery('download')}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {canRelease && <ReleasePaymentCard contractId={contract.id} netAmount={contract.netAmount} freelancerName={contract.freelancerName} />}
           {contract.status === 'completed' && (
             <div className="rounded-[12px] border border-emerald-200 bg-emerald-50 p-5">
