@@ -34,7 +34,7 @@ import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 import { db } from '@/db';
-import { contracts, projects, proposals, users, wallets } from '@/db/schema';
+import { conversations as conversationsTable, contracts, messages as messagesTable, projects, proposals, users, wallets } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
 import {
   ESCROW_DEFAULT_COMMISSION,
@@ -42,6 +42,7 @@ import {
   releaseFunds,
 } from '@/lib/services/escrow.service';
 import { sendEscrowReleasedEmail, sendProposalAcceptedEmail } from '@/lib/services/email';
+import { uploadToImageKit, type UploadResult } from '@/lib/services/imagekit';
 import { createNotification } from '@/lib/services/notifications';
 import { sendPushToUser } from '@/lib/services/push';
 
@@ -63,6 +64,63 @@ function parseId(value: unknown): number | null {
         : Number.NaN;
   if (!Number.isSafeInteger(num) || num <= 0) return null;
   return num;
+}
+
+
+function isFileLike(value: FormDataEntryValue): value is File {
+  return typeof File !== 'undefined' && value instanceof File && value.size > 0;
+}
+
+function formatDeliveryFiles(files: UploadResult[]): string {
+  if (files.length === 0) return '';
+  const lines = files.map(
+    (file, index) => `${index + 1}. ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)\n${file.url}`,
+  );
+  return `\n📎 ملفات مرفقة:\n${lines.join('\n')}`;
+}
+
+function parseDeliveryFilesFromContent(content: string): DeliveryFile[] {
+  if (!content.includes('📎 ملفات مرفقة:')) return [];
+  const [, filesPart] = content.split('📎 ملفات مرفقة:');
+  if (!filesPart) return [];
+
+  const lines = filesPart
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const files: DeliveryFile[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const current = lines[index];
+    const next = lines[index + 1];
+    if (!current || !next || !/^https?:\/\//i.test(next)) continue;
+    const name = current.replace(/^\d+\.\s*/, '').replace(/\s*\([^)]*\)$/, '').trim() || `ملف ${files.length + 1}`;
+    files.push({ name, url: next });
+    index += 1;
+  }
+
+  return files;
+}
+
+async function getDeliveryFilesForContract(input: { projectId: number; clientId: number; freelancerId: number }): Promise<DeliveryFile[]> {
+  const rows = await db
+    .select({ content: messagesTable.content })
+    .from(messagesTable)
+    .innerJoin(conversationsTable, eq(messagesTable.conversationId, conversationsTable.id))
+    .where(
+      and(
+        eq(conversationsTable.projectId, input.projectId),
+        eq(messagesTable.senderId, input.freelancerId),
+        or(
+          and(eq(conversationsTable.participant1Id, input.clientId), eq(conversationsTable.participant2Id, input.freelancerId)),
+          and(eq(conversationsTable.participant1Id, input.freelancerId), eq(conversationsTable.participant2Id, input.clientId)),
+        ),
+      ),
+    )
+    .orderBy(desc(messagesTable.createdAt))
+    .limit(25);
+
+  return rows.flatMap((row) => parseDeliveryFilesFromContent(row.content));
 }
 
 /* ============================================================================
@@ -89,9 +147,15 @@ export interface ContractListItem {
   updatedAt: Date;
 }
 
+export interface DeliveryFile {
+  name: string;
+  url: string;
+}
+
 export interface ContractDetails extends ContractListItem {
   projectDescription: string;
   projectStatus: string;
+  deliveryFiles: DeliveryFile[];
 }
 
 /* ============================================================================
@@ -533,6 +597,10 @@ export async function getContractById(
       .limit(1),
   ]);
 
+  const deliveryFiles = row.status === 'pending_delivery' || row.status === 'completed'
+    ? await getDeliveryFilesForContract({ projectId: row.projectId, clientId: row.clientId, freelancerId: row.freelancerId })
+    : [];
+
   return {
     id: row.id,
     projectId: row.projectId,
@@ -553,6 +621,7 @@ export async function getContractById(
     releasedAt: row.releasedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    deliveryFiles,
   };
 }
 
@@ -588,6 +657,7 @@ export async function submitDeliveryAction(
   const contractId = parseId(formData.get('contractId'));
   const notes = (formData.get('notes') as string)?.trim() ?? '';
   const links = (formData.get('links') as string)?.trim() ?? '';
+  const files = formData.getAll('files').filter(isFileLike);
 
   if (!contractId) return { success: false, message: 'معرّف العقد غير صالح' };
   if (!notes || notes.length < 10) return { success: false, message: 'أدخل ملاحظات التسليم (10 أحرف على الأقل)' };
@@ -598,6 +668,18 @@ export async function submitDeliveryAction(
   if (contract.status !== 'active') return { success: false, message: `لا يمكن التسليم — حالة العقد: ${contract.status}` };
 
   try {
+    const uploadedFiles: UploadResult[] = [];
+    for (const file of files) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      uploadedFiles.push(
+        await uploadToImageKit(
+          buffer,
+          file.name || `contract-${contractId}-delivery-file`,
+          `/contracts/${contractId}/deliveries`,
+        ),
+      );
+    }
+
     // تفعيل pending_delivery — موجود في schema و CHECK constraint
     await db.update(contracts).set({ status: 'pending_delivery', updatedAt: new Date() }).where(eq(contracts.id, contractId));
 
@@ -612,7 +694,7 @@ export async function submitDeliveryAction(
     await db.insert(messages).values({
       conversationId: convId,
       senderId: currentUser.id,
-      content: `📦 تسليم مشروع: ${notes}${links ? `\n🔗 الروابط: ${links}` : ''}`,
+      content: `📦 تسليم مشروع: ${notes}${links ? `\n🔗 الروابط: ${links}` : ''}${formatDeliveryFiles(uploadedFiles)}`,
       isRead: false,
     });
 
