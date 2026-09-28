@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Link } from '@/i18n/navigation';
 import { getHelpArticle, HELP_ARTICLES } from '@/lib/help-content';
+
+import { ArticleFeedback } from './article-feedback';
 
 interface HelpArticlePageProps {
   params: Promise<{ slug: string }>;
@@ -39,15 +42,19 @@ export default async function HelpArticlePage({ params }: HelpArticlePageProps) 
 
   if (!article) notFound();
 
+  const relatedArticles = HELP_ARTICLES.filter((item) => item.category === article.category && item.slug !== article.slug).slice(0, 3);
+
   return (
     <main className="min-h-screen bg-white" dir="rtl">
       <section className="border-b border-slate-200 bg-gradient-to-b from-[#2386c8]/10 to-white">
         <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
-          <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
-            <Link href="/help" className="text-[#2386c8] hover:underline">مركز المساعدة</Link>
-            <span className="text-slate-300">/</span>
-            <span className="text-slate-500">{article.categoryLabel}</span>
-          </div>
+          <Breadcrumbs
+            items={[
+              { label: 'الرئيسية', href: '/' },
+              { label: 'مركز المساعدة', href: '/help' },
+              { label: article.title },
+            ]}
+          />
           <h1 className="mt-5 text-4xl font-extrabold leading-tight text-[#222] sm:text-5xl">{article.title}</h1>
           <p className="mt-5 text-lg leading-9 text-[#666]">{article.description}</p>
           <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold">
@@ -90,6 +97,28 @@ export default async function HelpArticlePage({ params }: HelpArticlePageProps) 
               </section>
             ))}
           </div>
+
+          <div className="mt-10">
+            <ArticleFeedback />
+          </div>
+
+          {relatedArticles.length > 0 && (
+            <section className="mt-12 border-t border-slate-200 pt-8">
+              <h2 className="mb-6 text-xl font-bold text-[#222]">مقالات ذات صلة</h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {relatedArticles.map((related) => (
+                  <Link
+                    key={related.slug}
+                    href={`/help/${related.slug}`}
+                    className="rounded-xl border border-slate-200 p-4 transition hover:border-[#2386c8] hover:shadow-lg"
+                  >
+                    <h3 className="font-bold leading-7 text-[#222]">{related.title}</h3>
+                    <p className="mt-2 text-xs text-slate-500">{related.readTime}</p>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
 
           <footer className="mt-10 rounded-[2rem] border border-[#2386c8]/20 bg-[#2386c8]/5 p-6">
             <h2 className="text-xl font-extrabold text-[#222]">هل تحتاج مساعدة إضافية؟</h2>

@@ -4,6 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 
 import { HELP_ARTICLES } from '@/lib/help-content';
+
+import { HelpSearch } from './help-search';
 import { buildMetadata, normalizeLocale } from '@/lib/seo/metadata';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -73,29 +75,7 @@ export default function HelpPage() {
             <p className="mt-2 text-sm leading-7 text-[#666]">اختر المقال المناسب وانتقل إلى صفحة مخصصة بتفاصيل منظمة وخطوات عملية.</p>
           </div>
 
-          <div className="divide-y divide-slate-200">
-            {HELP_ARTICLES.map((article, index) => (
-              <article key={article.slug} className="py-7">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-                      <span className="rounded-full bg-[#2386c8]/10 px-3 py-1 text-[#2386c8]">{article.categoryLabel}</span>
-                      <span className="text-slate-400">{article.readTime}</span>
-                    </div>
-                    <h3 className="mt-3 text-xl font-extrabold text-[#222]">
-                      <Link href={`/help/${article.slug}`} className="transition hover:text-[#2386c8]">
-                        {index + 1}. {article.title}
-                      </Link>
-                    </h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-7 text-[#666]">{article.description}</p>
-                  </div>
-                  <Link href={`/help/${article.slug}`} className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-[#222] transition hover:border-[#2386c8] hover:text-[#2386c8]">
-                    قراءة المقال
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+          <HelpSearch articles={HELP_ARTICLES} />
 
           <section className="mt-10 rounded-[2rem] bg-[#2386c8] p-8 text-white">
             <h2 className="text-2xl font-extrabold">لم تجد ما تبحث عنه؟</h2>

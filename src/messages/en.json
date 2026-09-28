@@ -1219,5 +1219,19 @@
   },
   "auth": {
     "twoFactor": {}
+  },
+  "help": {
+    "search": {
+      "placeholder": "Search articles...",
+      "empty": "No articles match \"{query}\"",
+      "readArticle": "Read article"
+    },
+    "feedback": {
+      "question": "Was this article helpful?",
+      "yes": "👍 Yes",
+      "no": "👎 No",
+      "thanksYes": "🎉 Thanks! We are glad it was helpful.",
+      "thanksNo": "📝 Thanks for your feedback. We will improve this article."
+    }
   }
 }
