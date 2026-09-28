@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useRef, useState, type FormEvent } from 'react';
 import {
   submitDeliveryAction,
   requestRevisionAction,
@@ -45,24 +45,48 @@ export function ReleasePaymentCard({ contractId, netAmount, freelancerName }: { 
 }
 
 export function DeliveryForm({ contractId }: { contractId: number }) {
-  const [state, formAction, isPending] = useActionState(submitDeliveryAction, INITIAL);
-  const [notes, setNotes] = useState('');
-  const [links, setLinks] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [fileCount, setFileCount] = useState(0);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!formRef.current) return;
+
+    setIsPending(true);
+    setMessage(null);
+
+    const formData = new FormData(formRef.current);
+
+    try {
+      const result = await submitDeliveryAction({ success: false }, formData);
+      if (result.success) {
+        setMessage({ type: 'success', text: result.message || 'تم تسليم المشروع بنجاح' });
+        formRef.current.reset();
+        setFileCount(0);
+      } else {
+        setMessage({ type: 'error', text: result.message || 'فشل التسليم' });
+      }
+    } catch (error) {
+      console.error('delivery submit failed', error);
+      setMessage({ type: 'error', text: 'حدث خطأ غير متوقع' });
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   return (
     <div className="rounded-[12px] border border-[#2386c8]/20 bg-[#2386c8]/[0.04] p-5">
       <h3 className="text-[13px] font-bold text-[#222]">تسليم المشروع</h3>
       <p className="mt-1 text-[11px] text-[#666]">أدخل ملاحظات التسليم وارفع الملفات أو أضف الروابط — سيتم إشعار العميل فوراً</p>
 
-      <form action={formAction} encType="multipart/form-data" className="mt-4 space-y-3">
+      <form ref={formRef} onSubmit={handleSubmit} className="mt-4 space-y-3">
         <input type="hidden" name="contractId" value={contractId} />
         <div>
           <label className="mb-1.5 block text-[11px] font-bold text-[#444]">ملاحظات التسليم</label>
           <textarea
             name="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
             required
             minLength={10}
             rows={4}
@@ -74,8 +98,6 @@ export function DeliveryForm({ contractId }: { contractId: number }) {
           <label className="mb-1.5 block text-[11px] font-bold text-[#444]">روابط العمل (اختياري)</label>
           <input
             name="links"
-            value={links}
-            onChange={(e) => setLinks(e.target.value)}
             placeholder="https://drive.google.com/... , https://github.com/..."
             className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 text-[12px] text-[#222] outline-none focus:border-[#2386c8] focus:ring-2 focus:ring-[#2386c8]/15"
             dir="ltr"
@@ -87,22 +109,27 @@ export function DeliveryForm({ contractId }: { contractId: number }) {
             name="files"
             type="file"
             multiple
+            accept="*/*"
             onChange={(e) => setFileCount(e.currentTarget.files?.length ?? 0)}
             className="block w-full rounded-[10px] border border-dashed border-[#2386c8]/30 bg-white px-3 py-2.5 text-[12px] text-[#444] file:me-3 file:rounded-[8px] file:border-0 file:bg-[#2386c8]/10 file:px-3 file:py-1.5 file:text-[11px] file:font-bold file:text-[#2386c8] hover:border-[#2386c8]"
           />
           <p className="mt-1.5 text-[10.5px] leading-5 text-[#777]">
-            تُرفع الملفات إلى ImageKit خارج خادم المنصة. {fileCount > 0 ? `تم اختيار ${fileCount} ملف/ملفات.` : 'يمكنك اختيار عدة ملفات بأي نوع.'}
+            أي نوع — أي حجم — متعددة. {fileCount > 0 ? `تم اختيار ${fileCount} ملف/ملفات.` : 'يمكنك اختيار عدة ملفات.'}
           </p>
         </div>
+        {message && (
+          <p className={`rounded-[10px] border px-3 py-2 text-[11px] ${message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+            {message.text}
+          </p>
+        )}
         <button
           type="submit"
           disabled={isPending}
           className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#2386c8] px-6 text-[12px] font-bold text-white hover:bg-[#1a6da8] disabled:opacity-60"
         >
-          {isPending ? 'جاري التسليم…' : 'تسليم المشروع 📦'}
+          {isPending ? '⏳ جارٍ التسليم...' : '📦 تسليم المشروع'}
         </button>
       </form>
-      <Message state={state} />
     </div>
   );
 }
