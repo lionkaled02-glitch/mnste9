@@ -537,7 +537,8 @@
       "activityLog": "سجل الأنشطة",
       "settings": "الإعدادات",
       "security": "الحماية",
-      "twoFactor": "التحقق الثنائي"
+      "twoFactor": "التحقق الثنائي",
+      "backup": "النسخ الاحتياطي"
     },
     "header": {
       "admin": "لوحة الإدارة",
@@ -702,6 +703,44 @@
     },
     "rateLimit": {
       "exceeded": "تم تجاوز الحد. حاول بعد قليل."
+    },
+    "backup": {
+      "title": "النسخ الاحتياطي",
+      "subtitle": "إنشاء واستعادة نسخ احتياطية من قاعدة البيانات",
+      "available": "النسخ المتاحة",
+      "storageNote": "النسخ محفوظة في السيرفر (storage/backups/) ولا يمكن الوصول إليها مباشرة من المتصفح",
+      "create": "إنشاء نسخة جديدة",
+      "creating": "جارٍ الإنشاء...",
+      "createdMessage": "تم إنشاء {filename} ({count} سجل)",
+      "createFailed": "فشل إنشاء النسخة",
+      "download": "تنزيل",
+      "restore": "استعادة",
+      "restoring": "جارٍ الاستعادة...",
+      "restoreSuccess": "✓ تم الاستعادة بنجاح",
+      "restoreFailed": "فشل الاستعادة",
+      "delete": "حذف",
+      "deleteConfirm": "حذف {filename}؟",
+      "deleteFailed": "فشل الحذف",
+      "empty": "لا توجد نسخ احتياطية",
+      "filename": "الاسم",
+      "size": "الحجم",
+      "date": "التاريخ",
+      "actions": "الإجراءات",
+      "confirmRestore": {
+        "title": "⚠️ تحذير",
+        "message": "استعادة النسخة سيؤدي إلى:",
+        "items": [
+          "حذف البيانات الحالية",
+          "استبدالها بالبيانات من النسخة",
+          "لا يمكن التراجع"
+        ],
+        "itemDelete": "حذف البيانات الحالية",
+        "itemReplace": "استبدالها بالبيانات من النسخة",
+        "itemIrreversible": "لا يمكن التراجع",
+        "typeInstruction": "للتأكيد النهائي اكتب: استعادة",
+        "confirm": "نعم، استعد",
+        "cancel": "إلغاء"
+      }
     }
   },
   "notifications": {

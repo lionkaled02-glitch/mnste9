@@ -21,6 +21,7 @@ const items = [
   { href: '/admin/activity-log', labelKey: 'activityLog', icon: '📜' },
   { href: '/admin/settings', labelKey: 'settings', icon: '⚙️' },
   { href: '/admin/security', labelKey: 'security', icon: '🔒' },
+  { href: '/admin/backup', labelKey: 'backup', icon: '💾' },
   { href: '/admin/security/2fa', labelKey: 'twoFactor', icon: '🔐' },
 ] as const;
 

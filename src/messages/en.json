@@ -537,7 +537,8 @@
       "activityLog": "Activity Log",
       "settings": "Settings",
       "security": "Security",
-      "twoFactor": "2FA"
+      "twoFactor": "2FA",
+      "backup": "Backup"
     },
     "header": {
       "admin": "Admin Panel",
@@ -702,6 +703,44 @@
     },
     "rateLimit": {
       "exceeded": "Rate limit exceeded. Please try again later."
+    },
+    "backup": {
+      "title": "Backup",
+      "subtitle": "Create and restore database backups",
+      "available": "Available backups",
+      "storageNote": "Backups are stored on the server (storage/backups/) and are not directly browser-accessible",
+      "create": "Create new backup",
+      "creating": "Creating...",
+      "createdMessage": "Created {filename} ({count} records)",
+      "createFailed": "Failed to create backup",
+      "download": "Download",
+      "restore": "Restore",
+      "restoring": "Restoring...",
+      "restoreSuccess": "✓ Restore completed successfully",
+      "restoreFailed": "Restore failed",
+      "delete": "Delete",
+      "deleteConfirm": "Delete {filename}?",
+      "deleteFailed": "Delete failed",
+      "empty": "No backups found",
+      "filename": "Filename",
+      "size": "Size",
+      "date": "Date",
+      "actions": "Actions",
+      "confirmRestore": {
+        "title": "⚠️ Warning",
+        "message": "Restoring this backup will:",
+        "items": [
+          "Delete current data",
+          "Replace it with data from the backup",
+          "This cannot be undone"
+        ],
+        "itemDelete": "Delete current data",
+        "itemReplace": "Replace it with data from the backup",
+        "itemIrreversible": "This cannot be undone",
+        "typeInstruction": "For final confirmation type: استعادة",
+        "confirm": "Yes, restore",
+        "cancel": "Cancel"
+      }
     }
   },
   "notifications": {
