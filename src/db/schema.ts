@@ -649,6 +649,32 @@ export const rateLimits = pgTable(
   ],
 );
 
+/* ---------------------------------------------------------------------------
+ * push_subscriptions — اشتراكات Push Notifications
+ * ------------------------------------------------------------------------- */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: identityId('id'),
+    userId: bigint('user_id', { mode: 'number' })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique('uq_push_endpoint').on(t.endpoint),
+    index('idx_push_user_id').on(t.userId),
+  ],
+);
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;
 /* ============================================================================
  * 3) العلاقات (Relations)
  * ========================================================================== */
