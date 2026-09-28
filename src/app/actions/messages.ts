@@ -9,6 +9,7 @@ import { getCurrentUser, type AuthActionState } from '@/lib/auth';
 import { sendNewMessageEmail } from '@/lib/services/email';
 import { getOrCreateConversation } from '@/lib/services/messages';
 import { createNotification } from '@/lib/services/notifications';
+import { sendPushToUser } from '@/lib/services/push';
 
 function parseId(v: unknown): number | null {
   const n = typeof v === 'string' ? Number(v) : typeof v === 'number' ? v : NaN;
@@ -81,6 +82,12 @@ export async function sendMessageAction(_prev: AuthActionState, formData: FormDa
       message: `رسالة جديدة من ${currentUser.name}: ${content.slice(0, 80)}`,
       type: 'info',
       link: `/dashboard/messages?conversationId=${conversationId}`,
+    });
+    await sendPushToUser(recipientId, {
+      title: `رسالة جديدة من ${currentUser.name}`,
+      body: content.slice(0, 100),
+      url: `/ar/dashboard/messages?conversationId=${conversationId}`,
+      tag: `message-${conversationId}`,
     });
     if (recipient) await sendNewMessageEmail(recipient.email, recipient.name, currentUser.name, content.slice(0, 140));
 

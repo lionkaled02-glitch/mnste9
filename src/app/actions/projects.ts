@@ -46,6 +46,7 @@ import {
 } from '@/lib/services/project-meta';
 import { sendNewProposalEmail } from '@/lib/services/email';
 import { createNotification } from '@/lib/services/notifications';
+import { sendPushToUser } from '@/lib/services/push';
 import { toNumeric } from '@/lib/utils';
 
 /* ============================================================================
@@ -307,13 +308,13 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
 
   // 6) الإدراج — مع معالجة سباق UNIQUE (23505) إن حدث بين الفحص والإدراج
   try {
-    await db.insert(proposals).values({
+    const [proposal] = await db.insert(proposals).values({
       projectId: project.id,
       freelancerId: currentUser.id,
       amount: toNumeric(parsed.data.amount),
       durationDays: parsed.data.durationDays,
       comment: parsed.data.comment || null,
-    });
+    }).returning({ id: proposals.id });
 
     const [client] = await db
       .select({ name: users.name, email: users.email })
@@ -327,6 +328,12 @@ export async function submitProposal(data: unknown): Promise<AuthActionState> {
       message: `تلقيت عرضاً بقيمة $${parsed.data.amount} على "${project.title}"`,
       type: 'info',
       link: `/projects/${project.id}`,
+    });
+    await sendPushToUser(project.clientId, {
+      title: 'عرض جديد على مشروعك',
+      body: `تلقيت عرضاً بقيمة $${parsed.data.amount} على "${project.title}"`,
+      url: `/ar/projects/${project.id}`,
+      tag: `proposal-${proposal.id}`,
     });
     if (client) await sendNewProposalEmail(client.email, client.name, project.title, parsed.data.amount, currentUser.name);
 

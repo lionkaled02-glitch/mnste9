@@ -54,6 +54,7 @@ import { encryptBuffer, encryptData } from '@/lib/crypto';
 import { KYC_ALLOWED_MIME_TYPES, KYC_MAX_FILE_SIZE_BYTES } from '@/lib/services/kyc-meta';
 import { getKycStatus as getKycStatusForUser } from '@/lib/services/kyc';
 import { createNotification } from '@/lib/services/notifications';
+import { sendPushToUser } from '@/lib/services/push';
 import { sendKYCApprovedEmail, sendKYCRejectedEmail } from '@/lib/services/email';
 
 /* ============================================================================
@@ -500,6 +501,12 @@ export async function reviewKyc(data: unknown): Promise<AuthActionState> {
         type: 'success',
         link: '/dashboard',
       });
+      await sendPushToUser(request.userId, {
+        title: 'تم توثيق هويتك ✅',
+        body: 'يمكنك الآن تقديم عروض وسحب الأرباح.',
+        url: '/ar/dashboard/kyc',
+        tag: `kyc-${request.userId}`,
+      });
       if (targetUser) await sendKYCApprovedEmail(targetUser.email, targetUser.name);
     } else {
       const rejectionReason = reason ?? 'الوثائق غير واضحة أو غير مطابقة';
@@ -509,6 +516,12 @@ export async function reviewKyc(data: unknown): Promise<AuthActionState> {
         message: `السبب: ${rejectionReason}`,
         type: 'error',
         link: '/dashboard/kyc',
+      });
+      await sendPushToUser(request.userId, {
+        title: 'تم رفض توثيق هويتك',
+        body: `السبب: ${rejectionReason}`,
+        url: '/ar/dashboard/kyc',
+        tag: `kyc-${request.userId}`,
       });
       if (targetUser) await sendKYCRejectedEmail(targetUser.email, targetUser.name, rejectionReason);
     }

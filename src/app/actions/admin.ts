@@ -12,6 +12,7 @@ import { getCurrentUser, hashPassword } from '@/lib/auth';
 import { decryptBuffer, decryptData } from '@/lib/crypto';
 import { sendKYCApprovedEmail, sendKYCRejectedEmail, sendPasswordResetEmail as sendPasswordResetEmailService } from '@/lib/services/email';
 import { createNotification } from '@/lib/services/notifications';
+import { sendPushToUser } from '@/lib/services/push';
 
 export type AdminActionResult = { success: boolean; message?: string };
 
@@ -208,6 +209,7 @@ export async function approveKycAction(formData: FormData): Promise<void> {
     await db.update(users).set({ isKycVerified: true }).where(eq(users.id, doc.userId));
     const [user] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, doc.userId)).limit(1);
     await createNotification({ userId: doc.userId, title: 'تم توثيق هويتك ✅', message: 'يمكنك الآن تقديم عروض وسحب الأرباح.', type: 'success', link: '/dashboard' });
+    await sendPushToUser(doc.userId, { title: 'تم توثيق هويتك ✅', body: 'يمكنك الآن تقديم عروض وسحب الأرباح.', url: '/ar/dashboard/kyc', tag: `kyc-${doc.userId}` });
     if (user) await sendKYCApprovedEmail(user.email, user.name);
   }
   revalidatePath('/admin/kyc');
@@ -225,6 +227,7 @@ export async function rejectKycAction(formData: FormData): Promise<void> {
     await db.update(users).set({ isKycVerified: false }).where(eq(users.id, doc.userId));
     const [user] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, doc.userId)).limit(1);
     await createNotification({ userId: doc.userId, title: 'تم رفض توثيق هويتك', message: `السبب: ${reason}`, type: 'error', link: '/dashboard/kyc' });
+    await sendPushToUser(doc.userId, { title: 'تم رفض توثيق هويتك', body: `السبب: ${reason}`, url: '/ar/dashboard/kyc', tag: `kyc-${doc.userId}` });
     if (user) await sendKYCRejectedEmail(user.email, user.name, reason);
   }
   revalidatePath('/admin/kyc');
@@ -707,6 +710,7 @@ export async function approveDepositAction(transactionId: number) {
   });
 
   await createNotification({ userId: transaction.userId, title: 'تم قبول إيداعك ✅', message: `تم إضافة $${transaction.amount} إلى محفظتك.`, type: 'success', link: '/dashboard/wallet' });
+  await sendPushToUser(transaction.userId, { title: 'تم قبول إيداعك ✅', body: `تم إضافة $${transaction.amount} إلى محفظتك.`, url: '/ar/dashboard/wallet', tag: `deposit-${transactionId}` });
   await createAuditLog({ adminId: admin.id, action: 'approve_deposit', targetType: 'transaction', targetId: transactionId });
   revalidatePath('/admin/wallet');
   revalidatePath('/dashboard/wallet');
@@ -722,6 +726,7 @@ export async function rejectDepositAction(transactionId: number, reason: string)
 
   await db.update(transactions).set({ status: 'failed', meta: { ...(transaction.meta ?? {}), rejectedBy: admin.id, rejectedAt: new Date().toISOString(), rejectionReason }, updatedAt: new Date() }).where(eq(transactions.id, transactionId));
   await createNotification({ userId: transaction.userId, title: 'تم رفض إيداعك', message: `السبب: ${rejectionReason}`, type: 'error', link: '/dashboard/wallet' });
+  await sendPushToUser(transaction.userId, { title: 'تم رفض إيداعك', body: `السبب: ${rejectionReason}`, url: '/ar/dashboard/wallet', tag: `deposit-${transactionId}` });
   await createAuditLog({ adminId: admin.id, action: 'reject_deposit', targetType: 'transaction', targetId: transactionId, metadata: { reason: rejectionReason } });
   revalidatePath('/admin/wallet');
   revalidatePath('/dashboard/wallet');
@@ -740,6 +745,7 @@ export async function approveWithdrawalAction(transactionId: number) {
   });
 
   await createNotification({ userId: transaction.userId, title: 'تمت الموافقة على سحبك ✅', message: `سيتم تحويل $${transaction.amount} إلى حسابك.`, type: 'success', link: '/dashboard/wallet' });
+  await sendPushToUser(transaction.userId, { title: 'تمت الموافقة على سحبك ✅', body: `سيتم تحويل $${transaction.amount} إلى حسابك.`, url: '/ar/dashboard/wallet', tag: `withdrawal-${transactionId}` });
   await createAuditLog({ adminId: admin.id, action: 'approve_withdrawal', targetType: 'transaction', targetId: transactionId });
   revalidatePath('/admin/withdrawals');
   revalidatePath('/admin/wallet');
@@ -756,6 +762,7 @@ export async function rejectWithdrawalAction(transactionId: number, reason: stri
 
   await db.update(transactions).set({ status: 'failed', meta: { ...(transaction.meta ?? {}), rejectedBy: admin.id, rejectedAt: new Date().toISOString(), rejectionReason }, updatedAt: new Date() }).where(eq(transactions.id, transactionId));
   await createNotification({ userId: transaction.userId, title: 'تم رفض طلب السحب', message: `السبب: ${rejectionReason}`, type: 'error', link: '/dashboard/wallet' });
+  await sendPushToUser(transaction.userId, { title: 'تم رفض طلب السحب', body: `السبب: ${rejectionReason}`, url: '/ar/dashboard/wallet', tag: `withdrawal-${transactionId}` });
   await createAuditLog({ adminId: admin.id, action: 'reject_withdrawal', targetType: 'transaction', targetId: transactionId, metadata: { reason: rejectionReason } });
   revalidatePath('/admin/withdrawals');
   revalidatePath('/admin/wallet');

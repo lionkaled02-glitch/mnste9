@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { db } from '@/db';
 import { transactions, users, wallets } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
+import { sendPushToUser } from '@/lib/services/push';
 import { toNumeric } from '@/lib/utils';
 
 function normalizeInput(data: unknown): Record<string, unknown> {
@@ -152,6 +153,12 @@ export async function requestDeposit(data: unknown): Promise<AuthActionState> {
       meta: parsed.data.senderName ? { senderName: parsed.data.senderName } : null,
     });
 
+    await sendPushToUser(gate.userId, {
+      title: 'تم تسجيل طلب الإيداع',
+      body: 'طلب الإيداع قيد المراجعة بانتظار اعتماد المشرف.',
+      url: '/ar/dashboard/wallet',
+      tag: 'wallet-deposit-request',
+    });
     revalidatePath('/dashboard/wallet');
     return {
       success: true,
@@ -208,6 +215,12 @@ export async function requestWithdrawal(data: unknown): Promise<AuthActionState>
         meta: { paypalEmail: parsed.data.paypalEmail },
       });
 
+      await sendPushToUser(gate.userId, {
+        title: 'تم تسجيل طلب السحب',
+        body: 'طلب السحب عبر PayPal قيد المراجعة بانتظار اعتماد المشرف.',
+        url: '/ar/dashboard/wallet',
+        tag: 'wallet-withdrawal-request',
+      });
       revalidatePath('/dashboard/wallet');
       return {
         success: true,
@@ -246,6 +259,12 @@ export async function requestWithdrawal(data: unknown): Promise<AuthActionState>
         },
       });
 
+      await sendPushToUser(gate.userId, {
+        title: 'تم تسجيل طلب السحب',
+        body: 'طلب السحب عبر بنك الكريمي قيد المراجعة بانتظار اعتماد المشرف.',
+        url: '/ar/dashboard/wallet',
+        tag: 'wallet-withdrawal-request',
+      });
       revalidatePath('/dashboard/wallet');
       return {
         success: true,
