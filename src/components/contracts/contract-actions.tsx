@@ -45,12 +45,6 @@ export function ReleasePaymentCard({ contractId, netAmount, freelancerName }: { 
 }
 
 export function DeliveryForm({ contractId }: { contractId: number }) {
- HEAD
-  const [state, formAction, isPending] = useActionState(submitDeliveryAction, INITIAL);
-  const [notes, setNotes] = useState('');
-  const [links, setLinks] = useState('');
-  const [fileCount, setFileCount] = useState(0);
-
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, setIsPending] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -81,18 +75,13 @@ export function DeliveryForm({ contractId }: { contractId: number }) {
       setIsPending(false);
     }
   };
-origin/arena/01a0c5b7-mnste9
 
   return (
     <div className="rounded-[12px] border border-[#2386c8]/20 bg-[#2386c8]/[0.04] p-5">
       <h3 className="text-[13px] font-bold text-[#222]">تسليم المشروع</h3>
       <p className="mt-1 text-[11px] text-[#666]">أدخل ملاحظات التسليم وارفع الملفات أو أضف الروابط — سيتم إشعار العميل فوراً</p>
 
-HEAD
-      <form action={formAction} encType="multipart/form-data" className="mt-4 space-y-3">
-
       <form ref={formRef} onSubmit={handleSubmit} className="mt-4 space-y-3">
-origin/arena/01a0c5b7-mnste9
         <input type="hidden" name="contractId" value={contractId} />
         <div>
           <label className="mb-1.5 block text-[11px] font-bold text-[#444]">ملاحظات التسليم</label>
@@ -120,19 +109,11 @@ origin/arena/01a0c5b7-mnste9
             name="files"
             type="file"
             multiple
-HEAD
-
             accept="*/*"
-origin/arena/01a0c5b7-mnste9
             onChange={(e) => setFileCount(e.currentTarget.files?.length ?? 0)}
             className="block w-full rounded-[10px] border border-dashed border-[#2386c8]/30 bg-white px-3 py-2.5 text-[12px] text-[#444] file:me-3 file:rounded-[8px] file:border-0 file:bg-[#2386c8]/10 file:px-3 file:py-1.5 file:text-[11px] file:font-bold file:text-[#2386c8] hover:border-[#2386c8]"
           />
           <p className="mt-1.5 text-[10.5px] leading-5 text-[#777]">
-HEAD
-            تُرفع الملفات إلى ImageKit خارج خادم المنصة. {fileCount > 0 ? `تم اختيار ${fileCount} ملف/ملفات.` : 'يمكنك اختيار عدة ملفات بأي نوع.'}
-          </p>
-        </div>
-
             أي نوع — أي حجم — متعددة. {fileCount > 0 ? `تم اختيار ${fileCount} ملف/ملفات.` : 'يمكنك اختيار عدة ملفات.'}
           </p>
         </div>
@@ -141,7 +122,6 @@ HEAD
             {message.text}
           </p>
         )}
-origin/arena/01a0c5b7-mnste9
         <button
           type="submit"
           disabled={isPending}
