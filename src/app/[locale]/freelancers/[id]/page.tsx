@@ -119,9 +119,7 @@ export default async function FreelancerDetailPage({ params }: Props) {
                   {freelancer.role === 'client' && (
                     <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-800">صاحب عمل</span>
                   )}
-                  {freelancer.role === 'admin' && (
-                    <span className="rounded-full bg-red-100 px-3 py-1.5 text-xs font-bold text-red-800">مشرف المنصة</span>
-                  )}
+                  
                   {freelancer.isKycVerified && (
                     <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-bold text-white">موثّق</span>
                   )}
