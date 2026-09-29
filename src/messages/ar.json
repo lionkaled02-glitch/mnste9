@@ -1252,5 +1252,11 @@
       "title": "ملفات التسليم",
       "download": "تنزيل"
     }
+  },
+  "messages": {
+    "attachedFiles": "📎 الملفات المرفقة:",
+    "sendPlaceholder": "اكتب رسالتك...",
+    "send": "إرسال",
+    "sending": "جارٍ الإرسال..."
   }
 }

@@ -1252,5 +1252,11 @@
       "title": "Delivery files",
       "download": "Download"
     }
+  },
+  "messages": {
+    "attachedFiles": "📎 Attached files:",
+    "sendPlaceholder": "Type your message...",
+    "send": "Send",
+    "sending": "Sending..."
   }
 }

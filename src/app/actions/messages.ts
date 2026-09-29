@@ -1,15 +1,23 @@
 'use server';
 
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
 import { db } from '@/db';
 import { conversations, messages, users } from '@/db/schema';
 import { getCurrentUser, type AuthActionState } from '@/lib/auth';
+
 import { sendNewMessageEmail } from '@/lib/services/email';
 import { getOrCreateConversation } from '@/lib/services/messages';
 import { createNotification } from '@/lib/services/notifications';
 import { sendPushToUser } from '@/lib/services/push';
+
+type MessageActionState = {
+  success: boolean;
+  message?: unknown;
+  conversationId?: number;
+  redirectTo?: string;
+};
 
 function parseId(v: unknown): number | null {
   const n = typeof v === 'string' ? Number(v) : typeof v === 'number' ? v : NaN;
@@ -17,7 +25,10 @@ function parseId(v: unknown): number | null {
   return n;
 }
 
-export async function sendMessageAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState & { conversationId?: number }> {
+export async function sendMessageAction(
+  _prev: { success: boolean; message?: unknown },
+  formData: FormData,
+): Promise<MessageActionState> {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, message: 'سجّل دخولك أولاً', redirectTo: '/login' };
@@ -51,16 +62,23 @@ export async function sendMessageAction(_prev: AuthActionState, formData: FormDa
       });
     }
 
-    // verify membership
     const [conv] = await db
       .select({ id: conversations.id, participant1Id: conversations.participant1Id, participant2Id: conversations.participant2Id })
       .from(conversations)
-      .where(eq(conversations.id, conversationId))
+      .where(
+        and(
+          eq(conversations.id, conversationId),
+          or(
+            eq(conversations.participant1Id, currentUser.id),
+            eq(conversations.participant2Id, currentUser.id),
+          ),
+        ),
+      )
       .limit(1);
     if (!conv) return { success: false, message: 'المحادثة غير موجودة' };
     const recipientId = conv.participant1Id === currentUser.id ? conv.participant2Id : conv.participant1Id;
 
-    await db
+    const [newMessage] = await db
       .insert(messages)
       .values({
         conversationId,
@@ -68,7 +86,7 @@ export async function sendMessageAction(_prev: AuthActionState, formData: FormDa
         content,
         isRead: false,
       })
-      .returning({ id: messages.id });
+      .returning();
 
     await db
       .update(conversations)
@@ -94,7 +112,7 @@ export async function sendMessageAction(_prev: AuthActionState, formData: FormDa
     revalidatePath('/dashboard/messages');
     revalidatePath(`/dashboard/messages?conversationId=${conversationId}`);
 
-    return { success: true, message: 'تم الإرسال', conversationId, redirectTo: `/dashboard/messages?conversationId=${conversationId}` };
+    return { success: true, message: newMessage, conversationId, redirectTo: `/dashboard/messages?conversationId=${conversationId}` };
   } catch (e) {
     console.error('sendMessage failed', e);
     return { success: false, message: e instanceof Error ? e.message : 'فشل إرسال الرسالة' };

@@ -73,9 +73,7 @@ function isFileLike(value: FormDataEntryValue): value is File {
 
 function formatDeliveryFiles(files: UploadResult[]): string {
   if (files.length === 0) return '';
-  const lines = files.map(
-    (file, index) => `${index + 1}. ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)\nb2:${file.key}`,
-  );
+  const lines = files.map((file) => `- ${file.name} (key: b2:${file.key})`);
   return `\n📎 ملفات مرفقة:\n${lines.join('\n')}`;
 }
 
@@ -93,7 +91,15 @@ function parseDeliveryFilesFromContent(content: string): DeliveryFile[] {
   for (let index = 0; index < lines.length; index += 1) {
     const current = lines[index];
     const next = lines[index + 1];
-    if (!current || !next) continue;
+    if (!current) continue;
+
+    const inlineMatch = current.match(/^-\s*(.+?)\s*\(key:\s*b2:([^)]+)\)$/);
+    if (inlineMatch) {
+      files.push({ name: inlineMatch[1].trim(), key: inlineMatch[2].trim() });
+      continue;
+    }
+
+    if (!next) continue;
 
     const name = current.replace(/^\d+\.\s*/, '').replace(/\s*\([^)]*\)$/, '').trim() || `ملف ${files.length + 1}`;
 

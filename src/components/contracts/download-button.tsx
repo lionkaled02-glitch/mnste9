@@ -14,7 +14,8 @@ export function DownloadButton({
   const handleClick = async () => {
     setLoading(true);
     try {
-      const encodedKey = fileKey.split('/').map(encodeURIComponent).join('/');
+      const normalizedKey = fileKey.startsWith('b2:') ? fileKey.slice(3) : fileKey;
+      const encodedKey = normalizedKey.split('/').map(encodeURIComponent).join('/');
       const res = await fetch(
         `/api/download/${encodedKey}?name=${encodeURIComponent(fileName)}`,
       );

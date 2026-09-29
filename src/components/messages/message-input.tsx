@@ -2,9 +2,9 @@
 
 import { useActionState, useState, useEffect, useRef } from 'react';
 import { sendMessageAction } from '@/app/actions/messages';
-import type { AuthActionState } from '@/lib/auth';
+type MessageInputState = { success: boolean; message?: unknown };
 
-const INITIAL: AuthActionState = { success: false };
+const INITIAL: MessageInputState = { success: false };
 
 export function MessageInput({ conversationId, otherUserId, projectId }: { conversationId?: number; otherUserId?: number; projectId?: number | null }) {
   const [state, formAction, isPending] = useActionState(sendMessageAction, INITIAL);
@@ -42,8 +42,8 @@ export function MessageInput({ conversationId, otherUserId, projectId }: { conve
           disabled={isPending}
           className="max-h-[120px] min-h-[44px] w-full resize-none rounded-[12px] border border-gray-200 bg-[#f4f5f7] px-4 py-3 text-[13px] text-[#222] placeholder-[#999] outline-none focus:border-[#2386c8] focus:bg-white focus:ring-2 focus:ring-[#2386c8]/15 disabled:opacity-60"
         />
-        {state.message && !state.success && (
-          <p className="absolute -top-6 start-0 text-[11px] text-red-600">{state.message}</p>
+        {Boolean(state.message) && !state.success && (
+          <p className="absolute -top-6 start-0 text-[11px] text-red-600">{typeof state.message === 'string' ? state.message : 'فشل إرسال الرسالة'}</p>
         )}
       </div>
 
