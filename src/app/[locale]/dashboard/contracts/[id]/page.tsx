@@ -12,6 +12,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { getContractById } from '@/app/actions/contracts';
 import { EscrowProgress } from '@/components/contracts/escrow-progress';
 import { DeliveryForm, RevisionForm, DisputeForm, ReleasePaymentCard } from '@/components/contracts/contract-actions';
+import { DownloadButton } from '@/components/contracts/download-button';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -153,17 +154,21 @@ export default async function ContractDetailsPage({ params }: Props) {
               <h2 className="text-xl font-bold text-[#222]">📦 {tDelivery('title')}</h2>
               <ul className="mt-4 space-y-2">
                 {deliveryFiles.map((file, index) => (
-                  <li key={`${file.url}-${index}`} className="flex flex-col gap-3 rounded-lg bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <li key={`${file.key ?? file.url ?? file.name}-${index}`} className="flex flex-col gap-3 rounded-lg bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-sm font-semibold text-[#222]">{file.name}</span>
-                    <a
-                      href={file.url}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center rounded-lg bg-[#2386c8] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#1a6da8]"
-                    >
-                      {tDelivery('download')}
-                    </a>
+                    {file.key ? (
+                      <DownloadButton fileKey={file.key} fileName={file.name} />
+                    ) : file.url ? (
+                      <a
+                        href={file.url}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center rounded-lg bg-[#2386c8] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#1a6da8]"
+                      >
+                        {tDelivery('download')}
+                      </a>
+                    ) : null}
                   </li>
                 ))}
               </ul>
