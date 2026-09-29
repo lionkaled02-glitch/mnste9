@@ -123,8 +123,8 @@ export async function releaseFunds(
       .for('update');
 
     if (!contract) throw new Error('العقد غير موجود');
-    if (contract.status !== 'active') {
-      throw new Error('العقد ليس في حالة نشطة — لا يمكن تحرير الدفعة');
+    if (contract.status !== 'active' && contract.status !== 'pending_delivery') {
+      throw new Error('العقد ليس في حالة قابلة للتحرير — لا يمكن تحرير الدفعة');
     }
 
     const totalAmount = toNumber(contract.amount);
