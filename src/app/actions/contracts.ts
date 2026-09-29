@@ -42,7 +42,7 @@ import {
   releaseFunds,
 } from '@/lib/services/escrow.service';
 import { sendEscrowReleasedEmail, sendProposalAcceptedEmail } from '@/lib/services/email';
-import { uploadToImageKit, type UploadResult } from '@/lib/services/imagekit';
+import { uploadToB2, type UploadResult } from '@/lib/services/b2-storage';
 import { createNotification } from '@/lib/services/notifications';
 import { sendPushToUser } from '@/lib/services/push';
 
@@ -74,7 +74,7 @@ function isFileLike(value: FormDataEntryValue): value is File {
 function formatDeliveryFiles(files: UploadResult[]): string {
   if (files.length === 0) return '';
   const lines = files.map(
-    (file, index) => `${index + 1}. ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)\n${file.url}`,
+    (file, index) => `${index + 1}. ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)\nb2:${file.key}`,
   );
   return `\n📎 ملفات مرفقة:\n${lines.join('\n')}`;
 }
@@ -93,10 +93,21 @@ function parseDeliveryFilesFromContent(content: string): DeliveryFile[] {
   for (let index = 0; index < lines.length; index += 1) {
     const current = lines[index];
     const next = lines[index + 1];
-    if (!current || !next || !/^https?:\/\//i.test(next)) continue;
+    if (!current || !next) continue;
+
     const name = current.replace(/^\d+\.\s*/, '').replace(/\s*\([^)]*\)$/, '').trim() || `ملف ${files.length + 1}`;
-    files.push({ name, url: next });
-    index += 1;
+
+    if (next.startsWith('b2:')) {
+      const key = next.slice(3).trim();
+      if (key) files.push({ name, key });
+      index += 1;
+      continue;
+    }
+
+    if (/^https?:\/\//i.test(next)) {
+      files.push({ name, url: next });
+      index += 1;
+    }
   }
 
   return files;
@@ -149,7 +160,8 @@ export interface ContractListItem {
 
 export interface DeliveryFile {
   name: string;
-  url: string;
+  key?: string;
+  url?: string;
 }
 
 export interface ContractDetails extends ContractListItem {
@@ -672,10 +684,11 @@ export async function submitDeliveryAction(
     for (const file of files) {
       const buffer = Buffer.from(await file.arrayBuffer());
       uploadedFiles.push(
-        await uploadToImageKit(
+        await uploadToB2(
           buffer,
           file.name || `contract-${contractId}-delivery-file`,
-          `/contracts/${contractId}/deliveries`,
+          `contracts/${contractId}/deliveries`,
+          file.type || 'application/octet-stream',
         ),
       );
     }
