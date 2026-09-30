@@ -10,9 +10,34 @@ interface Props {
   name: string;
   email: string;
   initial: string;
+  avatarUrl?: string | null;
 }
 
-export function SiteHeaderDropdown({ name, email, initial }: Props) {
+function UserAvatar({ name, initial, avatarUrl, size = 'button' }: { name: string; initial: string; avatarUrl?: string | null; size?: 'button' | 'menu' }) {
+  const [failed, setFailed] = useState(false);
+  const sizeClass = size === 'menu' ? 'h-10 w-10' : 'h-8 w-8';
+
+  if (avatarUrl && !failed) {
+    return (
+      <span className={`relative flex ${sizeClass} shrink-0 overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200`}>
+        <img
+          src={avatarUrl}
+          alt={name}
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      </span>
+    );
+  }
+
+  return (
+    <span className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-full bg-[#2386c8] text-sm font-bold text-white`}>
+      {initial}
+    </span>
+  );
+}
+
+export function SiteHeaderDropdown({ name, email, initial, avatarUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -43,13 +68,11 @@ export function SiteHeaderDropdown({ name, email, initial }: Props) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2 py-1.5 pl-3 shadow-sm transition hover:border-emerald-300 hover:shadow"
+        className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2 py-1.5 pl-3 shadow-sm transition hover:border-[#2386c8]/40 hover:shadow"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
-          {initial}
-        </span>
+        <UserAvatar name={name} initial={initial} avatarUrl={avatarUrl} />
         <span className="hidden max-w-[120px] truncate text-sm font-semibold text-gray-700 sm:block">
           {name}
         </span>
@@ -65,12 +88,15 @@ export function SiteHeaderDropdown({ name, email, initial }: Props) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-          <div className="border-b border-gray-100 p-3">
-            <p className="truncate text-sm font-bold text-gray-900">{name}</p>
-            <p dir="ltr" className="truncate text-left text-xs text-gray-500">
-              {email}
-            </p>
+        <div className="absolute left-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+          <div className="flex items-center gap-3 border-b border-gray-100 p-3">
+            <UserAvatar name={name} initial={initial} avatarUrl={avatarUrl} size="menu" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-gray-900">{name}</p>
+              <p dir="ltr" className="truncate text-left text-xs text-gray-500">
+                {email}
+              </p>
+            </div>
           </div>
           <nav className="p-1.5">
             <Link

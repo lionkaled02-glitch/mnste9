@@ -4,7 +4,7 @@
  * ============================================================================
  *  - يستخدم Link من @/i18n/navigation بدلاً من next/link
  *    ليضيف بادئة اللغة /ar تلقائياً ويحل مشكلة 404
- *  - المسارات: /projects -> /ar/projects, /projects/new, /login, /register
+ *  - المسارات: /projects -> /ar/projects, /login, /register
  *  - يحافظ على force-dynamic و unread counts
  * ============================================================================
  */
@@ -13,7 +13,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { and, eq, ne, count } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { messages, notifications } from '@/db/schema';
+import { messages, notifications, users } from '@/db/schema';
 import { getCurrentUser } from '@/lib/auth';
 import { Link } from '@/i18n/navigation';
 
@@ -54,24 +54,31 @@ export async function SiteHeader() {
   const navLinks = [
     { href: '/projects' as const, label: 'تصفح المشاريع' },
     { href: '/freelancers' as const, label: 'المستقلين' },
-    { href: '/projects/new' as const, label: 'إضافة مشروع' },
   ];
 
   const mobileLinks = [
     { href: '/projects' as const, label: 'تصفح المشاريع' },
     { href: '/freelancers' as const, label: 'المستقلين' },
-    { href: '/projects/new' as const, label: 'إضافة مشروع' },
     { href: '/help' as const, label: 'مركز المساعدة' },
     { href: '/about' as const, label: 'عن منصة خدمات' },
   ];
 
   let unreadNotifications = 0;
   let unreadMessages = 0;
+  let avatarUrl: string | null = null;
 
   if (currentUser) {
-    const counts = await getUnreadCounts(currentUser.id);
+    const [counts, profile] = await Promise.all([
+      getUnreadCounts(currentUser.id),
+      db
+        .select({ avatarUrl: users.avatarUrl })
+        .from(users)
+        .where(eq(users.id, currentUser.id))
+        .limit(1),
+    ]);
     unreadNotifications = counts.notifications;
     unreadMessages = counts.messages;
+    avatarUrl = profile[0]?.avatarUrl ?? null;
   }
 
   return (
@@ -80,9 +87,6 @@ export async function SiteHeader() {
         {/* يمين — الشعار + روابط */}
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#2386c8] text-[16px] font-extrabold text-white shadow-sm">
-              خ
-            </span>
             <span className="text-[22px] font-extrabold tracking-tight text-[#222]">خدمات</span>
           </Link>
 
@@ -156,16 +160,7 @@ export async function SiteHeader() {
                 )}
               </Link>
 
-              {/* زر أضف مشروع بارز */}
-              <Link
-                href="/projects/new"
-                className="hidden h-9 items-center justify-center gap-1 rounded-md bg-[#2386c8] px-4 text-[13px] font-bold text-white shadow-sm transition hover:bg-[#1a6da8] sm:inline-flex"
-              >
-                <span className="text-[16px] leading-none">+</span>
-                <span>أضف مشروع</span>
-              </Link>
-
-              <SiteHeaderDropdown name={currentUser.name} email={currentUser.email} initial={initial} />
+              <SiteHeaderDropdown name={currentUser.name} email={currentUser.email} initial={initial} avatarUrl={avatarUrl} />
             </>
           ) : (
             <>
