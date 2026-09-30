@@ -178,6 +178,22 @@ export async function createProject(data: unknown): Promise<AuthActionState> {
     };
   }
 
+  if (currentUser.role === 'freelancer') {
+    const [account] = await db
+      .select({ isKycVerified: users.isKycVerified })
+      .from(users)
+      .where(eq(users.id, currentUser.id))
+      .limit(1);
+
+    if (!account?.isKycVerified) {
+      return {
+        success: false,
+        message: 'يجب توثيق هويتك أولاً قبل النشر',
+        redirectTo: '/dashboard/kyc',
+      };
+    }
+  }
+
   // 2) التحقق من المدخلات
   const parsed = createProjectSchema.safeParse(normalizeInput(data));
   if (!parsed.success) {

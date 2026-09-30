@@ -381,6 +381,22 @@ export async function uploadKycDocuments(
  * (services/kyc.ts) مباشرة بنفس الاسم — هذا الغلاف للوفاء بواجهة
  * الإجراءات (يُستدعى من العملاء/السلاسل الأخرى إن لزم).
  */
+export async function getLatestKycDocument(userId: number) {
+  const [document] = await db
+    .select({
+      id: kycDocuments.id,
+      status: kycDocuments.status,
+      rejectionReason: kycDocuments.rejectionReason,
+      createdAt: kycDocuments.createdAt,
+    })
+    .from(kycDocuments)
+    .where(eq(kycDocuments.userId, userId))
+    .orderBy(desc(kycDocuments.createdAt))
+    .limit(1);
+
+  return document ?? null;
+}
+
 export async function getKycStatus() {
   const currentUser = await getCurrentUser();
   if (!currentUser) return null;
