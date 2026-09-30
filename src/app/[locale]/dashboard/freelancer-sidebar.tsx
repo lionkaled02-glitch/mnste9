@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 const BASE_FREELANCER_NAV_ITEMS = [
   { href: '/dashboard', label: 'نظرة عامة' },
+  { href: '/projects/new', label: 'أضف مشروع' },
   { href: '/dashboard/projects', label: 'المشاريع' },
   { href: '/dashboard/proposals', label: 'العروض' },
   { href: '/dashboard/contracts', label: 'العقود' },

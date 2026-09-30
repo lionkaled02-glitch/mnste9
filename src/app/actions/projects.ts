@@ -170,11 +170,11 @@ export async function createProject(data: unknown): Promise<AuthActionState> {
       redirectTo: '/login',
     };
   }
-  if (currentUser.role !== 'client' && currentUser.role !== 'admin') {
+  if (currentUser.role !== 'client' && currentUser.role !== 'freelancer') {
     return {
       success: false,
-      message: 'نشر المشاريع متاح لأصحاب العمل. يمكنك الترقية من الإعدادات.',
-      redirectTo: '/dashboard/become-freelancer',
+      message: 'نشر المشاريع متاح للمستخدمين من أصحاب العمل والمستقلين.',
+      redirectTo: '/dashboard',
     };
   }
 

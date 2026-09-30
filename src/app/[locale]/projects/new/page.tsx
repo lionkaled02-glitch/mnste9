@@ -27,6 +27,19 @@ export default async function NewProjectPage() {
     );
   }
 
+  if (currentUser.role === 'admin') {
+    return (
+      <div className="flex min-h-screen flex-col bg-slate-50">
+        <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-16 text-center">
+          <p className="text-lg font-bold text-slate-800">نشر المشاريع متاح لحسابات العملاء والمستقلين.</p>
+          <Link href="/dashboard" className="mt-6 inline-block rounded-lg bg-[#2386c8] px-8 py-3 text-sm font-semibold text-white hover:bg-[#1a6da8]">
+            العودة للوحة التحكم
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
