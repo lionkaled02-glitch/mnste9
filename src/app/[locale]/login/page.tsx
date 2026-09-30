@@ -40,41 +40,24 @@ export default function LoginPage() {
   const passwordError = state.fieldErrors?.password?.[0];
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#f8fafc] via-white to-[#e0f2fe] px-4 py-12">
-      <div className="w-full max-w-md">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#f0f7fc] via-white to-[#e0f2fe] px-4 py-12">
+      <div className="pointer-events-none absolute -right-40 -top-40 h-96 w-96 rounded-full bg-[#2386c8]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-[#2386c8]/5 blur-3xl" />
+      <div className="relative w-full max-w-lg">
         {/* الشعار */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#2386c8] shadow-lg shadow-[#2386c8]/20">
-            <svg
-              className="h-8 w-8 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.8}
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M20 7 12 3 4 7v10l8 4 8-4V7Z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m4 7 8 4 8-4M12 21V11"
-              />
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2386c8] to-[#1a6da8] shadow-lg shadow-[#2386c8]/25">
+            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7 12 3 4 7v10l8 4 8-4V7Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4 7 8 4 8-4M12 21V11" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            خدمات
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            منصة العمل الحر العربية — سجّل الدخول لمتابعة أعمالك
-          </p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#222]">خدمات</h1>
+          <p className="mt-2 text-sm text-[#666]">منصة العمل الحر العربية — سجّل الدخول لمتابعة أعمالك</p>
         </div>
 
         {/* البطاقة */}
-        <section className="rounded-2xl border border-[#2386c8]/20 bg-white p-8 shadow-xl shadow-[#2386c8]/10">
+        <section className="rounded-2xl border border-[#2386c8]/15 bg-white p-8 shadow-2xl shadow-[#2386c8]/10">
           <h2 className="mb-6 text-xl font-bold text-gray-900">
             تسجيل الدخول
           </h2>
@@ -140,24 +123,40 @@ export default function LoginPage() {
               ) : null}
             </div>
 
+            <div className="flex items-center justify-between">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[#444]">
+                <input
+                  type="checkbox"
+                  name="remember"
+                  className="h-4 w-4 rounded border-gray-300 text-[#2386c8] focus:ring-[#2386c8]"
+                />
+                تذكرني
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-[#2386c8] hover:text-[#1a6da8] hover:underline"
+              >
+                نسيت كلمة المرور؟
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={isPending}
-              className="w-full rounded-lg bg-[#2386c8] px-4 py-3 font-semibold text-white transition hover:bg-[#1a6da8] focus:outline-none focus:ring-2 focus:ring-[#2386c8] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg bg-[#2386c8] px-4 py-3 font-bold text-white shadow-md shadow-[#2386c8]/20 transition hover:bg-[#1a6da8] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isPending ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-500">
-            ليس لديك حساب؟{' '}
-            <Link
-              href="/register"
-              className="font-semibold text-[#2386c8] hover:text-[#1a6da8] hover:underline"
-            >
-              أنشئ حساباً جديداً
-            </Link>
-          </p>
+          <div className="mt-6 border-t border-gray-100 pt-6">
+            <p className="text-center text-sm text-[#666]">
+              ليس لديك حساب؟{' '}
+              <Link href="/register" className="font-bold text-[#2386c8] hover:text-[#1a6da8] hover:underline">
+                أنشئ حساباً جديداً
+              </Link>
+            </p>
+          </div>
         </section>
 
         <p className="mt-8 text-center text-xs text-gray-400">
