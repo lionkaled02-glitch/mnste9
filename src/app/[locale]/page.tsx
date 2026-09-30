@@ -2,7 +2,7 @@
  * ============================================================================
  *  خدمات — الصفحة الرئيسية المحدثة 100% بأسلوب مستقل / Upwork
  * ============================================================================
- *  - Hero: عنوان جذاب + بحث سريع + CTA + شارات ثقة KYC Escrow Kuraimi PayPal
+ *  - Hero: عنوان جذاب + بحث سريع + CTA
  *  - Categories Grid: 8 أقسام بطاقات
  *  - How It Works: خطوات للعميل + خطوات للمستقل
  *  - Escrow & Security Showcase (قسم «تقنيات الحماية») — مخفي حالياً عبر
@@ -184,12 +184,6 @@ export default async function HomePage() {
         <div className="absolute inset-0 -z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#2386c8]/[0.06] via-transparent to-transparent" />
         <div className="relative mx-auto max-w-7xl px-4 py-14 sm:py-16 lg:py-24">
           <div className="mx-auto max-w-4xl text-center">
-            {/* شارة علوية صغيرة */}
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#2386c8]/15 bg-[#2386c8]/5 px-3.5 py-1.5 text-[12px] font-medium text-[#2386c8]">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[#2386c8]" />
-              منصة العمل الحر العربية الأولى في اليمن
-            </div>
-
             <h1 className="text-[30px] font-extrabold leading-[1.25] tracking-tight text-[#222] sm:text-[38px] lg:text-[48px]">
               {t('heroTitle').includes('عن بُعد') ? (
                 <>
@@ -262,48 +256,7 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            {/* شارات ثقة */}
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-2.5">
-              <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-[#f4f5f7] px-3.5 py-2 text-[12.5px] font-medium text-[#444]">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                </span>
-                {t('trustBadges.kyc')}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-[#f4f5f7] px-3.5 py-2 text-[12.5px] font-medium text-[#444]">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2386c8]/10 text-[#2386c8]">
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
-                  </svg>
-                </span>
-                {t('trustBadges.escrow')}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-[#f4f5f7] px-3.5 py-2 text-[12.5px] font-medium text-[#444]">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-                  </svg>
-                </span>
-                {t('trustBadges.payments')}
-              </span>
-            </div>
 
-            {/* إحصائيات سريعة */}
-            <div className="mt-12 grid grid-cols-2 gap-3 rounded-[14px] border border-gray-100 bg-[#fcfcfc] p-3 sm:grid-cols-4 sm:p-4">
-              {[
-                { value: '12,500+', label: t('stats.freelancers') },
-                { value: '8,900+', label: t('stats.projects') },
-                { value: '98%', label: t('stats.satisfaction') },
-                { value: '24/7', label: t('stats.support') },
-              ].map((stat) => (
-                <div key={stat.label} className="rounded-[10px] bg-white px-3 py-3 text-center shadow-sm border border-gray-100">
-                  <div className="text-[18px] font-extrabold text-[#222]">{stat.value}</div>
-                  <div className="mt-0.5 text-[11px] font-medium text-[#888]">{stat.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </section>
