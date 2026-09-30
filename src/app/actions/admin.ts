@@ -96,7 +96,7 @@ export async function getAdminDashboard() {
     db.select({ value: count() }).from(contracts).where(eq(contracts.status, 'completed')),
     db.select({ value: sql<string>`coalesce(sum(${contracts.commission}), 0)` }).from(contracts).where(eq(contracts.status, 'completed')),
     db.select({ value: sql<string>`coalesce(sum(${contracts.commission}), 0)` }).from(contracts).where(sql`${contracts.status} = 'completed' and ${contracts.updatedAt} >= date_trunc('month', now())`),
-    db.select({ value: sql<string>`coalesce(sum(${contracts.amount}), 0)` }).from(contracts).where(sql`${contracts.status} in ('active', 'pending_delivery')`),
+    db.select({ value: sql<string>`coalesce(sum(${contracts.amount}), 0)` }).from(contracts).where(sql`${contracts.status} in ('active', 'pending_delivery', 'disputed')`),
     db.select({ value: count() }).from(kycDocuments).where(eq(kycDocuments.status, 'pending')),
     db.select({ value: count() }).from(transactions).where(and(eq(transactions.type, 'withdrawal'), eq(transactions.status, 'pending'))),
     db.select({ value: count() }).from(contracts).where(eq(contracts.status, 'disputed')),
