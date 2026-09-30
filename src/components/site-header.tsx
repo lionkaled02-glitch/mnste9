@@ -57,10 +57,13 @@ export async function SiteHeader() {
   ];
 
   const mobileLinks = [
-    { href: '/projects' as const, label: 'تصفح المشاريع' },
-    { href: '/freelancers' as const, label: 'المستقلين' },
-    { href: '/help' as const, label: 'مركز المساعدة' },
-    { href: '/about' as const, label: 'عن منصة خدمات' },
+    { href: '/projects/new', label: 'أضف مشروع', icon: '➕' },
+    { href: '/dashboard/proposals', label: 'عروضي', icon: '📝' },
+    { href: '/dashboard/profile/portfolio', label: 'أعمالي', icon: '💼' },
+    { href: '/projects', label: 'تصفح المشاريع', icon: '🏠' },
+    { href: '/freelancers', label: 'تصفح المستقلين', icon: '👥' },
+    { href: '/help', label: 'مركز المساعدة', icon: '❓' },
+    { href: '/about', label: 'عن منصة خدمات', icon: 'ℹ️' },
   ];
 
   let unreadNotifications = 0;
