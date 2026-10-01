@@ -41,7 +41,11 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex-1 bg-slate-50">
-      <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr]">
+      {/* عرض العمود يتبع متغير CSS تحدّثه القائمة الجانبية عند الطي/الفتح */}
+      <div
+        className="grid grid-cols-1 lg:grid-cols-[var(--dashboard-sidebar-width,250px)_1fr]"
+        style={{ transition: 'grid-template-columns 300ms' }}
+      >
         {/* القائمة الجانبية — يمين الشاشة على الحواسيب، وأعلى الصفحة على الجوال */}
         <DashboardSidebar role={currentUser?.role ?? null} setupComplete={setupComplete} isKycVerified={Boolean(currentUser?.isKycVerified)} />
 

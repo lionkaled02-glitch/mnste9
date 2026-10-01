@@ -1,10 +1,14 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from '@/i18n/navigation';
 import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
+
+// مفتاح حفظ حالة طي القائمة الجانبية في localStorage
+const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 const BASE_FREELANCER_NAV_ITEMS = [
   { href: '/dashboard', label: 'نظرة عامة', icon: 'home' },
@@ -47,6 +51,30 @@ function NavIcon({ name }: { name: string }) {
 
 export function FreelancerSidebar({ setupComplete = true, isKycVerified = false }: { setupComplete?: boolean; isKycVerified?: boolean }) {
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // قراءة الحالة المحفوظة مرة واحدة بعد التحميل (تعمل في المتصفح فقط)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true') {
+        setIsCollapsed(true);
+      }
+    } catch {
+      // تجاهل تعذّر الوصول إلى localStorage (وضع التصفح الخاص مثلاً)
+    }
+  }, []);
+
+  // حفظ الحالة عند كل تغيير + تحديث عرض عمود القائمة في التخطيط
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
+    } catch {
+      // تجاهل تعذّر الكتابة إلى localStorage
+    }
+    document.documentElement.style.setProperty('--dashboard-sidebar-width', isCollapsed ? '72px' : '250px');
+  }, [isCollapsed]);
+
   const filteredItems = BASE_FREELANCER_NAV_ITEMS.filter((item) => !(isKycVerified && item.href === '/dashboard/kyc'));
   const navItems = setupComplete
     ? filteredItems
@@ -61,27 +89,57 @@ export function FreelancerSidebar({ setupComplete = true, isKycVerified = false 
   };
 
   return (
-    <aside className="border-b border-slate-200 bg-white lg:border-b-0 lg:border-l">
-      <div className="flex h-16 items-center border-b border-slate-100 px-4 lg:px-5">
-        <div>
+    <aside className="border-b border-slate-200 bg-white transition-all duration-300 lg:border-b-0 lg:border-l">
+      <div className={cn('flex h-16 items-center justify-between border-b border-slate-100 px-4 lg:px-5', isCollapsed && 'lg:justify-center')}>
+        <div className={cn(isCollapsed && 'lg:hidden')}>
           <p className="text-sm font-bold text-slate-900">لوحة المستقل</p>
           <p className="text-xs text-slate-400">خدمات</p>
         </div>
+
+        {/* زر طي/فتح القائمة — يظهر على الشاشات الكبيرة فقط */}
+        <button
+          type="button"
+          onClick={() => setIsCollapsed((previous) => !previous)}
+          aria-label={isCollapsed ? 'فتح القائمة' : 'طي القائمة'}
+          aria-expanded={!isCollapsed}
+          title={isCollapsed ? 'فتح القائمة' : 'طي القائمة'}
+          className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 lg:inline-flex"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+            {isCollapsed ? (
+              // RTL: عند الطي يشير لليسار (اتجاه التوسّع)
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            ) : (
+              // RTL: عند الفتح يشير لليمين (اتجاه الطي)
+              <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+            )}
+          </svg>
+        </button>
       </div>
 
-      <nav className="flex gap-1 overflow-x-auto p-3 lg:flex-col lg:overflow-x-visible" aria-label="تنقل لوحة المستقل">
+      <nav
+        className={cn('flex gap-1 overflow-x-auto p-3 transition-all duration-300 lg:flex-col lg:overflow-x-visible', isCollapsed && 'lg:px-2')}
+        aria-label="تنقل لوحة المستقل"
+      >
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
+            title={isCollapsed ? item.label : undefined}
             aria-current={isActive(item.href) ? 'page' : undefined}
             className={cn(
-              'flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition',
+              'flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-all duration-300',
+              isCollapsed && 'lg:justify-center',
               isActive(item.href) ? 'bg-[#2386c8]/10 font-semibold text-[#2386c8]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
             )}
           >
             <NavIcon name={'icon' in item ? (item.icon as string) : 'home'} />
-            <span>{item.label}</span>
+            {!isCollapsed ? (
+              <span>{item.label}</span>
+            ) : (
+              // الجوال (< lg) لا يتأثر بالطي: تبقى النصوص ظاهرة هناك
+              <span className="lg:hidden">{item.label}</span>
+            )}
           </Link>
         ))}
       </nav>
